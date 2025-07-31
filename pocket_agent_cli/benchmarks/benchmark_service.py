@@ -8,7 +8,7 @@ from pathlib import Path
 from datetime import datetime
 from dataclasses import dataclass, asdict
 import time
-from ..config import DATA_DIR, BENCHMARK_MODES, AVAILABLE_TOOLS, SUBMIT_TOOL, BenchmarkMode
+from ..config import DATA_DIR, BENCHMARK_MODES, AVAILABLE_TOOLS, SUBMIT_TOOL, BenchmarkMode, BenchmarkConfig
 from ..services import InferenceService
 from ..tools import ToolExecutor
 # from ..monitoring import SystemMonitor
@@ -41,6 +41,8 @@ class BenchmarkProblemResult:
     cold_start: bool = False
     context_length_used: int = 0
     inter_token_latencies: List[float] = None
+    run_id: int = 0  # For pass@k tracking
+    temperature: float = 0.7  # Temperature used for this run
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
@@ -63,9 +65,19 @@ class BenchmarkSession:
     problems: List[BenchmarkProblemResult] = None
     system_metrics: List[Dict[str, Any]] = None
     aggregate_stats: Optional[Dict[str, Any]] = None
+    config: Optional[BenchmarkConfig] = None  # Configuration used
+    pass_at_k: Optional[Dict[int, Dict[str, Any]]] = None  # Pass@k results per problem
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
+        # Handle config conversion with Path objects
+        config_dict = None
+        if self.config:
+            config_dict = self.config.model_dump()
+            # Convert Path objects to strings
+            if 'output_dir' in config_dict and hasattr(config_dict['output_dir'], '__fspath__'):
+                config_dict['output_dir'] = str(config_dict['output_dir'])
+        
         data = {
             "session_id": self.session_id,
             "model_id": self.model_id,
@@ -75,6 +87,8 @@ class BenchmarkSession:
             "problems": [p.to_dict() for p in (self.problems or [])],
             "system_metrics": self.system_metrics,
             "aggregate_stats": self.aggregate_stats,
+            "config": config_dict,
+            "pass_at_k": self.pass_at_k,
         }
         return data
 
@@ -82,8 +96,9 @@ class BenchmarkSession:
 class BenchmarkService:
     """Service for running and evaluating benchmarks."""
     
-    def __init__(self, inference_service: InferenceService):
+    def __init__(self, inference_service: InferenceService, config: Optional[BenchmarkConfig] = None):
         self.inference_service = inference_service
+        self.config = config
         self.tool_executor = ToolExecutor()
         self.system_monitor = SimpleMonitor()  # Using simple monitor for now
         self.dataset_path = DATA_DIR / "mbpp_sample.json"
@@ -91,17 +106,34 @@ class BenchmarkService:
     
     def _load_dataset(self) -> List[Dict[str, Any]]:
         """Load MBPP dataset."""
-        if not self.dataset_path.exists():
-            # Use the sample dataset we created
-            sample_path = Path(__file__).parent.parent / "data" / "mbpp_sample.json"
-            if sample_path.exists():
-                with open(sample_path, "r") as f:
-                    return json.load(f)
-            else:
-                return []
+        # Try to load from the data directory first
+        if self.dataset_path.exists():
+            with open(self.dataset_path, "r") as f:
+                return json.load(f)
         
-        with open(self.dataset_path, "r") as f:
-            return json.load(f)
+        # Check for full dataset
+        full_dataset_path = Path(__file__).parent.parent / "data" / "mbpp_full.json"
+        if full_dataset_path.exists():
+            print(f"Loading full MBPP dataset ({full_dataset_path})")
+            with open(full_dataset_path, "r") as f:
+                return json.load(f)
+        
+        # Check for test dataset
+        test_dataset_path = Path(__file__).parent.parent / "data" / "mbpp_test.json"
+        if test_dataset_path.exists():
+            print(f"Loading test MBPP dataset ({test_dataset_path})")
+            with open(test_dataset_path, "r") as f:
+                return json.load(f)
+        
+        # Fall back to sample dataset
+        sample_path = Path(__file__).parent.parent / "data" / "mbpp_sample.json"
+        if sample_path.exists():
+            print(f"Warning: Using sample dataset with only 3 problems. Run download_mbpp.py for full dataset.")
+            with open(sample_path, "r") as f:
+                return json.load(f)
+        
+        print("Error: No MBPP dataset found!")
+        return []
     
     async def run_benchmark(
         self,
@@ -577,3 +609,160 @@ class BenchmarkService:
             }
             for p in self.problems
         ]
+    
+    def _calculate_pass_at_k(self, n: int, c: int, k: int) -> float:
+        """Calculate pass@k metric.
+        
+        Args:
+            n: total number of samples
+            c: number of correct samples
+            k: k in pass@k
+            
+        Returns:
+            pass@k score
+        """
+        if n - c < k:
+            return 1.0
+        
+        import math
+        return 1.0 - math.prod(1.0 - k / i for i in range(n - c + 1, n + 1))
+    
+    async def run_benchmark_with_config(
+        self,
+        config: BenchmarkConfig,
+        progress_callback: Optional[callable] = None,
+    ) -> BenchmarkSession:
+        """Run benchmark with pass@k support using configuration.
+        
+        Args:
+            config: Benchmark configuration
+            progress_callback: Callback for progress updates
+            
+        Returns:
+            Benchmark session with pass@k results
+        """
+        if config.mode not in BENCHMARK_MODES:
+            raise ValueError(f"Invalid mode: {config.mode}")
+        
+        benchmark_mode = BENCHMARK_MODES[config.mode]
+        
+        # Create session
+        session = BenchmarkSession(
+            session_id=f"bench_{config.model_name}_{config.mode}_{int(datetime.now().timestamp())}",
+            model_id=self.inference_service.current_model.id,
+            mode=config.mode,
+            start_time=datetime.now(),
+            problems=[],
+            config=config,
+            pass_at_k={},
+        )
+        
+        # Start monitoring if enabled
+        if config.system_monitoring:
+            self.system_monitor.start_monitoring()
+        
+        try:
+            # Select problems
+            if config.problem_ids:
+                problems = [p for p in self.problems if p["task_id"] in config.problem_ids]
+            elif config.problems_limit:
+                problems = self.problems[:config.problems_limit]
+            else:
+                problems = self.problems
+            
+            # Run each problem multiple times
+            for i, problem in enumerate(problems):
+                problem_results = []
+                
+                # Run num_samples times for pass@k
+                for run_id in range(config.num_samples):
+                    if progress_callback:
+                        progress_callback(
+                            f"Problem {problem['task_id']} - Run {run_id + 1}/{config.num_samples}"
+                        )
+                    
+                    # Run with temperature sampling
+                    result = await self._evaluate_problem_with_temperature(
+                        problem, benchmark_mode, config.temperature, run_id
+                    )
+                    problem_results.append(result)
+                    session.problems.append(result)
+                
+                # Calculate pass@k for this problem
+                successful_runs = sum(1 for r in problem_results if r.success)
+                session.pass_at_k[problem["task_id"]] = {
+                    "total_runs": config.num_samples,
+                    "successful_runs": successful_runs,
+                    "pass_at_1": self._calculate_pass_at_k(config.num_samples, successful_runs, 1),
+                    "pass_at_3": self._calculate_pass_at_k(config.num_samples, successful_runs, 3),
+                    "pass_at_5": self._calculate_pass_at_k(config.num_samples, successful_runs, 5),
+                    "pass_at_10": self._calculate_pass_at_k(config.num_samples, successful_runs, 10),
+                }
+            
+            # Finalize session
+            session.end_time = datetime.now()
+            
+            if config.system_monitoring:
+                session.system_metrics = self.system_monitor.export_metrics()
+                self.system_monitor.stop_monitoring()
+            
+            session.aggregate_stats = self._calculate_aggregate_stats_with_pass_k(session)
+            
+        finally:
+            if config.system_monitoring:
+                self.system_monitor.stop_monitoring()
+        
+        return session
+    
+    async def _evaluate_problem_with_temperature(
+        self,
+        problem: Dict[str, Any],
+        mode: BenchmarkMode,
+        temperature: float,
+        run_id: int = 0,
+    ) -> BenchmarkProblemResult:
+        """Evaluate a problem with specified temperature.
+        
+        This is a wrapper around _evaluate_problem that adds temperature control.
+        """
+        # Temporarily set the temperature
+        original_temp = getattr(self.inference_service, 'temperature', 0.7)
+        self.inference_service.temperature = temperature
+        
+        try:
+            result = await self._evaluate_problem(problem, mode)
+            result.run_id = run_id
+            result.temperature = temperature
+            return result
+        finally:
+            # Restore original temperature
+            self.inference_service.temperature = original_temp
+    
+    def _calculate_aggregate_stats_with_pass_k(
+        self,
+        session: BenchmarkSession,
+    ) -> Dict[str, Any]:
+        """Calculate aggregate stats including pass@k metrics."""
+        # Get base stats
+        stats = self._calculate_aggregate_stats(session)
+        
+        # Add pass@k aggregates
+        if session.pass_at_k:
+            total_problems = len(session.pass_at_k)
+            
+            stats["pass_at_k"] = {
+                "overall_pass_at_1": sum(p["pass_at_1"] for p in session.pass_at_k.values()) / total_problems,
+                "overall_pass_at_3": sum(p["pass_at_3"] for p in session.pass_at_k.values()) / total_problems,
+                "overall_pass_at_5": sum(p["pass_at_5"] for p in session.pass_at_k.values()) / total_problems,
+                "overall_pass_at_10": sum(p["pass_at_10"] for p in session.pass_at_k.values()) / total_problems,
+            }
+        
+        # Temperature metrics
+        if session.problems:
+            temps = [p.temperature for p in session.problems]
+            stats["temperature"] = {
+                "mean": sum(temps) / len(temps),
+                "values": list(set(temps)),
+            }
+        
+        return stats

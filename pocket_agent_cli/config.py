@@ -106,6 +106,26 @@ class BenchmarkMode(BaseModel):
     max_iterations: int = 1
 
 
+class BenchmarkConfig(BaseModel):
+    """Configuration for benchmark runs."""
+    
+    model_config = {"protected_namespaces": ()}  # Allow model_ prefix
+    
+    model_name: str = Field(description="Model ID or 'all' for all models")
+    mode: str = Field(default="base", description="Benchmark mode or 'all' for all modes")
+    problems_limit: Optional[int] = Field(default=None, description="Number of problems to run")
+    problem_ids: Optional[List[int]] = Field(default=None, description="Specific problem IDs to run")
+    num_samples: int = Field(default=10, description="Number of samples per problem for pass@k")
+    temperature: float = Field(default=0.7, ge=0.0, le=2.0)
+    max_tokens: int = Field(default=2048, ge=1, le=8192)
+    enable_tools: bool = Field(default=True)
+    system_monitoring: bool = Field(default=True)
+    output_dir: Path = Field(default=RESULTS_DIR / "benchmarks")
+    save_individual_runs: bool = Field(default=True, description="Save each run separately")
+    compute_pass_at_k: List[int] = Field(default_factory=lambda: [1, 3, 5, 10])
+    parallel_runs: int = Field(default=1, description="Number of parallel runs for pass@k sampling")
+
+
 # Benchmark modes matching the mobile app
 BENCHMARK_MODES = {
     "base": BenchmarkMode(

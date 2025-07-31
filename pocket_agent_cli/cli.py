@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Optional
 from rich.console import Console
 from rich.table import Table
-from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn
+from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, MofNCompleteColumn, TimeElapsedColumn
 from rich.prompt import Prompt, Confirm
 from .config import InferenceConfig, BENCHMARK_MODES, AVAILABLE_TOOLS
 from .models import ModelService
@@ -297,30 +297,29 @@ When using run_python_code, make sure your code is complete and will produce out
 
 
 @cli.command("benchmark")
-@click.option("--model", "-m", required=True, help="Model ID to use")
-@click.option("--mode", type=click.Choice(list(BENCHMARK_MODES.keys())), default="base", help="Benchmark mode")
+@click.option("--model", "-m", required=True, help="Model ID to use or 'all' for all models")
+@click.option("--mode", default="base", help="Benchmark mode or 'all' for all modes")
 @click.option("--problems", "-p", help="Comma-separated problem IDs (e.g., 1,2,3)")
-@click.option("--output", "-o", help="Output file for results")
-def benchmark(model: str, mode: str, problems: Optional[str], output: Optional[str]):
-    """Run benchmark evaluation."""
-    # Initialize services
-    model_service = ModelService()
-    inference_service = InferenceService()
-    
-    # Load model
-    model_obj = model_service.get_model(model)
-    if not model_obj or not model_obj.downloaded:
-        console.print(f"[red]Error:[/red] Model {model} not found or not downloaded.")
-        return
-    
-    config = InferenceConfig()
-    
-    try:
-        console.print(f"Loading model {model_obj.name}...")
-        inference_service.load_model(model_obj, config)
-    except Exception as e:
-        console.print(f"[red]Failed to load model:[/red] {e}")
-        return
+@click.option("--problems-limit", "-l", type=int, help="Number of problems to run")
+@click.option("--num-samples", "-n", type=int, default=10, help="Number of samples per problem for pass@k")
+@click.option("--temperature", "-t", type=float, default=0.7, help="Temperature for sampling")
+@click.option("--output-dir", "-o", help="Output directory for results")
+@click.option("--no-monitoring", is_flag=True, help="Disable system monitoring")
+@click.option("--parallel", type=int, default=1, help="Number of parallel runs")
+def benchmark(
+    model: str, 
+    mode: str, 
+    problems: Optional[str], 
+    problems_limit: Optional[int],
+    num_samples: int,
+    temperature: float,
+    output_dir: Optional[str],
+    no_monitoring: bool,
+    parallel: int
+):
+    """Run enhanced benchmark evaluation with pass@k support."""
+    from .benchmarks.benchmark_coordinator import BenchmarkCoordinator
+    from .config import BenchmarkConfig, RESULTS_DIR
     
     # Parse problem IDs
     problem_ids = None
@@ -331,54 +330,112 @@ def benchmark(model: str, mode: str, problems: Optional[str], output: Optional[s
             console.print("[red]Error:[/red] Invalid problem IDs format")
             return
     
-    # Run benchmark
-    benchmark_service = BenchmarkService(inference_service)
+    # Create benchmark configuration
+    output_path = Path(output_dir) if output_dir else RESULTS_DIR / "benchmarks"
+    
+    benchmark_config = BenchmarkConfig(
+        model_name=model,
+        mode=mode,
+        problem_ids=problem_ids,
+        problems_limit=problems_limit,
+        num_samples=num_samples,
+        temperature=temperature,
+        enable_tools=True,
+        system_monitoring=not no_monitoring,
+        output_dir=output_path,
+        save_individual_runs=True,
+        compute_pass_at_k=[1, 3, 5, 10],
+        parallel_runs=parallel
+    )
+    
+    # Validate models if not "all"
+    if model != "all":
+        model_service = ModelService()
+        model_obj = model_service.get_model(model)
+        if not model_obj or not model_obj.downloaded:
+            console.print(f"[red]Error:[/red] Model {model} not found or not downloaded.")
+            return
+    
+    # Validate mode if not "all"
+    if mode != "all" and mode not in BENCHMARK_MODES:
+        console.print(f"[red]Error:[/red] Invalid mode: {mode}")
+        console.print(f"Available modes: {', '.join(BENCHMARK_MODES.keys())}")
+        return
+    
+    # Create benchmark coordinator
+    coordinator = BenchmarkCoordinator(benchmark_config)
     
     async def run():
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            MofNCompleteColumn(),
+            TimeElapsedColumn(),
             console=console,
         ) as progress:
-            task = progress.add_task(f"Running {mode} benchmark...", total=None)
+            overall_task = progress.add_task("Running benchmarks...", total=None)
             
-            def update_progress(current, total, desc):
-                progress.update(task, description=f"{desc} ({current}/{total})")
+            def update_progress(desc):
+                progress.update(overall_task, description=desc)
             
-            session = await benchmark_service.run_benchmark(
-                mode=mode,
-                problem_ids=problem_ids,
+            sessions = await coordinator.run_all_benchmarks(
                 progress_callback=update_progress
             )
             
-            progress.update(task, description="Benchmark complete!")
+            progress.update(overall_task, description="Benchmarks complete!")
         
-        return session
+        return sessions
     
-    console.print(f"\n[bold]Running {mode} benchmark[/bold]")
+    # Display configuration
+    console.print(f"\n[bold]Benchmark Configuration[/bold]")
+    console.print("─" * console.width)
+    console.print(f"  Models: {model}")
+    console.print(f"  Modes: {mode}")
+    console.print(f"  Samples per problem: {num_samples}")
+    console.print(f"  Temperature: {temperature}")
+    console.print(f"  Output directory: {output_path}")
+    console.print(f"  System monitoring: {'Enabled' if not no_monitoring else 'Disabled'}")
+    
+    # Run benchmarks
+    sessions = asyncio.run(run())
+    
+    # Display summary results
+    console.print(f"\n[bold]Summary Results[/bold]")
     console.print("─" * console.width)
     
-    session = asyncio.run(run())
+    for session in sessions:
+        console.print(f"\n[bold]{session.model_id} - {session.mode}[/bold]")
+        if session.aggregate_stats:
+            stats = session.aggregate_stats
+            console.print(f"  Problems: {stats['total_problems']}")
+            
+            # Display pass@k if available
+            if 'pass_at_k' in stats:
+                pass_k = stats['pass_at_k']
+                console.print(f"  Pass@1: {pass_k['overall_pass_at_1']:.1%}")
+                console.print(f"  Pass@3: {pass_k['overall_pass_at_3']:.1%}")
+                console.print(f"  Pass@5: {pass_k['overall_pass_at_5']:.1%}")
+                console.print(f"  Pass@10: {pass_k['overall_pass_at_10']:.1%}")
+            else:
+                # Fallback to simple pass rate
+                console.print(f"  Pass rate: {stats.get('pass_rate', 0):.1%}")
+            
+            # Performance metrics
+            if 'ttft' in stats and stats['ttft']:
+                console.print(f"  Avg TTFT: {stats['ttft']['avg_ms']:.0f}ms")
+            if 'tps' in stats and stats['tps']:
+                console.print(f"  Avg TPS: {stats['tps']['avg']:.1f}")
+            
+            # System metrics if available
+            if 'system_metrics' in stats:
+                sys_metrics = stats['system_metrics']
+                if sys_metrics.get('cpu_temperature_avg') is not None:
+                    console.print(f"  Avg CPU Temp: {sys_metrics['cpu_temperature_avg']:.1f}°C")
+                if sys_metrics.get('gpu_temperature_avg') is not None:
+                    console.print(f"  Avg GPU Temp: {sys_metrics['gpu_temperature_avg']:.1f}°C")
     
-    # Display results
-    stats = session.aggregate_stats
-    console.print("\n[bold]Results:[/bold]")
-    console.print(f"  Total problems: {stats['total_problems']}")
-    console.print(f"  Passed: {stats['passed_problems']} ({stats['pass_rate']*100:.1f}%)")
-    console.print(f"  Duration: {stats['total_duration_seconds']:.1f}s")
-    
-    if "avg_ttft_ms" in stats:
-        console.print(f"  Avg TTFT: {stats['avg_ttft_ms']:.0f}ms")
-    if "avg_tps" in stats:
-        console.print(f"  Avg TPS: {stats['avg_tps']:.1f}")
-    
-    # Save results if requested
-    if output:
-        export_results(session, Path(output))
-        console.print(f"\n[green]✓[/green] Results saved to {output}")
-    
-    # Cleanup
-    inference_service.unload_model()
+    console.print(f"\n[green]✓[/green] Results saved to {output_path}")
 
 
 @cli.command("info")
@@ -397,6 +454,18 @@ def info():
     
     if metrics.power_consumption_ma:
         console.print(f"Power: {metrics.power_consumption_ma:.0f}mA")
+
+
+@cli.command("download-dataset")
+@click.option("--dataset", type=click.Choice(["mbpp"]), default="mbpp", help="Dataset to download")
+def download_dataset(dataset: str):
+    """Download benchmark datasets."""
+    if dataset == "mbpp":
+        from .data.download_mbpp import main as download_mbpp
+        console.print("[bold]Downloading MBPP dataset...[/bold]")
+        download_mbpp()
+    else:
+        console.print(f"[red]Unknown dataset: {dataset}[/red]")
 
 
 def main():

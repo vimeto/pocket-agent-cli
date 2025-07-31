@@ -13,16 +13,18 @@ from ..config import SANDBOX_DIR
 class ToolExecutor:
     """Executes tool calls in a sandboxed environment."""
     
-    def __init__(self, use_docker: bool = True):
+    def __init__(self, use_docker: bool = True, test_cases: Optional[List[str]] = None):
         """Initialize the tool executor.
         
         Args:
             use_docker: Whether to use Docker for sandboxing
+            test_cases: Optional test cases for the current problem
         """
         self.use_docker = use_docker
         self.docker_client = None
         self.sandbox_dir = None
         self.container = None
+        self.test_cases = test_cases or []
         
         if use_docker:
             try:
@@ -95,6 +97,7 @@ class ToolExecutor:
             "upsert_file": self._upsert_file,
             "read_file": self._read_file,
             "submit_python_solution": self._submit_python_solution,
+            "run_submission_tests": self._run_submission_tests,
         }
         
         handler = handlers.get(tool_name)
@@ -309,6 +312,56 @@ class ToolExecutor:
         # Store the code for benchmark evaluation
         # In a real implementation, this would trigger the benchmark tests
         return f"Solution submitted successfully ({len(code)} characters)"
+    
+    async def _run_submission_tests(self, filename: str) -> str:
+        """Run test cases against the solution file.
+        
+        Args:
+            filename: Path to solution file
+            
+        Returns:
+            Test results showing passed/failed tests
+        """
+        if not self.test_cases:
+            return "No test cases available for this problem"
+            
+        # Read code from file
+        file_path = Path(self.sandbox_dir) / filename
+        if not file_path.exists():
+            return f"Error: File '{filename}' not found"
+        
+        code = file_path.read_text()
+        
+        # Run each test case
+        results = []
+        passed = 0
+        total = len(self.test_cases)
+        
+        for i, test_case in enumerate(self.test_cases, 1):
+            # Combine code and test
+            test_code = f"{code}\n\n{test_case}"
+            
+            try:
+                # Execute test
+                output = await self._run_python_code(code=test_code)
+                
+                
+                # Check if test passed (no output usually means success for assertions)
+                if "AssertionError" in output or "Error" in output:
+                    results.append(f"Test {i}: FAILED\n  Test: {test_case.strip()}\n  Output: {output}")
+                else:
+                    results.append(f"Test {i}: PASSED")
+                    passed += 1
+                    
+            except Exception as e:
+                results.append(f"Test {i}: ERROR - {str(e)}")
+        
+        # Format results
+        summary = f"Test Results: {passed}/{total} passed\n"
+        summary += "-" * 40 + "\n"
+        summary += "\n".join(results)
+        
+        return summary
     
     def get_sandbox_path(self) -> Optional[Path]:
         """Get the current sandbox directory path.

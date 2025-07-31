@@ -75,8 +75,8 @@ class InferenceConfig(BaseModel):
     tools: Optional[List[Dict[str, Any]]] = None
 
     # llama.cpp specific
-    n_threads: int = Field(default=4, ge=1)
-    n_batch: int = Field(default=512, ge=1)
+    n_threads: int = Field(default=-1, ge=-1)  # -1 = use all available cores
+    n_batch: int = Field(default=2048, ge=1)  # Increased for better throughput
     use_mlock: bool = Field(default=True)
     use_mmap: bool = Field(default=True)
 
@@ -226,6 +226,47 @@ AVAILABLE_TOOLS = [
                     }
                 },
                 "required": ["filename"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "run_submission_tests",
+            "description": "Test solution against problem test cases",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "filename": {
+                        "type": "string",
+                        "description": "Path to solution file",
+                    }
+                },
+                "required": ["filename"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "submit_python_solution",
+            "description": "Submit final solution",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "code": {
+                        "type": "string",
+                        "description": "Code",
+                    },
+                    "filename": {
+                        "type": "string",
+                        "description": "File",
+                    }
+                },
+                "oneOf": [
+                    {"required": ["code"]},
+                    {"required": ["filename"]}
+                ],
             },
         },
     },

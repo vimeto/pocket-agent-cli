@@ -33,29 +33,44 @@ GEMMA_TEMPLATE = """{% for message in messages %}
 """
 
 # Tool-enabled Gemma template
-GEMMA_TOOL_TEMPLATE = """<start_of_turn>user
-{% if tools %}
-You have access to the following tools:
+GEMMA_TOOL_TEMPLATE = """{% if messages and messages[0].role == 'system' %}<start_of_turn>user
+{{ messages[0].content }}
+
+{% if tools %}You have access to the following tools:
 {% for tool in tools %}
 - {{ tool.function.name }}: {{ tool.function.description }}
 {% endfor %}
 
-When you need to use a tool, respond with a JSON tool call in a code block:
-```tool_call
-{"name": "tool_name", "parameters": {"param1": "value1"}}
-```
+CRITICAL INSTRUCTIONS:
+- You MUST use the format: [function_name(param1="value1", param2="value2")]
 
-IMPORTANT: When solving programming problems and you have a final solution, you MUST use the submit_python_solution tool to submit your code. Do not just write code - submit it!
+EXAMPLES:
+1. Test-first approach:
+User: Write a function to check if a number is prime
+Assistant: [upsert_file(filename="prime.py", content="def is_prime(n):\n    if n < 2:\n        return False\n    for i in range(2, int(n**0.5) + 1):\n        if n % i == 0:\n            return False\n    return True\n\nassert is_prime(7) == True\nassert is_prime(10) == False")]
+User: File created
+Assistant: [run_submission_tests(filename="prime.py")]
+User: True
+Assistant: [submit_python_solution(filename="prime.py")]
+
+FORBIDDEN (will fail):
+- ```python blocks
+- ```tool_call blocks
+- Plain code without function call wrapper
+- Any explanatory text
+
+Your response MUST start with [ or { {% endif %}
+<end_of_turn>
 {% endif %}
-
-{{ messages[0].content if messages and messages[0].role == 'user' else '' }}<end_of_turn>
-{% for message in messages[1:] %}
+{% for message in messages %}
+{% if not (loop.first and message.role == 'system') %}
 {% if message['role'] == 'user' %}
 <start_of_turn>user
 {{ message['content'] }}<end_of_turn>
 {% elif message['role'] == 'assistant' %}
 <start_of_turn>model
 {{ message['content'] }}<end_of_turn>
+{% endif %}
 {% endif %}
 {% endfor %}
 <start_of_turn>model
@@ -141,28 +156,28 @@ Do not include any other text when making tool calls, just the JSON.
 
 def get_chat_template(architecture: str, tools_enabled: bool = False) -> str:
     """Get the appropriate chat template for a model architecture.
-    
+
     Args:
         architecture: Model architecture (llama, gemma, qwen, etc.)
         tools_enabled: Whether to use tool-enabled template
-        
+
     Returns:
         Jinja2 template string
     """
     architecture = architecture.lower()
-    
+
     if tools_enabled:
         # Use architecture-specific tool templates
         if architecture == "qwen":
             return QWEN_TOOL_TEMPLATE
+        elif architecture == "gemma":
+            return GEMMA_TOOL_TEMPLATE
         else:
             # Default to LLAMA tool template for other architectures
             return LLAMA_TOOL_TEMPLATE
     elif architecture == "llama":
         return LLAMA_TEMPLATE
     elif architecture == "gemma":
-        if tools_enabled:
-            return GEMMA_TOOL_TEMPLATE
         return GEMMA_TEMPLATE
     elif architecture == "qwen":
         return QWEN_TEMPLATE

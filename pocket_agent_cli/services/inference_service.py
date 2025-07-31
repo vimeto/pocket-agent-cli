@@ -8,6 +8,7 @@ from llama_cpp import Llama, LlamaGrammar
 from jinja2 import Template
 from ..config import InferenceConfig, Model
 from ..utils.chat_templates import get_chat_template
+from ..utils.tool_extractor import ToolExtractor
 
 
 class InferenceService:
@@ -17,6 +18,7 @@ class InferenceService:
         self.llama: Optional[Llama] = None
         self.current_model: Optional[Model] = None
         self.config: Optional[InferenceConfig] = None
+        self.tool_extractor = ToolExtractor()
         
     def load_model(self, model: Model, config: InferenceConfig) -> None:
         """Load a model into memory.
@@ -34,14 +36,26 @@ class InferenceService:
             self.llama = None
         
         # Initialize llama.cpp with Metal acceleration on macOS
+        import os
+        
+        # Auto-detect optimal thread count
+        n_threads = config.n_threads
+        if n_threads == -1:
+            n_threads = os.cpu_count() or 4
+            # Leave 1-2 cores for system on high core count machines
+            if n_threads > 8:
+                n_threads = n_threads - 2
+        
         kwargs = {
             "model_path": str(model.path),
             "n_ctx": config.context_length,
             "n_batch": config.n_batch,
-            "n_threads": config.n_threads,
+            "n_threads": n_threads,
             "use_mlock": config.use_mlock,
             "use_mmap": config.use_mmap,
             "verbose": False,
+            "n_threads_batch": n_threads,  # Use same threads for batch processing
+            "rope_scaling_type": 1,  # Linear RoPE scaling for better performance
         }
         
         # Enable Metal acceleration on macOS
@@ -50,6 +64,8 @@ class InferenceService:
             kwargs["n_gpu_layers"] = -1  # Offload all layers to Metal
             kwargs["offload_kqv"] = True  # Offload KV cache to Metal
             kwargs["f16_kv"] = True  # Use half precision for KV cache
+            kwargs["flash_attn"] = True  # Enable Flash Attention if available
+            kwargs["mul_mat_q"] = True  # Use quantized matrix multiplication
         
         self.llama = Llama(**kwargs)
         
@@ -92,12 +108,13 @@ class InferenceService:
         # Format prompt
         prompt = self._format_prompt(messages, config)
         
+        
         # Track metrics
         start_time = time.time()
         first_token_time = None
         token_count = 0
         
-        # Generate
+        # Generate with optimized settings
         response_iter = self.llama(
             prompt,
             max_tokens=config.max_tokens,
@@ -107,6 +124,8 @@ class InferenceService:
             repeat_penalty=config.repeat_penalty,
             stop=config.stop_tokens,
             stream=stream,
+            cache_prompt=True,  # Cache prompt for faster subsequent calls
+            penalize_nl=False,  # Don't penalize newlines unnecessarily
         )
         
         if stream:
@@ -255,163 +274,13 @@ class InferenceService:
         Returns:
             List of tool calls or None
         """
-        tool_calls = []
+        # Use the robust tool extractor with model architecture
+        model_arch = self.current_model.architecture if self.current_model else None
+        tool_calls, error = self.tool_extractor.extract_tools(response, model_arch)
         
-        # Clean up response - remove quotes and whitespace
-        response = response.strip()
-        if response.startswith('"') and response.endswith('"'):
-            response = response[1:-1]
-        
-        # Look for JSON tool calls in various formats
-        import re
-        
-        # Format 0: Check for ```tool_code or ```tool_call blocks (Gemma formats)
-        # Gemma uses tool_call in chat mode but tool_code in benchmark mode
-        tool_block_patterns = [
-            r'```tool_code\s*\n(.*?)\n```',
-            r'```tool_call\s*\n(.*?)\n```'
-        ]
-        
-        for pattern in tool_block_patterns:
-            matches = re.findall(pattern, response, re.DOTALL)
-            # Remove debug logging
-            pass
-            for match in matches:
-                try:
-                    call = json.loads(match.strip())
-                    if isinstance(call, dict) and 'name' in call:
-                        tool_calls.append(call)
-                except json.JSONDecodeError as e:
-                    # Try to fix common issues with Gemma's JSON generation
-                    if "Expecting ',' delimiter" in str(e) and match.count('{') > match.count('}'):
-                        # Missing closing brace - add it and try again
-                        fixed_match = match.strip() + '}'
-                        try:
-                            call = json.loads(fixed_match)
-                            if isinstance(call, dict) and 'name' in call:
-                                tool_calls.append(call)
-                                continue
-                        except:
-                            pass
-        
-        if tool_calls:
-            return tool_calls
-        
-        # Format 1: Direct JSON array
-        if response.strip().startswith("[") and response.strip().endswith("]"):
-            try:
-                calls = json.loads(response.strip())
-                if isinstance(calls, list):
-                    tool_calls = calls
-                    return tool_calls if tool_calls else None
-            except json.JSONDecodeError:
-                pass
-        
-        # Format 2: Single JSON object (common case)
-        if response.strip().startswith("{") and response.strip().endswith("}"):
-            try:
-                call = json.loads(response.strip())
-                if isinstance(call, dict) and 'name' in call:
-                    tool_calls = [call]
-                    return tool_calls
-            except json.JSONDecodeError:
-                pass
-        
-        # Format 3: JSON object with missing closing bracket (incomplete streaming)
-        single_obj_pattern = r'^\s*\{\s*"name"\s*:\s*"[\w_]+"\s*,\s*"parameters"\s*:\s*\{[^}]*\}\s*\}?'
-        match = re.match(single_obj_pattern, response, re.DOTALL)
-        if match:
-            json_str = match.group(0).strip()
-            if not json_str.endswith("}"):
-                json_str += "}"
-            try:
-                call = json.loads(json_str)
-                if isinstance(call, dict) and 'name' in call:
-                    tool_calls = [call]
-                    return tool_calls
-            except json.JSONDecodeError:
-                pass
-        
-        # Format 4: Extract JSON objects by finding balanced braces
-        # Look for {"name": patterns and extract complete JSON objects
-        
-        # Find all positions where a potential tool call JSON starts
-        for match in re.finditer(r'\{"name"\s*:\s*"[\w_]+"', response):
-            start_pos = match.start()
-            
-            # Find the matching closing brace
-            brace_count = 0
-            in_string = False
-            escape_next = False
-            
-            for i, char in enumerate(response[start_pos:], start_pos):
-                if escape_next:
-                    escape_next = False
-                    continue
-                    
-                if char == '\\':
-                    escape_next = True
-                    continue
-                    
-                if char == '"' and not escape_next:
-                    in_string = not in_string
-                    continue
-                    
-                if not in_string:
-                    if char == '{':
-                        brace_count += 1
-                    elif char == '}':
-                        brace_count -= 1
-                        
-                    if brace_count == 0:
-                        # Found the matching closing brace
-                        json_str = response[start_pos:i+1]
-                        try:
-                            call = json.loads(json_str)
-                            if isinstance(call, dict) and 'name' in call and 'parameters' in call:
-                                tool_calls.append(call)
-                                break
-                        except json.JSONDecodeError:
-                            pass
-                        break
-        
-        if tool_calls:
-            return tool_calls
-        
-        # Format 5: JSON array anywhere in the response
-        json_array_pattern = r'\[[\s\S]*?\{[\s\S]*?"name"[\s\S]*?:[\s\S]*?"[\w_]+"[\s\S]*?\}[\s\S]*?\]'
-        matches = re.findall(json_array_pattern, response)
-        for match in matches:
-            try:
-                calls = json.loads(match)
-                if isinstance(calls, list) and all(isinstance(c, dict) and 'name' in c for c in calls):
-                    tool_calls.extend(calls)
-                    break  # Use first valid match
-            except json.JSONDecodeError:
-                pass
-        
-        # Format 2: Tool call blocks
-        tool_pattern = r'<tool_call>\s*({.*?})\s*</tool_call>'
-        matches = re.findall(tool_pattern, response, re.DOTALL)
-        for match in matches:
-            try:
-                call = json.loads(match)
-                tool_calls.append(call)
-            except json.JSONDecodeError:
-                pass
-        
-        # Format 3: Function call format
-        func_pattern = r'{"function":\s*{.*?"name":\s*"(\w+)".*?"arguments":\s*({.*?})}}'
-        matches = re.findall(func_pattern, response, re.DOTALL)
-        for name, args in matches:
-            try:
-                arguments = json.loads(args)
-                tool_calls.append({
-                    "name": name,
-                    "parameters": arguments
-                })
-            except json.JSONDecodeError:
-                pass
+        # Log if no tools found for debugging
+        if not tool_calls and error:
+            print(f"[DEBUG] Tool extraction error: {error}")
         
         return tool_calls if tool_calls else None
     

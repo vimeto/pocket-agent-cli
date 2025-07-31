@@ -13,6 +13,7 @@ from ..services import InferenceService
 from ..tools import ToolExecutor
 # from ..monitoring import SystemMonitor
 from ..monitoring.simple_monitor import SimpleMonitor
+from ..utils.model_prompts import get_model_tool_prompt
 
 
 @dataclass
@@ -212,6 +213,9 @@ class BenchmarkService:
         """
         start_time = datetime.now()
 
+        # Create tool executor with test cases for this problem
+        self.tool_executor = ToolExecutor(use_docker=True, test_cases=problem.get("test_list", []))
+
         # Check if this is a cold start (first problem)
         is_cold_start = False
         model_load_time_ms = None
@@ -225,13 +229,25 @@ class BenchmarkService:
         except:
             pass
 
+        # Get model-specific prompt if in full_tool mode
+        if mode.name == "full_tool" and self.inference_service.current_model:
+            model_prompts = get_model_tool_prompt(self.inference_service.current_model.architecture)
+            system_prompt = model_prompts["system_prompt"]
+        else:
+            system_prompt = mode.system_prompt
+
         # Prepare messages
+        user_content = mode.user_prompt_template.format(problem_description=problem["text"])
+
+        # Add explicit instruction for Gemma models
+        if mode.name == "full_tool" and self.inference_service.current_model and self.inference_service.current_model.architecture == "gemma":
+            user_content += "\n\nREMEMBER: Output ONLY [submit_python_solution(code=\"...\")] - NO ```python blocks!"
+
         messages = [
-            {"role": "system", "content": mode.system_prompt},
-            {"role": "user", "content": mode.user_prompt_template.format(
-                problem_description=problem["text"]
-            )},
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_content},
         ]
+
 
         # Prepare tools if needed
         tools = None
@@ -278,6 +294,7 @@ class BenchmarkService:
             final_code = None
             iteration_count = 0
             submission_found = False
+            submission_via_tool = False  # Track if submitted via tool call
 
             for iteration in range(mode.max_iterations):
                 iteration_count += 1
@@ -286,54 +303,73 @@ class BenchmarkService:
                     tools=tools,
                 )
 
-                print("[DEBUG] response: ", response)
+
+                # Check if response contains Python blocks
+                if "```python" in response:
+                    # If we have Python blocks, this is NOT a proper tool call submission
+                    submission_via_tool = False
+                    print("⚠️  Model returned Python block instead of tool call format")
 
                 all_responses.append(response)
                 messages.append({"role": "assistant", "content": response})
 
                 if tool_calls:
                     all_tool_calls.extend(tool_calls)
-
-                    # Check for submit_python_solution
+                    
+                    # First, execute ALL non-submission tools to ensure files are created
+                    non_submission_tools = []
+                    submission_tool = None
+                    
                     for call in tool_calls:
                         if call.get("name") == "submit_python_solution":
-                            final_code = call.get("parameters", {}).get("code", "")
+                            submission_tool = call
                             submission_found = True
-                            print(f"✓ Model submitted solution at iteration {iteration_count}")
-                            break
+                            # Only count as tool call if NOT from Python block
+                            if "```python" not in response:
+                                submission_via_tool = True
+                                print(f"✓ Model submitted solution via tool call at iteration {iteration_count}")
+                        else:
+                            non_submission_tools.append(call)
+                    
+                    # Execute all non-submission tools first
+                    if non_submission_tools:
+                        tool_results = await self.tool_executor.execute_tools(non_submission_tools)
+                        
+                        # Add tool results to messages
+                        tool_message = "Tool execution results:\n"
+                        for call, result in zip(non_submission_tools, tool_results):
+                            tool_message += f"\n{call['name']}:\n"
+                            if result.get("success"):
+                                tool_message += result.get("output", "Success")
+                            else:
+                                tool_message += f"Error: {result.get('error', 'Unknown error')}"
 
+                        messages.append({"role": "user", "content": tool_message})
+                    
+                    # Break if submission was found
                     if submission_found:
                         break
-
-                    # Execute tools
-                    tool_results = await self.tool_executor.execute_tools(tool_calls)
-
-                    # Add tool results to messages
-                    tool_message = "Tool execution results:\n"
-                    for call, result in zip(tool_calls, tool_results):
-                        tool_message += f"\n{call['name']}:\n"
-                        if result.get("success"):
-                            tool_message += result.get("output", "Success")
-                        else:
-                            tool_message += f"Error: {result.get('error', 'Unknown error')}"
-
-                    messages.append({"role": "user", "content": tool_message})
                 else:
                     # No tool calls made in this iteration
                     # Check if we should prompt for submission
                     if iteration < mode.max_iterations - 1:  # Not the last iteration
                         print(f"⚠ No tool calls at iteration {iteration_count}, prompting for submission")
-                        submission_prompt = (
-                            "You must submit your solution using the submit_python_solution tool. "
-                            "Please call submit_python_solution with your complete Python code solution."
-                        )
+                        # Model-specific prompt
+                        if self.inference_service.current_model and self.inference_service.current_model.architecture == "gemma":
+                            submission_prompt = (
+                                "No function calls found. Use ONE of these formats:\n"
+                                "[submit_python_solution(code=\"your complete solution here\")]\n"
+                                "OR {\"name\": \"submit_python_solution\", \"parameters\": {\"code\": \"solution\"}}"
+                            )
+                        else:
+                            submission_prompt = (
+                                "No tool calls parsed. Return tool calls in ```tool_call\n{...}``` blocks.\n"
+                                "Example: ```tool_call\n{\"name\": \"submit_python_solution\", \"parameters\": {\"code\": \"def solution(): pass\"}}\n```"
+                            )
                         messages.append({"role": "user", "content": submission_prompt})
                     else:
                         print(f"✗ Reached max iterations ({iteration_count}) without submission")
                         break
-
-            # Log final iteration count
-            print(f"Problem completed in {iteration_count} iterations (max: {mode.max_iterations})")
 
             response = "\n".join(all_responses)
             tool_calls = all_tool_calls
@@ -346,6 +382,12 @@ class BenchmarkService:
 
         # Determine success
         success = all(tr.passed for tr in test_results)
+        passed_tests = sum(1 for tr in test_results if tr.passed)
+        total_tests = len(test_results)
+
+        # Log final results for full_tool mode
+        if mode.name == "full_tool" and 'iteration_count' in locals():
+            print(f"Problem completed in {iteration_count} iterations (max: {mode.max_iterations}) - Tests: {passed_tests}/{total_tests}")
 
         end_time = datetime.now()
 
@@ -356,6 +398,11 @@ class BenchmarkService:
         if mode.name == "full_tool" and 'iteration_count' in locals():
             metrics['iteration_count'] = iteration_count
             metrics['submission_found'] = submission_found if 'submission_found' in locals() else False
+            metrics['submission_via_tool'] = submission_via_tool if 'submission_via_tool' in locals() else False
+
+            # Log submission method
+            if not submission_via_tool and submission_found:
+                print("⚠️  Solution extracted from Python block, not tool call")
 
         return BenchmarkProblemResult(
             problem_id=problem["task_id"],
@@ -397,8 +444,19 @@ class BenchmarkService:
                     # Check for filename parameter
                     elif "filename" in params:
                         # In full_tool mode, the file should have been created
-                        # Look for the last upsert_file call with that filename
+                        # Try to read from the actual sandbox
                         filename = params["filename"]
+                        if hasattr(self.tool_executor, 'sandbox_dir') and self.tool_executor.sandbox_dir:
+                            file_path = Path(self.tool_executor.sandbox_dir) / filename
+                            print(f"[DEBUG] Looking for file in sandbox: {file_path}")
+                            if file_path.exists():
+                                content = file_path.read_text()
+                                print(f"[DEBUG] Found file, content preview: {content[:50]}...")
+                                return content
+                            else:
+                                print(f"[DEBUG] File not found in sandbox")
+                        
+                        # Fallback: Look for the last upsert_file call with that filename
                         for tc in reversed(tool_calls):
                             if tc.get("name") == "upsert_file" and tc.get("parameters", {}).get("filename") == filename:
                                 return tc.get("parameters", {}).get("content", "")
@@ -456,7 +514,7 @@ class BenchmarkService:
         """
         results = []
 
-        for test_case in test_cases:
+        for i, test_case in enumerate(test_cases, 1):
             # Combine code and test
             test_code = f"{code}\n\n{test_case}"
 

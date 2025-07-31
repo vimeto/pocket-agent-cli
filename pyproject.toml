@@ -16,6 +16,7 @@ dependencies = [
     "tqdm>=4.66.5",
     "aiofiles>=24.1.0",
     "huggingface-hub>=0.24.5",
+    "line-profiler>=5.0.0",
 ]
 
 [project.scripts]

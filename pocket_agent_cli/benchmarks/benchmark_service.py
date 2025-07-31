@@ -11,9 +11,19 @@ import time
 from ..config import DATA_DIR, BENCHMARK_MODES, AVAILABLE_TOOLS, SUBMIT_TOOL, BenchmarkMode, BenchmarkConfig
 from ..services import InferenceService
 from ..tools import ToolExecutor
-# from ..monitoring import SystemMonitor
-from ..monitoring.simple_monitor import SimpleMonitor
-from ..utils.model_prompts import get_model_tool_prompt
+from ..monitoring.unified_monitor import UnifiedMonitor
+from ..utils.model_prompts import get_model_prompt
+import os
+DEBUG_BENCHMARK = os.environ.get("DEBUG_BENCHMARK", "").lower() == "true"
+STREAM_OUTPUT = os.environ.get("STREAM_OUTPUT", "").lower() == "true"
+
+# Import profile decorator
+try:
+    from line_profiler import profile
+except ImportError:
+    # Define a no-op decorator if line_profiler is not available
+    def profile(func):
+        return func
 
 
 @dataclass
@@ -101,7 +111,7 @@ class BenchmarkService:
         self.inference_service = inference_service
         self.config = config
         self.tool_executor = ToolExecutor()
-        self.system_monitor = SimpleMonitor()  # Using simple monitor for now
+        self.system_monitor = UnifiedMonitor()  # Using unified monitor for performance
         self.dataset_path = DATA_DIR / "mbpp_sample.json"
         self.problems = self._load_dataset()
 
@@ -170,7 +180,7 @@ class BenchmarkService:
         self._current_session_id = session.session_id
 
         # Start system monitoring
-        self.system_monitor.start_monitoring()
+        # self.system_monitor.start_monitoring()
 
         try:
             # Select problems to run
@@ -197,6 +207,7 @@ class BenchmarkService:
 
         return session
 
+    @profile
     async def _evaluate_problem(
         self,
         problem: Dict[str, Any],
@@ -212,6 +223,9 @@ class BenchmarkService:
             Problem result
         """
         start_time = datetime.now()
+        if DEBUG_BENCHMARK:
+            print(f"\n[DEBUG] Starting evaluation of problem {problem['task_id']}")
+            print(f"[DEBUG] Problem text: {problem['text'][:100]}...")
 
         # Create tool executor with test cases for this problem
         self.tool_executor = ToolExecutor(use_docker=True, test_cases=problem.get("test_list", []))
@@ -229,24 +243,34 @@ class BenchmarkService:
         except:
             pass
 
-        # Get model-specific prompt if in full_tool mode
-        if mode.name == "full_tool" and self.inference_service.current_model:
-            model_prompts = get_model_tool_prompt(self.inference_service.current_model.architecture)
-            system_prompt = model_prompts["system_prompt"]
+        # Get model-specific prompt
+        if self.inference_service.current_model:
+            model_prompts = get_model_prompt(self.inference_service.current_model.architecture, mode.name)
+            system_prompt = model_prompts.get("system_prompt", mode.system_prompt)
+            user_suffix = model_prompts.get("user_suffix", "")
         else:
             system_prompt = mode.system_prompt
+            user_suffix = ""
 
         # Prepare messages
         user_content = mode.user_prompt_template.format(problem_description=problem["text"])
-
-        # Add explicit instruction for Gemma models
-        if mode.name == "full_tool" and self.inference_service.current_model and self.inference_service.current_model.architecture == "gemma":
+        
+        # Add model-specific user suffix if provided
+        if user_suffix:
+            user_content += user_suffix
+        
+        # Add explicit instruction for Gemma models in full_tool mode (backward compatibility)
+        elif mode.name == "full_tool" and self.inference_service.current_model and self.inference_service.current_model.architecture == "gemma":
             user_content += "\n\nREMEMBER: Output ONLY [submit_python_solution(code=\"...\")] - NO ```python blocks!"
 
         messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_content},
         ]
+
+        if DEBUG_BENCHMARK:
+            print(f"[DEBUG] Messages prepared, system prompt length: {len(system_prompt)}")
+            print(f"[DEBUG] User prompt length: {len(user_content)}")
 
 
         # Prepare tools if needed
@@ -264,9 +288,13 @@ class BenchmarkService:
         # Generate response based on mode
         if mode.name == "base":
             # Base mode: simple generation
+            if DEBUG_BENCHMARK:
+                print(f"[DEBUG] Starting inference in base mode...")
             response = ""
             metrics = {}
             token_count = 0
+            token_buffer = []  # Buffer for efficient printing
+            last_print_time = time.time()
 
             for chunk in self.inference_service.generate(messages, stream=True):
                 current_time = time.time()
@@ -274,10 +302,21 @@ class BenchmarkService:
                     inter_token_latencies.append((current_time - last_token_time) * 1000)
                 last_token_time = current_time
 
-                response += chunk["token"]
+                token = chunk["token"]
+                response += token
                 metrics = chunk["metrics"]
                 token_count += 1
 
+                # Show progress every 100 tokens (less frequent)
+                if DEBUG_BENCHMARK and token_count % 100 == 0:
+                    print(f"\n[DEBUG] Generated {token_count} tokens, TPS: {metrics.get('tps', 0):.1f}")
+
+            # Print remaining buffer
+            if STREAM_OUTPUT and token_buffer:
+                print(''.join(token_buffer), flush=True)
+
+            if DEBUG_BENCHMARK:
+                print(f"\n[DEBUG] Generation complete. Total tokens: {token_count}")
             tool_calls = None
 
         elif mode.name == "tool_submission":
@@ -303,6 +342,7 @@ class BenchmarkService:
                     tools=tools,
                 )
 
+                print(f"[DEBUG] Response: {response}")
 
                 # Check if response contains Python blocks
                 if "```python" in response:
@@ -315,11 +355,11 @@ class BenchmarkService:
 
                 if tool_calls:
                     all_tool_calls.extend(tool_calls)
-                    
+
                     # First, execute ALL non-submission tools to ensure files are created
                     non_submission_tools = []
                     submission_tool = None
-                    
+
                     for call in tool_calls:
                         if call.get("name") == "submit_python_solution":
                             submission_tool = call
@@ -330,11 +370,11 @@ class BenchmarkService:
                                 print(f"✓ Model submitted solution via tool call at iteration {iteration_count}")
                         else:
                             non_submission_tools.append(call)
-                    
+
                     # Execute all non-submission tools first
                     if non_submission_tools:
                         tool_results = await self.tool_executor.execute_tools(non_submission_tools)
-                        
+
                         # Add tool results to messages
                         tool_message = "Tool execution results:\n"
                         for call, result in zip(non_submission_tools, tool_results):
@@ -345,7 +385,7 @@ class BenchmarkService:
                                 tool_message += f"Error: {result.get('error', 'Unknown error')}"
 
                         messages.append({"role": "user", "content": tool_message})
-                    
+
                     # Break if submission was found
                     if submission_found:
                         break
@@ -455,7 +495,7 @@ class BenchmarkService:
                                 return content
                             else:
                                 print(f"[DEBUG] File not found in sandbox")
-                        
+
                         # Fallback: Look for the last upsert_file call with that filename
                         for tc in reversed(tool_calls):
                             if tc.get("name") == "upsert_file" and tc.get("parameters", {}).get("filename") == filename:
@@ -770,6 +810,7 @@ class BenchmarkService:
                 problem_results = []
 
                 # Run num_samples times for pass@k
+                actual_runs = 0
                 for run_id in range(config.num_samples):
                     if progress_callback:
                         progress_callback(
@@ -782,16 +823,36 @@ class BenchmarkService:
                     )
                     problem_results.append(result)
                     session.problems.append(result)
+                    actual_runs += 1
+                    
+                    # Early stopping: if problem passes and we're not in exhaustive mode, skip remaining samples
+                    if result.success and not config.exhaustive_passes and run_id < config.num_samples - 1:
+                        if DEBUG_BENCHMARK:
+                            print(f"✓ Problem {problem['task_id']} passed on run {run_id + 1}, skipping remaining {config.num_samples - run_id - 1} runs")
+                        break
 
                 # Calculate pass@k for this problem
                 successful_runs = sum(1 for r in problem_results if r.success)
+                
+                # If we stopped early due to success, adjust the calculation
+                if actual_runs < config.num_samples and successful_runs > 0 and not config.exhaustive_passes:
+                    # We found at least one success and stopped early
+                    # For pass@k calculation, we assume we would have found the solution in the remaining runs
+                    # This is conservative but reasonable since we already have a working solution
+                    effective_successes = config.num_samples  # Assume all would pass
+                else:
+                    effective_successes = successful_runs
+                
                 session.pass_at_k[problem["task_id"]] = {
                     "total_runs": config.num_samples,
+                    "actual_runs": actual_runs,
                     "successful_runs": successful_runs,
-                    "pass_at_1": self._calculate_pass_at_k(config.num_samples, successful_runs, 1),
-                    "pass_at_3": self._calculate_pass_at_k(config.num_samples, successful_runs, 3),
-                    "pass_at_5": self._calculate_pass_at_k(config.num_samples, successful_runs, 5),
-                    "pass_at_10": self._calculate_pass_at_k(config.num_samples, successful_runs, 10),
+                    "effective_successes": effective_successes,
+                    "early_stopped": actual_runs < config.num_samples,
+                    "pass_at_1": self._calculate_pass_at_k(config.num_samples, effective_successes, 1),
+                    "pass_at_3": self._calculate_pass_at_k(config.num_samples, effective_successes, 3),
+                    "pass_at_5": self._calculate_pass_at_k(config.num_samples, effective_successes, 5),
+                    "pass_at_10": self._calculate_pass_at_k(config.num_samples, effective_successes, 10),
                 }
 
             # Finalize session

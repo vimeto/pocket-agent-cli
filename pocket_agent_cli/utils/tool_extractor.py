@@ -71,10 +71,24 @@ class ToolExtractor:
                     paren_count -= 1
                 i += 1
             
-            if paren_count == 0 and i < len(response) and response[i] == ']':
-                # Found a complete function call
-                params_str = response[start:i-1]
-                tools.append((func_name, params_str))
+            if paren_count == 0:
+                # Look for the closing bracket, which might have whitespace
+                j = i
+                while j < len(response) and response[j] in ' \t\n':
+                    j += 1
+                if j < len(response) and response[j] == ']':
+                    # Found a complete function call
+                    params_str = response[start:i-1]
+                    tools.append((func_name, params_str))
+            elif paren_count == 1 and i >= len(response):
+                # Handle malformed case where closing ) is missing but we hit end of string
+                # Look back for a "] pattern
+                if response.rstrip().endswith('"]'):
+                    # Extract everything up to the last quote
+                    params_str = response[start:].rstrip()
+                    if params_str.endswith('"]'):
+                        params_str = params_str[:-2]  # Remove the "]
+                    tools.append((func_name, params_str))
         
         parsed_tools = []
         for func_name, params_str in tools:
@@ -139,12 +153,19 @@ class ToolExtractor:
                             if (value.startswith('"') and value.endswith('"')) or \
                                (value.startswith("'") and value.endswith("'")):
                                 value = value[1:-1]
-                                # Unescape common escape sequences
-                                value = value.replace('\\n', '\n')
-                                value = value.replace('\\t', '\t')
-                                value = value.replace('\\"', '"')
-                                value = value.replace("\\'", "'")
-                                value = value.replace('\\\\', '\\')
+                            elif value.startswith('"') and not value.endswith('"'):
+                                # Handle case where closing quote is missing (malformed)
+                                value = value[1:]
+                            elif not value.startswith('"') and value.endswith('"'):
+                                # Handle case where opening quote is missing (malformed)
+                                value = value[:-1]
+                            
+                            # Unescape common escape sequences
+                            value = value.replace('\\n', '\n')
+                            value = value.replace('\\t', '\t')
+                            value = value.replace('\\"', '"')
+                            value = value.replace("\\'", "'")
+                            value = value.replace('\\\\', '\\')
                             
                             params[key] = value
                 

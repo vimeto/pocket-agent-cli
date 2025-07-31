@@ -1,5 +1,6 @@
 """Command-line interface for pocket-agent-cli."""
 
+import os
 import click
 import asyncio
 import json
@@ -306,6 +307,8 @@ When using run_python_code, make sure your code is complete and will produce out
 @click.option("--output-dir", "-o", help="Output directory for results")
 @click.option("--no-monitoring", is_flag=True, help="Disable system monitoring")
 @click.option("--parallel", type=int, default=1, help="Number of parallel runs")
+@click.option("--line-profiler", is_flag=True, help="Enable line profiling")
+@click.option("--exhaustive-passes", is_flag=True, help="Run all samples even if problem already passes")
 def benchmark(
     model: str, 
     mode: str, 
@@ -315,11 +318,41 @@ def benchmark(
     temperature: float,
     output_dir: Optional[str],
     no_monitoring: bool,
-    parallel: int
+    parallel: int,
+    line_profiler: bool,
+    exhaustive_passes: bool
 ):
     """Run enhanced benchmark evaluation with pass@k support."""
     from .benchmarks.benchmark_coordinator import BenchmarkCoordinator
     from .config import BenchmarkConfig, RESULTS_DIR
+    
+    # Check if we need to restart with profiler
+    if line_profiler and '__wrapped_by_profiler__' not in os.environ:
+        # Re-run the command with kernprof
+        import sys
+        from .utils.profiling import run_with_profiler
+        
+        # Mark that we're wrapped to avoid infinite recursion
+        os.environ['__wrapped_by_profiler__'] = '1'
+        
+        # Build args without --line-profiler flag
+        args = ['benchmark']
+        args.extend(['--model', model])
+        args.extend(['--mode', mode])
+        if problems:
+            args.extend(['--problems', problems])
+        if problems_limit:
+            args.extend(['--problems-limit', str(problems_limit)])
+        args.extend(['--num-samples', str(num_samples)])
+        args.extend(['--temperature', str(temperature)])
+        if output_dir:
+            args.extend(['--output-dir', output_dir])
+        if no_monitoring:
+            args.append('--no-monitoring')
+        args.extend(['--parallel', str(parallel)])
+        
+        # Run with profiler
+        sys.exit(run_with_profiler(args))
     
     # Parse problem IDs
     problem_ids = None
@@ -345,7 +378,8 @@ def benchmark(
         output_dir=output_path,
         save_individual_runs=True,
         compute_pass_at_k=[1, 3, 5, 10],
-        parallel_runs=parallel
+        parallel_runs=parallel,
+        exhaustive_passes=exhaustive_passes
     )
     
     # Validate models if not "all"

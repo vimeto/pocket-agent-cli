@@ -63,20 +63,26 @@ DEFAULT_MODELS = [
 class InferenceConfig(BaseModel):
     """Configuration for LLM inference."""
 
-    temperature: float = Field(default=0.7, ge=0.0, le=2.0)
-    max_tokens: int = Field(default=2048, ge=1, le=8192)
-    top_p: float = Field(default=0.9, ge=0.0, le=1.0)
+    temperature: float = Field(default=0.1, ge=0.0, le=2.0)  # Lower for code generation
+    max_tokens: int = Field(default=100, ge=1, le=8192)  # Temporarily reduced for profiling test
+    top_p: float = Field(default=0.8, ge=0.0, le=1.0)  # More focused sampling
     top_k: int = Field(default=40, ge=0)
     repeat_penalty: float = Field(default=1.1, ge=0.0, le=2.0)
-    context_length: int = Field(default=4096, ge=512, le=32768)
-    stop_tokens: Optional[List[str]] = Field(default_factory=lambda: ["<|im_end|>", "<|eot_id|>", "</s>", "<end_of_turn>"])
+    context_length: int = Field(default=4096, ge=512, le=32768)  # Reduced for better performance
+    stop_tokens: Optional[List[str]] = Field(default_factory=lambda: [
+        "<|im_end|>", "<|eot_id|>", "</s>", "<end_of_turn>",
+        "\n\n\n",  # Multiple newlines
+        "# Example",  # Stop before examples
+        "# Test",  # Stop before test cases
+        "# Usage",  # Stop before usage examples
+    ])
     jinja: bool = Field(default=True)
     tool_choice: str = Field(default="auto", pattern="^(auto|required|none)$")
     tools: Optional[List[Dict[str, Any]]] = None
 
-    # llama.cpp specific
-    n_threads: int = Field(default=-1, ge=-1)  # -1 = use all available cores
-    n_batch: int = Field(default=2048, ge=1)  # Increased for better throughput
+    # llama.cpp specific (optimized for M3 Max)
+    n_threads: int = Field(default=12, ge=-1)  # M3 Max has 12 performance cores
+    n_batch: int = Field(default=512, ge=1)  # Optimized for single-stream inference
     use_mlock: bool = Field(default=True)
     use_mmap: bool = Field(default=True)
 
@@ -124,6 +130,7 @@ class BenchmarkConfig(BaseModel):
     save_individual_runs: bool = Field(default=True, description="Save each run separately")
     compute_pass_at_k: List[int] = Field(default_factory=lambda: [1, 3, 5, 10])
     parallel_runs: int = Field(default=1, description="Number of parallel runs for pass@k sampling")
+    exhaustive_passes: bool = Field(default=False, description="Run all samples even if problem already passes")
 
 
 # Benchmark modes matching the mobile app
@@ -131,18 +138,16 @@ BENCHMARK_MODES = {
     "base": BenchmarkMode(
         name="base",
         description="Simple code generation without tools",
-        system_prompt="You are a helpful assistant that writes Python code.",
-        user_prompt_template="{problem_description}",
+        system_prompt="Output ONLY Python function code. No explanations, comments, or text.",
+        user_prompt_template="{problem_description}\n\nONLY code:",
         requires_tools=False,
         max_iterations=1,
     ),
     "tool_submission": BenchmarkMode(
         name="tool_submission",
         description="Reasoning with code submission tool",
-        system_prompt="""You are a helpful assistant that solves programming problems step by step.
-You have access to a special tool called submit_python_solution to submit your final solution.
-Think through the problem carefully before submitting your solution.""",
-        user_prompt_template="{problem_description}",
+        system_prompt="Use submit_python_solution tool. Code only, no text.",
+        user_prompt_template="{problem_description}\n\nSubmit solution:",
         requires_tools=True,
         max_iterations=1,
     ),

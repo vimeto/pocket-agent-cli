@@ -32,6 +32,35 @@ GEMMA_TEMPLATE = """{% for message in messages %}
 <start_of_turn>model
 """
 
+# Tool-enabled Gemma template
+GEMMA_TOOL_TEMPLATE = """<start_of_turn>user
+{% if tools %}
+You have access to the following tools:
+{% for tool in tools %}
+- {{ tool.function.name }}: {{ tool.function.description }}
+{% endfor %}
+
+When you need to use a tool, respond with a JSON tool call in a code block:
+```tool_call
+{"name": "tool_name", "parameters": {"param1": "value1"}}
+```
+
+IMPORTANT: When solving programming problems and you have a final solution, you MUST use the submit_python_solution tool to submit your code. Do not just write code - submit it!
+{% endif %}
+
+{{ messages[0].content if messages and messages[0].role == 'user' else '' }}<end_of_turn>
+{% for message in messages[1:] %}
+{% if message['role'] == 'user' %}
+<start_of_turn>user
+{{ message['content'] }}<end_of_turn>
+{% elif message['role'] == 'assistant' %}
+<start_of_turn>model
+{{ message['content'] }}<end_of_turn>
+{% endif %}
+{% endfor %}
+<start_of_turn>model
+"""
+
 # Qwen template
 QWEN_TEMPLATE = """{% for message in messages %}
 {% if message['role'] == 'system' %}
@@ -132,6 +161,8 @@ def get_chat_template(architecture: str, tools_enabled: bool = False) -> str:
     elif architecture == "llama":
         return LLAMA_TEMPLATE
     elif architecture == "gemma":
+        if tools_enabled:
+            return GEMMA_TOOL_TEMPLATE
         return GEMMA_TEMPLATE
     elif architecture == "qwen":
         return QWEN_TEMPLATE

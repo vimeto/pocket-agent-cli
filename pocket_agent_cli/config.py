@@ -62,7 +62,7 @@ DEFAULT_MODELS = [
 
 class InferenceConfig(BaseModel):
     """Configuration for LLM inference."""
-    
+
     temperature: float = Field(default=0.7, ge=0.0, le=2.0)
     max_tokens: int = Field(default=2048, ge=1, le=8192)
     top_p: float = Field(default=0.9, ge=0.0, le=1.0)
@@ -73,7 +73,7 @@ class InferenceConfig(BaseModel):
     jinja: bool = Field(default=True)
     tool_choice: str = Field(default="auto", pattern="^(auto|required|none)$")
     tools: Optional[List[Dict[str, Any]]] = None
-    
+
     # llama.cpp specific
     n_threads: int = Field(default=4, ge=1)
     n_batch: int = Field(default=512, ge=1)
@@ -83,7 +83,7 @@ class InferenceConfig(BaseModel):
 
 class Model(BaseModel):
     """Model metadata."""
-    
+
     id: str
     name: str
     size: int
@@ -97,7 +97,7 @@ class Model(BaseModel):
 
 class BenchmarkMode(BaseModel):
     """Benchmark evaluation mode."""
-    
+
     name: str
     description: str
     system_prompt: str
@@ -108,9 +108,9 @@ class BenchmarkMode(BaseModel):
 
 class BenchmarkConfig(BaseModel):
     """Configuration for benchmark runs."""
-    
+
     model_config = {"protected_namespaces": ()}  # Allow model_ prefix
-    
+
     model_name: str = Field(description="Model ID or 'all' for all models")
     mode: str = Field(default="base", description="Benchmark mode or 'all' for all modes")
     problems_limit: Optional[int] = Field(default=None, description="Number of problems to run")
@@ -149,12 +149,18 @@ Think through the problem carefully before submitting your solution.""",
     "full_tool": BenchmarkMode(
         name="full_tool",
         description="Full development environment with all tools",
-        system_prompt="""You are a helpful assistant with access to a Python development environment.
-You can create, run, and debug code using the available tools.
-Iterate on your solution until all test cases pass.""",
+        system_prompt="""You are coding in Python, with a Python env available. You must return JSON-formatted tool calls. You should return anything except tool calls. Tools: run_python_code (code/file), upsert_file, read_file, submit_python_solution.
+MUST submit final solution with submit_python_solution. Tool calls must be made in ```tool_call``` blocks, e.g. ```tool_call
+{
+    "name": "run_python_code",
+    "parameters": {
+        "code": "print('Hello, world!')"
+    }
+}
+```""",
         user_prompt_template="{problem_description}",
         requires_tools=True,
-        max_iterations=10,
+        max_iterations=20,
     ),
 }
 
@@ -165,33 +171,23 @@ AVAILABLE_TOOLS = [
         "type": "function",
         "function": {
             "name": "run_python_code",
-            "description": "Execute Python code and return the output",
+            "description": "Run Python code or file",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "code": {
                         "type": "string",
-                        "description": "The Python code to execute",
-                    }
-                },
-                "required": ["code"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "run_python_file",
-            "description": "Execute a Python file by name",
-            "parameters": {
-                "type": "object",
-                "properties": {
+                        "description": "Python code",
+                    },
                     "filename": {
                         "type": "string",
-                        "description": "The name of the file to execute",
+                        "description": "File path",
                     }
                 },
-                "required": ["filename"],
+                "oneOf": [
+                    {"required": ["code"]},
+                    {"required": ["filename"]}
+                ],
             },
         },
     },
@@ -199,17 +195,17 @@ AVAILABLE_TOOLS = [
         "type": "function",
         "function": {
             "name": "upsert_file",
-            "description": "Create or update a file with content",
+            "description": "Create/update file",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "filename": {
                         "type": "string",
-                        "description": "The name of the file",
+                        "description": "Path",
                     },
                     "content": {
                         "type": "string",
-                        "description": "The content to write to the file",
+                        "description": "Content",
                     },
                 },
                 "required": ["filename", "content"],
@@ -219,42 +215,14 @@ AVAILABLE_TOOLS = [
     {
         "type": "function",
         "function": {
-            "name": "delete_file",
-            "description": "Delete a file",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "filename": {
-                        "type": "string",
-                        "description": "The name of the file to delete",
-                    }
-                },
-                "required": ["filename"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "list_files",
-            "description": "List all files in the current directory",
-            "parameters": {
-                "type": "object",
-                "properties": {},
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
             "name": "read_file",
-            "description": "Read the contents of a file",
+            "description": "Read file",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "filename": {
                         "type": "string",
-                        "description": "The name of the file to read",
+                        "description": "Path",
                     }
                 },
                 "required": ["filename"],
@@ -269,17 +237,17 @@ SUBMIT_TOOL = {
     "type": "function",
     "function": {
         "name": "submit_python_solution",
-        "description": "Submit your final Python solution for evaluation",
+        "description": "Submit final solution",
         "parameters": {
             "type": "object",
             "properties": {
                 "code": {
                     "type": "string",
-                    "description": "The complete Python code solution (optional if filename provided)",
+                    "description": "Code",
                 },
                 "filename": {
-                    "type": "string", 
-                    "description": "Path to the Python file containing the solution (optional if code provided)",
+                    "type": "string",
+                    "description": "File",
                 }
             },
             "oneOf": [

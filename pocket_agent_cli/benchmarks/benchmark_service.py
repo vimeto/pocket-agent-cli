@@ -18,7 +18,7 @@ from ..monitoring.simple_monitor import SimpleMonitor
 @dataclass
 class TestResult:
     """Result of a single test case."""
-    
+
     test_case: str
     passed: bool
     output: Optional[str] = None
@@ -28,7 +28,7 @@ class TestResult:
 @dataclass
 class BenchmarkProblemResult:
     """Result for a single benchmark problem."""
-    
+
     problem_id: int
     start_time: datetime
     end_time: datetime
@@ -43,7 +43,7 @@ class BenchmarkProblemResult:
     inter_token_latencies: List[float] = None
     run_id: int = 0  # For pass@k tracking
     temperature: float = 0.7  # Temperature used for this run
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
         data = asdict(self)
@@ -56,7 +56,7 @@ class BenchmarkProblemResult:
 @dataclass
 class BenchmarkSession:
     """A complete benchmark session."""
-    
+
     session_id: str
     model_id: str
     mode: str
@@ -67,7 +67,7 @@ class BenchmarkSession:
     aggregate_stats: Optional[Dict[str, Any]] = None
     config: Optional[BenchmarkConfig] = None  # Configuration used
     pass_at_k: Optional[Dict[int, Dict[str, Any]]] = None  # Pass@k results per problem
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
         # Handle config conversion with Path objects
@@ -77,7 +77,7 @@ class BenchmarkSession:
             # Convert Path objects to strings
             if 'output_dir' in config_dict and hasattr(config_dict['output_dir'], '__fspath__'):
                 config_dict['output_dir'] = str(config_dict['output_dir'])
-        
+
         data = {
             "session_id": self.session_id,
             "model_id": self.model_id,
@@ -95,7 +95,7 @@ class BenchmarkSession:
 
 class BenchmarkService:
     """Service for running and evaluating benchmarks."""
-    
+
     def __init__(self, inference_service: InferenceService, config: Optional[BenchmarkConfig] = None):
         self.inference_service = inference_service
         self.config = config
@@ -103,38 +103,38 @@ class BenchmarkService:
         self.system_monitor = SimpleMonitor()  # Using simple monitor for now
         self.dataset_path = DATA_DIR / "mbpp_sample.json"
         self.problems = self._load_dataset()
-    
+
     def _load_dataset(self) -> List[Dict[str, Any]]:
         """Load MBPP dataset."""
         # Try to load from the data directory first
         if self.dataset_path.exists():
             with open(self.dataset_path, "r") as f:
                 return json.load(f)
-        
+
         # Check for full dataset
         full_dataset_path = Path(__file__).parent.parent / "data" / "mbpp_full.json"
         if full_dataset_path.exists():
             print(f"Loading full MBPP dataset ({full_dataset_path})")
             with open(full_dataset_path, "r") as f:
                 return json.load(f)
-        
+
         # Check for test dataset
         test_dataset_path = Path(__file__).parent.parent / "data" / "mbpp_test.json"
         if test_dataset_path.exists():
             print(f"Loading test MBPP dataset ({test_dataset_path})")
             with open(test_dataset_path, "r") as f:
                 return json.load(f)
-        
+
         # Fall back to sample dataset
         sample_path = Path(__file__).parent.parent / "data" / "mbpp_sample.json"
         if sample_path.exists():
             print(f"Warning: Using sample dataset with only 3 problems. Run download_mbpp.py for full dataset.")
             with open(sample_path, "r") as f:
                 return json.load(f)
-        
+
         print("Error: No MBPP dataset found!")
         return []
-    
+
     async def run_benchmark(
         self,
         mode: str,
@@ -142,20 +142,20 @@ class BenchmarkService:
         progress_callback: Optional[callable] = None,
     ) -> BenchmarkSession:
         """Run a benchmark evaluation.
-        
+
         Args:
             mode: Benchmark mode (base, tool_submission, full_tool)
             problem_ids: Specific problem IDs to run, or None for all
             progress_callback: Callback for progress updates
-            
+
         Returns:
             Benchmark session with results
         """
         if mode not in BENCHMARK_MODES:
             raise ValueError(f"Invalid mode: {mode}")
-        
+
         benchmark_mode = BENCHMARK_MODES[mode]
-        
+
         # Create session
         session = BenchmarkSession(
             session_id=f"bench_{int(datetime.now().timestamp())}",
@@ -164,58 +164,58 @@ class BenchmarkService:
             start_time=datetime.now(),
             problems=[],
         )
-        
+
         # Store session ID for cold start detection
         self._current_session_id = session.session_id
-        
+
         # Start system monitoring
         self.system_monitor.start_monitoring()
-        
+
         try:
             # Select problems to run
             if problem_ids:
                 problems = [p for p in self.problems if p["task_id"] in problem_ids]
             else:
                 problems = self.problems
-            
+
             # Run each problem
             for i, problem in enumerate(problems):
                 if progress_callback:
                     progress_callback(i, len(problems), f"Running problem {problem['task_id']}")
-                
+
                 result = await self._evaluate_problem(problem, benchmark_mode)
                 session.problems.append(result)
-            
+
             # Finalize session
             session.end_time = datetime.now()
             session.system_metrics = self.system_monitor.export_metrics()
             session.aggregate_stats = self._calculate_aggregate_stats(session)
-            
+
         finally:
             self.system_monitor.stop_monitoring()
-        
+
         return session
-    
+
     async def _evaluate_problem(
         self,
         problem: Dict[str, Any],
         mode: BenchmarkMode,
     ) -> BenchmarkProblemResult:
         """Evaluate a single problem.
-        
+
         Args:
             problem: Problem definition
             mode: Benchmark mode
-            
+
         Returns:
             Problem result
         """
         start_time = datetime.now()
-        
+
         # Check if this is a cold start (first problem)
         is_cold_start = False
         model_load_time_ms = None
-        
+
         # Determine if this is the first problem (cold start)
         try:
             # Check if we're in a session context
@@ -224,7 +224,7 @@ class BenchmarkService:
                 self._last_session_id = self._current_session_id
         except:
             pass
-        
+
         # Prepare messages
         messages = [
             {"role": "system", "content": mode.system_prompt},
@@ -232,7 +232,7 @@ class BenchmarkService:
                 problem_description=problem["text"]
             )},
         ]
-        
+
         # Prepare tools if needed
         tools = None
         if mode.requires_tools:
@@ -240,67 +240,74 @@ class BenchmarkService:
                 tools = [SUBMIT_TOOL]
             else:
                 tools = AVAILABLE_TOOLS
-        
+
         # Track token generation for inter-token latencies
         inter_token_latencies = []
         last_token_time = None
-        
+
         # Generate response based on mode
         if mode.name == "base":
             # Base mode: simple generation
             response = ""
             metrics = {}
             token_count = 0
-            
+
             for chunk in self.inference_service.generate(messages, stream=True):
                 current_time = time.time()
                 if last_token_time is not None:
                     inter_token_latencies.append((current_time - last_token_time) * 1000)
                 last_token_time = current_time
-                
+
                 response += chunk["token"]
                 metrics = chunk["metrics"]
                 token_count += 1
-            
+
             tool_calls = None
-            
+
         elif mode.name == "tool_submission":
             # Tool submission mode: single tool call expected
             response, tool_calls, metrics = self.inference_service.generate_with_tools(
                 messages=messages,
                 tools=tools,
             )
-            
+
         else:  # full_tool mode
             # Full tool mode: iterative tool usage
             all_responses = []
             all_tool_calls = []
             final_code = None
-            
+            iteration_count = 0
+            submission_found = False
+
             for iteration in range(mode.max_iterations):
+                iteration_count += 1
                 response, tool_calls, metrics = self.inference_service.generate_with_tools(
                     messages=messages,
                     tools=tools,
                 )
-                
+
+                print("[DEBUG] response: ", response)
+
                 all_responses.append(response)
                 messages.append({"role": "assistant", "content": response})
-                
+
                 if tool_calls:
                     all_tool_calls.extend(tool_calls)
-                    
+
                     # Check for submit_python_solution
                     for call in tool_calls:
                         if call.get("name") == "submit_python_solution":
                             final_code = call.get("parameters", {}).get("code", "")
+                            submission_found = True
+                            print(f"✓ Model submitted solution at iteration {iteration_count}")
                             break
-                    
-                    if final_code:
+
+                    if submission_found:
                         break
-                    
+
                     # Execute tools
                     tool_results = await self.tool_executor.execute_tools(tool_calls)
-                    
+
                     # Add tool results to messages
                     tool_message = "Tool execution results:\n"
                     for call, result in zip(tool_calls, tool_results):
@@ -309,29 +316,47 @@ class BenchmarkService:
                             tool_message += result.get("output", "Success")
                         else:
                             tool_message += f"Error: {result.get('error', 'Unknown error')}"
-                    
+
                     messages.append({"role": "user", "content": tool_message})
                 else:
-                    # No tool calls, stop iteration
-                    break
-            
+                    # No tool calls made in this iteration
+                    # Check if we should prompt for submission
+                    if iteration < mode.max_iterations - 1:  # Not the last iteration
+                        print(f"⚠ No tool calls at iteration {iteration_count}, prompting for submission")
+                        submission_prompt = (
+                            "You must submit your solution using the submit_python_solution tool. "
+                            "Please call submit_python_solution with your complete Python code solution."
+                        )
+                        messages.append({"role": "user", "content": submission_prompt})
+                    else:
+                        print(f"✗ Reached max iterations ({iteration_count}) without submission")
+                        break
+
+            # Log final iteration count
+            print(f"Problem completed in {iteration_count} iterations (max: {mode.max_iterations})")
+
             response = "\n".join(all_responses)
             tool_calls = all_tool_calls
-        
+
         # Extract code from response
         code = self._extract_code(response, tool_calls)
-        
+
         # Run tests
         test_results = await self._run_tests(code, problem["test_list"])
-        
+
         # Determine success
         success = all(tr.passed for tr in test_results)
-        
+
         end_time = datetime.now()
-        
+
         # Calculate context length used
         context_length_used = len(prompt) if 'prompt' in locals() else len(str(messages))
-        
+
+        # Add iteration count to metrics for full_tool mode
+        if mode.name == "full_tool" and 'iteration_count' in locals():
+            metrics['iteration_count'] = iteration_count
+            metrics['submission_found'] = submission_found if 'submission_found' in locals() else False
+
         return BenchmarkProblemResult(
             problem_id=problem["task_id"],
             start_time=start_time,
@@ -346,18 +371,18 @@ class BenchmarkService:
             context_length_used=context_length_used,
             inter_token_latencies=inter_token_latencies if inter_token_latencies else None,
         )
-    
+
     def _extract_code(
         self,
         response: str,
         tool_calls: Optional[List[Dict[str, Any]]],
     ) -> str:
         """Extract code from response.
-        
+
         Args:
             response: Model response
             tool_calls: Tool calls if any
-            
+
         Returns:
             Extracted code
         """
@@ -383,62 +408,62 @@ class BenchmarkService:
                     content = call.get("parameters", {}).get("content", "")
                     if content:
                         return content
-        
+
         # Try to extract code blocks from response
         # Pattern 1: ```python ... ```
         code_blocks = re.findall(r'```python\n(.*?)\n```', response, re.DOTALL)
         if code_blocks:
             return code_blocks[0]
-        
+
         # Pattern 2: ``` ... ```
         code_blocks = re.findall(r'```\n(.*?)\n```', response, re.DOTALL)
         if code_blocks:
             return code_blocks[0]
-        
+
         # Pattern 3: Indented code block
         lines = response.split('\n')
         code_lines = []
         in_code = False
-        
+
         for line in lines:
             if line.startswith('def ') or line.startswith('class '):
                 in_code = True
-            
+
             if in_code:
                 if line and not line[0].isspace() and not line.startswith('def') and not line.startswith('class'):
                     break
                 code_lines.append(line)
-        
+
         if code_lines:
             return '\n'.join(code_lines)
-        
+
         # Fallback: return entire response
         return response.strip()
-    
+
     async def _run_tests(
         self,
         code: str,
         test_cases: List[str],
     ) -> List[TestResult]:
         """Run test cases against code.
-        
+
         Args:
             code: Code to test
             test_cases: List of test assertions
-            
+
         Returns:
             List of test results
         """
         results = []
-        
+
         for test_case in test_cases:
             # Combine code and test
             test_code = f"{code}\n\n{test_case}"
-            
+
             # Execute test
             try:
                 output = await self.tool_executor._run_python_code(test_code)
-                
+
                 # Check if test passed (no output usually means success)
                 if "AssertionError" in output or "Error" in output:
                     results.append(TestResult(
@@ -452,48 +477,48 @@ class BenchmarkService:
                         passed=True,
                         output=output,
                     ))
-                    
+
             except Exception as e:
                 results.append(TestResult(
                     test_case=test_case,
                     passed=False,
                     error=str(e),
                 ))
-        
+
         return results
-    
+
     def _calculate_aggregate_stats(
         self,
         session: BenchmarkSession,
     ) -> Dict[str, Any]:
         """Calculate comprehensive aggregate statistics for a session.
-        
+
         Args:
             session: Benchmark session
-            
+
         Returns:
             Aggregate statistics
         """
         if not session.problems:
             return {}
-        
+
         import statistics as stat
-        
+
         # Calculate pass rate
         passed = sum(1 for p in session.problems if p.success)
         total = len(session.problems)
-        
+
         # Calculate timing metrics
         ttft_values = [p.metrics.get("ttft") for p in session.problems if p.metrics and p.metrics.get("ttft")]
         tps_values = [p.metrics.get("tps") for p in session.problems if p.metrics and p.metrics.get("tps")]
-        
+
         stats = {
             "total_problems": total,
             "passed_problems": passed,
             "pass_rate": passed / total if total > 0 else 0,
             "total_duration_seconds": (session.end_time - session.start_time).total_seconds(),
         }
-        
+
         # Performance metrics
         if ttft_values:
             stats["ttft"] = {
@@ -502,7 +527,7 @@ class BenchmarkService:
                 "max_ms": max(ttft_values),
                 "stddev_ms": stat.stdev(ttft_values) if len(ttft_values) > 1 else 0,
             }
-        
+
         if tps_values:
             stats["tps"] = {
                 "avg": stat.mean(tps_values),
@@ -510,13 +535,13 @@ class BenchmarkService:
                 "max": max(tps_values),
                 "stddev": stat.stdev(tps_values) if len(tps_values) > 1 else 0,
             }
-        
+
         # Inter-token latencies
         all_latencies = []
         for p in session.problems:
             if p.inter_token_latencies:
                 all_latencies.extend(p.inter_token_latencies)
-        
+
         if all_latencies:
             stats["inter_token_latency"] = {
                 "avg_ms": stat.mean(all_latencies),
@@ -527,11 +552,11 @@ class BenchmarkService:
                 "p99_ms": stat.quantiles(all_latencies, n=100)[98] if len(all_latencies) >= 100 else max(all_latencies),
                 "jitter_ms": stat.stdev(all_latencies) if len(all_latencies) > 1 else 0,
             }
-        
+
         # Cold vs warm start analysis
         cold_start_problems = [p for p in session.problems if p.cold_start]
         warm_start_problems = [p for p in session.problems if not p.cold_start]
-        
+
         if cold_start_problems:
             cold_durations = [(p.end_time - p.start_time).total_seconds() for p in cold_start_problems]
             stats["cold_start"] = {
@@ -539,14 +564,14 @@ class BenchmarkService:
                 "avg_duration_s": stat.mean(cold_durations),
                 "model_load_times_ms": [p.model_load_time_ms for p in cold_start_problems if p.model_load_time_ms],
             }
-        
+
         if warm_start_problems:
             warm_durations = [(p.end_time - p.start_time).total_seconds() for p in warm_start_problems]
             stats["warm_start"] = {
                 "count": len(warm_start_problems),
                 "avg_duration_s": stat.mean(warm_durations),
             }
-        
+
         # Context length impact
         context_lengths = [p.context_length_used for p in session.problems if p.context_length_used > 0]
         if context_lengths:
@@ -555,50 +580,62 @@ class BenchmarkService:
                 "max": max(context_lengths),
                 "performance_correlation": self._calculate_context_performance_correlation(session.problems),
             }
-        
+
         # Token generation metrics
         total_tokens = sum(p.metrics.get("tokens", 0) for p in session.problems if p.metrics)
         stats["total_tokens_generated"] = total_tokens
-        
+
+        # Full tool mode iteration statistics
+        iteration_counts = [p.metrics.get("iteration_count", 0) for p in session.problems
+                           if p.metrics and "iteration_count" in p.metrics]
+        if iteration_counts:
+            stats["full_tool_iterations"] = {
+                "avg": stat.mean(iteration_counts),
+                "min": min(iteration_counts),
+                "max": max(iteration_counts),
+                "submission_rate": sum(1 for p in session.problems
+                                     if p.metrics and p.metrics.get("submission_found", False)) / len(session.problems)
+            }
+
         # Add system metrics summary
         if session.system_metrics:
             system_summary = self.system_monitor.get_summary()
             stats["system_metrics"] = system_summary
-        
+
         return stats
-    
+
     def _calculate_context_performance_correlation(self, problems: List[BenchmarkProblemResult]) -> float:
         """Calculate correlation between context length and performance."""
         try:
             contexts = []
             tps_values = []
-            
+
             for p in problems:
                 if p.context_length_used > 0 and p.metrics and p.metrics.get("tps"):
                     contexts.append(p.context_length_used)
                     tps_values.append(p.metrics["tps"])
-            
+
             if len(contexts) < 2:
                 return 0.0
-            
+
             # Calculate Pearson correlation coefficient
             import statistics as stat
             mean_x = stat.mean(contexts)
             mean_y = stat.mean(tps_values)
-            
+
             numerator = sum((x - mean_x) * (y - mean_y) for x, y in zip(contexts, tps_values))
             denominator = (sum((x - mean_x)**2 for x in contexts) * sum((y - mean_y)**2 for y in tps_values))**0.5
-            
+
             if denominator == 0:
                 return 0.0
-            
+
             return numerator / denominator
         except:
             return 0.0
-    
+
     def list_problems(self) -> List[Dict[str, Any]]:
         """List all available problems.
-        
+
         Returns:
             List of problem summaries
         """
@@ -609,43 +646,43 @@ class BenchmarkService:
             }
             for p in self.problems
         ]
-    
+
     def _calculate_pass_at_k(self, n: int, c: int, k: int) -> float:
         """Calculate pass@k metric.
-        
+
         Args:
             n: total number of samples
             c: number of correct samples
             k: k in pass@k
-            
+
         Returns:
             pass@k score
         """
         if n - c < k:
             return 1.0
-        
+
         import math
         return 1.0 - math.prod(1.0 - k / i for i in range(n - c + 1, n + 1))
-    
+
     async def run_benchmark_with_config(
         self,
         config: BenchmarkConfig,
         progress_callback: Optional[callable] = None,
     ) -> BenchmarkSession:
         """Run benchmark with pass@k support using configuration.
-        
+
         Args:
             config: Benchmark configuration
             progress_callback: Callback for progress updates
-            
+
         Returns:
             Benchmark session with pass@k results
         """
         if config.mode not in BENCHMARK_MODES:
             raise ValueError(f"Invalid mode: {config.mode}")
-        
+
         benchmark_mode = BENCHMARK_MODES[config.mode]
-        
+
         # Create session
         session = BenchmarkSession(
             session_id=f"bench_{config.model_name}_{config.mode}_{int(datetime.now().timestamp())}",
@@ -656,11 +693,11 @@ class BenchmarkService:
             config=config,
             pass_at_k={},
         )
-        
+
         # Start monitoring if enabled
         if config.system_monitoring:
             self.system_monitor.start_monitoring()
-        
+
         try:
             # Select problems
             if config.problem_ids:
@@ -669,25 +706,25 @@ class BenchmarkService:
                 problems = self.problems[:config.problems_limit]
             else:
                 problems = self.problems
-            
+
             # Run each problem multiple times
             for i, problem in enumerate(problems):
                 problem_results = []
-                
+
                 # Run num_samples times for pass@k
                 for run_id in range(config.num_samples):
                     if progress_callback:
                         progress_callback(
                             f"Problem {problem['task_id']} - Run {run_id + 1}/{config.num_samples}"
                         )
-                    
+
                     # Run with temperature sampling
                     result = await self._evaluate_problem_with_temperature(
                         problem, benchmark_mode, config.temperature, run_id
                     )
                     problem_results.append(result)
                     session.problems.append(result)
-                
+
                 # Calculate pass@k for this problem
                 successful_runs = sum(1 for r in problem_results if r.success)
                 session.pass_at_k[problem["task_id"]] = {
@@ -698,22 +735,22 @@ class BenchmarkService:
                     "pass_at_5": self._calculate_pass_at_k(config.num_samples, successful_runs, 5),
                     "pass_at_10": self._calculate_pass_at_k(config.num_samples, successful_runs, 10),
                 }
-            
+
             # Finalize session
             session.end_time = datetime.now()
-            
+
             if config.system_monitoring:
                 session.system_metrics = self.system_monitor.export_metrics()
                 self.system_monitor.stop_monitoring()
-            
+
             session.aggregate_stats = self._calculate_aggregate_stats_with_pass_k(session)
-            
+
         finally:
             if config.system_monitoring:
                 self.system_monitor.stop_monitoring()
-        
+
         return session
-    
+
     async def _evaluate_problem_with_temperature(
         self,
         problem: Dict[str, Any],
@@ -722,13 +759,13 @@ class BenchmarkService:
         run_id: int = 0,
     ) -> BenchmarkProblemResult:
         """Evaluate a problem with specified temperature.
-        
+
         This is a wrapper around _evaluate_problem that adds temperature control.
         """
         # Temporarily set the temperature
         original_temp = getattr(self.inference_service, 'temperature', 0.7)
         self.inference_service.temperature = temperature
-        
+
         try:
             result = await self._evaluate_problem(problem, mode)
             result.run_id = run_id
@@ -737,7 +774,7 @@ class BenchmarkService:
         finally:
             # Restore original temperature
             self.inference_service.temperature = original_temp
-    
+
     def _calculate_aggregate_stats_with_pass_k(
         self,
         session: BenchmarkSession,
@@ -745,18 +782,18 @@ class BenchmarkService:
         """Calculate aggregate stats including pass@k metrics."""
         # Get base stats
         stats = self._calculate_aggregate_stats(session)
-        
+
         # Add pass@k aggregates
         if session.pass_at_k:
             total_problems = len(session.pass_at_k)
-            
+
             stats["pass_at_k"] = {
                 "overall_pass_at_1": sum(p["pass_at_1"] for p in session.pass_at_k.values()) / total_problems,
                 "overall_pass_at_3": sum(p["pass_at_3"] for p in session.pass_at_k.values()) / total_problems,
                 "overall_pass_at_5": sum(p["pass_at_5"] for p in session.pass_at_k.values()) / total_problems,
                 "overall_pass_at_10": sum(p["pass_at_10"] for p in session.pass_at_k.values()) / total_problems,
             }
-        
+
         # Temperature metrics
         if session.problems:
             temps = [p.temperature for p in session.problems]
@@ -764,5 +801,5 @@ class BenchmarkService:
                 "mean": sum(temps) / len(temps),
                 "values": list(set(temps)),
             }
-        
+
         return stats

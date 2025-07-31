@@ -92,10 +92,7 @@ class ToolExecutor:
         # Route to appropriate handler
         handlers = {
             "run_python_code": self._run_python_code,
-            "run_python_file": self._run_python_file,
             "upsert_file": self._upsert_file,
-            "delete_file": self._delete_file,
-            "list_files": self._list_files,
             "read_file": self._read_file,
             "submit_python_solution": self._submit_python_solution,
         }
@@ -137,15 +134,25 @@ class ToolExecutor:
                 shutil.rmtree(self.sandbox_dir, ignore_errors=True)
             self.sandbox_dir = None
     
-    async def _run_python_code(self, code: str) -> str:
+    async def _run_python_code(self, code: Optional[str] = None, filename: Optional[str] = None) -> str:
         """Execute Python code in sandbox.
         
         Args:
             code: Python code to execute
+            filename: File to execute
             
         Returns:
             Execution output
         """
+        # If filename is provided, read the file
+        if filename:
+            file_path = Path(self.sandbox_dir) / filename
+            if not file_path.exists():
+                return f"Error: File '{filename}' not found"
+            code = file_path.read_text()
+        elif not code:
+            return "Error: Either 'code' or 'filename' must be provided"
+            
         if self.use_docker and self.docker_client:
             return await self._run_python_docker(code)
         else:
@@ -243,21 +250,6 @@ class ToolExecutor:
         except Exception as e:
             return f"Execution error: {str(e)}"
     
-    async def _run_python_file(self, filename: str) -> str:
-        """Execute a Python file in sandbox.
-        
-        Args:
-            filename: Name of the file to execute
-            
-        Returns:
-            Execution output
-        """
-        file_path = Path(self.sandbox_dir) / filename
-        if not file_path.exists():
-            return f"Error: File '{filename}' not found"
-        
-        code = file_path.read_text()
-        return await self._run_python_code(code)
     
     async def _upsert_file(self, filename: str, content: str) -> str:
         """Create or update a file in sandbox.
@@ -275,40 +267,6 @@ class ToolExecutor:
         
         return f"File '{filename}' created/updated successfully"
     
-    async def _delete_file(self, filename: str) -> str:
-        """Delete a file from sandbox.
-        
-        Args:
-            filename: Name of the file to delete
-            
-        Returns:
-            Success message or error
-        """
-        file_path = Path(self.sandbox_dir) / filename
-        if not file_path.exists():
-            return f"Error: File '{filename}' not found"
-        
-        file_path.unlink()
-        return f"File '{filename}' deleted successfully"
-    
-    async def _list_files(self) -> str:
-        """List all files in sandbox.
-        
-        Returns:
-            List of files as string
-        """
-        files = []
-        sandbox_path = Path(self.sandbox_dir)
-        
-        for file_path in sandbox_path.rglob("*"):
-            if file_path.is_file():
-                relative_path = file_path.relative_to(sandbox_path)
-                files.append(str(relative_path))
-        
-        if not files:
-            return "No files in sandbox"
-        
-        return "Files in sandbox:\n" + "\n".join(f"- {f}" for f in sorted(files))
     
     async def _read_file(self, filename: str) -> str:
         """Read a file from sandbox.

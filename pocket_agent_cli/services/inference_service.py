@@ -265,6 +265,38 @@ class InferenceService:
         # Look for JSON tool calls in various formats
         import re
         
+        # Format 0: Check for ```tool_code or ```tool_call blocks (Gemma formats)
+        # Gemma uses tool_call in chat mode but tool_code in benchmark mode
+        tool_block_patterns = [
+            r'```tool_code\s*\n(.*?)\n```',
+            r'```tool_call\s*\n(.*?)\n```'
+        ]
+        
+        for pattern in tool_block_patterns:
+            matches = re.findall(pattern, response, re.DOTALL)
+            # Remove debug logging
+            pass
+            for match in matches:
+                try:
+                    call = json.loads(match.strip())
+                    if isinstance(call, dict) and 'name' in call:
+                        tool_calls.append(call)
+                except json.JSONDecodeError as e:
+                    # Try to fix common issues with Gemma's JSON generation
+                    if "Expecting ',' delimiter" in str(e) and match.count('{') > match.count('}'):
+                        # Missing closing brace - add it and try again
+                        fixed_match = match.strip() + '}'
+                        try:
+                            call = json.loads(fixed_match)
+                            if isinstance(call, dict) and 'name' in call:
+                                tool_calls.append(call)
+                                continue
+                        except:
+                            pass
+        
+        if tool_calls:
+            return tool_calls
+        
         # Format 1: Direct JSON array
         if response.strip().startswith("[") and response.strip().endswith("]"):
             try:

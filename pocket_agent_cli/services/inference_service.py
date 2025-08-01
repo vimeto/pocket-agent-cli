@@ -59,8 +59,8 @@ class InferenceService:
         kwargs = {
             "model_path": str(model.path),
             "use_mmap": True,
-            "verbose": True,
-            "n_ctx": 2048,
+            "verbose": False,
+            "n_ctx": 4096,  # Increased from 2048 to handle full_tool mode
             "n_gpu_layers": -1,
             "flash_attn": True
 

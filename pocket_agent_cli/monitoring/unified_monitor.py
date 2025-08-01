@@ -35,6 +35,7 @@ class UnifiedMetrics:
     gpu_utilization_percent: Optional[float] = None
     gpu_temperature_c: Optional[float] = None
     gpu_power_watts: Optional[float] = None
+    cpu_power_watts: Optional[float] = None
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
@@ -187,57 +188,75 @@ class UnifiedMonitor:
     def _collect_with_powermetrics(self) -> Optional[UnifiedMetrics]:
         """Collect all metrics using powermetrics (most efficient)."""
         try:
-            # Run powermetrics once for all data
+            # Run powermetrics once for all data (text format to get power values)
             cmd = [
                 "sudo", "-n", "powermetrics",
-                "--samplers", "cpu_power,gpu_power,thermal,tasks",
+                "--samplers", "cpu_power,gpu_power",
                 "--sample-count", "1",
                 "--sample-rate", "100",  # 100ms sample
-                "--format", "plist"
             ]
             
             result = subprocess.run(
                 cmd,
                 capture_output=True,
-                timeout=1.0
+                text=True,
+                timeout=2.0  # Increased timeout for powermetrics
             )
             
             if result.returncode != 0:
                 return self._collect_fallback()
-            
-            # Parse plist data
-            import plistlib
-            data = plistlib.loads(result.stdout)
-            
-            # Extract all metrics at once
-            processor = data.get("processor", {})
-            thermal = data.get("thermal_pressure", {})
             
             # Get psutil metrics
             cpu_percent = psutil.cpu_percent(interval=0.1)
             cpu_per_core = psutil.cpu_percent(interval=0.1, percpu=True)
             memory = psutil.virtual_memory()
             
+            # Parse power values from text output
+            cpu_power = 0.0
+            gpu_power = 0.0
+            gpu_utilization = 0.0
+            
+            for line in result.stdout.split('\n'):
+                if 'CPU Power:' in line:
+                    match = re.search(r'CPU Power:\s*(\d+)\s*mW', line)
+                    if match:
+                        cpu_power = float(match.group(1)) / 1000.0  # Convert mW to W
+                elif 'GPU Power:' in line and 'CPU + GPU' not in line:
+                    match = re.search(r'GPU Power:\s*(\d+)\s*mW', line)
+                    if match:
+                        gpu_power = float(match.group(1)) / 1000.0  # Convert mW to W
+                elif 'GPU HW active residency:' in line:
+                    match = re.search(r'GPU HW active residency:\s*([\d.]+)%', line)
+                    if match:
+                        gpu_utilization = float(match.group(1))
+            
+            # Get temperature from ioreg/smctemp if available
+            cpu_temp = None
+            if self._has_smctemp or self._has_osx_cpu_temp:
+                cpu_temp = self._get_cpu_temp()
+            
             return UnifiedMetrics(
                 timestamp=datetime.now(),
                 # Power
-                power_watts=processor.get("package_watts", 0.0) + 
-                           processor.get("gpu_watts", 0.0) + 
-                           processor.get("dram_watts", 0.0),
+                power_watts=cpu_power + gpu_power,
+                cpu_power_watts=cpu_power,
+                gpu_power_watts=gpu_power,
                 # CPU
                 cpu_percent=cpu_percent,
                 cpu_per_core=cpu_per_core,
-                cpu_temperature_c=thermal.get("die_temperature_c"),
+                cpu_temperature_c=cpu_temp,
                 # GPU
-                gpu_power_watts=processor.get("gpu_watts", 0.0),
-                gpu_utilization_percent=processor.get("gpu_active_ratio", 0.0) * 100,
-                gpu_temperature_c=thermal.get("gpu_temperature_c"),
+                gpu_utilization_percent=gpu_utilization,
                 # Memory
                 memory_percent=memory.percent,
                 memory_used_mb=memory.used / (1024 * 1024),
             )
             
-        except Exception:
+        except Exception as e:
+            if DEBUG_MONITOR:
+                print(f"[DEBUG] _collect_with_powermetrics failed: {e}")
+                import traceback
+                traceback.print_exc()
             return self._collect_fallback()
     
     def _collect_fallback(self) -> Optional[UnifiedMetrics]:
@@ -310,11 +329,20 @@ class UnifiedMonitor:
                 elif 'InstantAmperage' in line:
                     match = re.search(r'= (-?\d+)', line)
                     if match:
-                        amperage_ma = abs(int(match.group(1)))
+                        raw_amperage = int(match.group(1))
+                        # Handle 64-bit unsigned to signed conversion
+                        if raw_amperage > 2**63:
+                            raw_amperage = raw_amperage - 2**64
+                        amperage_ma = abs(raw_amperage)
             
             power_watts = 0.0
             if voltage_v and amperage_ma:
                 power_watts = (voltage_v * amperage_ma) / 1000.0
+                # Validate reasonable power range (0.1W to 200W for laptops)
+                if power_watts < 0.1 or power_watts > 200.0:
+                    if DEBUG_MONITOR:
+                        print(f"[DEBUG] Invalid power calculated: {power_watts}W, falling back to estimation")
+                    power_watts = 0.0  # Fall back to estimation
             
             return {
                 "power_watts": power_watts,
@@ -424,6 +452,8 @@ class UnifiedMonitor:
                     "gpu_utilization_percent": self._latest_metrics.gpu_utilization_percent,
                     "temperature_c": self._latest_metrics.cpu_temperature_c,
                     "total_energy_joules": self._total_energy_joules,
+                    "cpu_power_watts": self._latest_metrics.cpu_power_watts,
+                    "gpu_power_watts": self._latest_metrics.gpu_power_watts,
                 }
         return None
     

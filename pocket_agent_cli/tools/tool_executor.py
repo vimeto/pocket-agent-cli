@@ -74,8 +74,8 @@ class ToolExecutor:
                     break
             
         finally:
-            # Cleanup sandbox
-            self._cleanup_sandbox()
+            # Don't cleanup sandbox here - let the benchmark service manage it
+            pass
         
         return results
     
@@ -191,14 +191,30 @@ class ToolExecutor:
             container.start()
             
             # Wait for completion with timeout
-            exit_code = container.wait(timeout=30)
+            exit_status = container.wait(timeout=30)
+            exit_code = exit_status.get('StatusCode', 0)
             
-            # Get logs
-            logs = container.logs(stdout=True, stderr=True)
-            output = logs.decode("utf-8")
+            # Get logs - both stdout and stderr
+            stdout_logs = container.logs(stdout=True, stderr=False)
+            stderr_logs = container.logs(stdout=False, stderr=True)
+            
+            stdout = stdout_logs.decode("utf-8")
+            stderr = stderr_logs.decode("utf-8")
             
             # Remove container
             container.remove()
+            
+            # Combine output, prioritizing stderr for errors
+            if stderr:
+                output = stderr
+                if stdout:
+                    output += "\n" + stdout
+            else:
+                output = stdout
+            
+            # If exit code is non-zero, prepend error info
+            if exit_code != 0:
+                output = f"Error: Process exited with code {exit_code}\n{output}"
             
             return output
             

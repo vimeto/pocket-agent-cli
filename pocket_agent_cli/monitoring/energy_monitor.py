@@ -262,12 +262,20 @@ class EnergyMonitor:
                     elif 'InstantAmperage' in line:
                         match = re.search(r'= (-?\d+)', line)
                         if match:
-                            amperage_ma = abs(int(match.group(1)))
+                            raw_amperage = int(match.group(1))
+                            # Handle 64-bit unsigned to signed conversion
+                            if raw_amperage > 2**63:
+                                raw_amperage = raw_amperage - 2**64
+                            amperage_ma = abs(raw_amperage)
                             battery_ma = amperage_ma
                 
                 # Calculate power from V * I
                 if voltage_v and amperage_ma:
                     power_watts = (voltage_v * amperage_ma) / 1000.0
+                    # Validate reasonable power range (0.1W to 200W for laptops)
+                    if power_watts < 0.1 or power_watts > 200.0:
+                        print(f"[WARNING] Invalid power calculated: {power_watts}W (V={voltage_v}, I={amperage_ma}mA)")
+                        power_watts = 0.0  # Fall back to estimation
             
             # Try to get temperature
             temp_result = subprocess.run(

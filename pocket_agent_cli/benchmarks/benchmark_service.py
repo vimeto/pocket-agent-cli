@@ -229,6 +229,8 @@ class BenchmarkService:
 
         # Create tool executor with test cases for this problem
         self.tool_executor = ToolExecutor(use_docker=True, test_cases=problem.get("test_list", []))
+        # Ensure sandbox is created
+        self.tool_executor._create_sandbox()
 
         # Check if this is a cold start (first problem)
         is_cold_start = False
@@ -252,8 +254,19 @@ class BenchmarkService:
             system_prompt = mode.system_prompt
             user_suffix = ""
 
-        # Prepare messages
-        user_content = mode.user_prompt_template.format(problem_description=problem["text"])
+        # Prepare messages with test cases included
+        # Format test cases to show expected function signatures
+        test_list = problem.get("test_list", [])
+        # Limit test examples shown to avoid token overflow
+        if mode.name == "full_tool":
+            # For full_tool mode, show only 1-2 examples to save tokens
+            test_examples = "\n".join(test_list[:2])
+        else:
+            # For other modes, show up to 3 examples
+            test_examples = "\n".join(test_list[:3])
+        problem_with_tests = f"{problem['text']}\n\nExample test cases:\n{test_examples}"
+        
+        user_content = mode.user_prompt_template.format(problem_description=problem_with_tests)
         
         # Add model-specific user suffix if provided
         if user_suffix:
@@ -444,6 +457,10 @@ class BenchmarkService:
             if not submission_via_tool and submission_found:
                 print("⚠️  Solution extracted from Python block, not tool call")
 
+        # Cleanup sandbox after evaluation
+        if hasattr(self.tool_executor, '_cleanup_sandbox'):
+            self.tool_executor._cleanup_sandbox()
+            
         return BenchmarkProblemResult(
             problem_id=problem["task_id"],
             start_time=start_time,
@@ -475,6 +492,7 @@ class BenchmarkService:
         """
         # First check tool calls
         if tool_calls:
+            # Look for submit_python_solution calls first
             for call in tool_calls:
                 if call.get("name") == "submit_python_solution":
                     params = call.get("parameters", {})
@@ -483,29 +501,37 @@ class BenchmarkService:
                         return params["code"]
                     # Check for filename parameter
                     elif "filename" in params:
-                        # In full_tool mode, the file should have been created
-                        # Try to read from the actual sandbox
+                        # Look for the corresponding upsert_file call
                         filename = params["filename"]
-                        if hasattr(self.tool_executor, 'sandbox_dir') and self.tool_executor.sandbox_dir:
-                            file_path = Path(self.tool_executor.sandbox_dir) / filename
-                            print(f"[DEBUG] Looking for file in sandbox: {file_path}")
-                            if file_path.exists():
-                                content = file_path.read_text()
-                                print(f"[DEBUG] Found file, content preview: {content[:50]}...")
-                                return content
-                            else:
-                                print(f"[DEBUG] File not found in sandbox")
-
-                        # Fallback: Look for the last upsert_file call with that filename
-                        for tc in reversed(tool_calls):
+                        for tc in tool_calls:
                             if tc.get("name") == "upsert_file" and tc.get("parameters", {}).get("filename") == filename:
-                                return tc.get("parameters", {}).get("content", "")
-                elif call.get("name") == "run_python_code":
+                                content = tc.get("parameters", {}).get("content", "")
+                                # Clean up content - remove assert statements if they're included
+                                lines = content.split('\n')
+                                clean_lines = []
+                                for line in lines:
+                                    if not line.strip().startswith('assert '):
+                                        clean_lines.append(line)
+                                    else:
+                                        break  # Stop at first assert
+                                return '\n'.join(clean_lines).rstrip()
+            
+            # If no submit_python_solution, look for other code sources
+            for call in tool_calls:
+                if call.get("name") == "run_python_code":
                     return call.get("parameters", {}).get("code", "")
                 elif call.get("name") == "upsert_file":
                     content = call.get("parameters", {}).get("content", "")
-                    if content:
-                        return content
+                    if content and 'def ' in content:
+                        # Clean up content
+                        lines = content.split('\n')
+                        clean_lines = []
+                        for line in lines:
+                            if not line.strip().startswith('assert '):
+                                clean_lines.append(line)
+                            else:
+                                break
+                        return '\n'.join(clean_lines).rstrip()
 
         # Try to extract code blocks from response
         # Pattern 1: ```python ... ```
@@ -553,35 +579,92 @@ class BenchmarkService:
             List of test results
         """
         results = []
+        
+        if DEBUG_BENCHMARK:
+            print(f"\n[DEBUG] Running {len(test_cases)} test cases")
+            print(f"[DEBUG] Code to test (first 200 chars): {code[:200]}...")
+        
+        # Extract expected function name from test cases
+        expected_function = None
+        if test_cases:
+            # Look for function calls in assert statements
+            import re
+            match = re.search(r'assert\s+(\w+)\(', test_cases[0])
+            if match:
+                expected_function = match.group(1)
+                if DEBUG_BENCHMARK:
+                    print(f"[DEBUG] Expected function name from tests: {expected_function}")
+        
+        # Check if we need to add a function alias
+        if expected_function and expected_function not in code:
+            # Look for function definitions in the code
+            func_match = re.search(r'def\s+(\w+)\s*\([^)]*\):', code)
+            if func_match:
+                actual_function = func_match.group(1)
+                if DEBUG_BENCHMARK:
+                    print(f"[DEBUG] Found function: {actual_function}, adding alias for {expected_function}")
+                # Add alias at the end of code
+                code = code.rstrip() + f"\n\n# Alias for test compatibility\n{expected_function} = {actual_function}\n"
 
         for i, test_case in enumerate(test_cases, 1):
             # Combine code and test
             test_code = f"{code}\n\n{test_case}"
+            
+            if DEBUG_BENCHMARK:
+                print(f"\n[DEBUG] Test case {i}: {test_case[:100]}...")
 
             # Execute test
             try:
+                # Ensure sandbox exists before running code
+                if not self.tool_executor.sandbox_dir:
+                    self.tool_executor._create_sandbox()
+                    
                 output = await self.tool_executor._run_python_code(test_code)
+                
+                if DEBUG_BENCHMARK:
+                    print(f"[DEBUG] Test output: {repr(output[:200])}...")
 
-                # Check if test passed (no output usually means success)
-                if "AssertionError" in output or "Error" in output:
+                # Check if test passed
+                # Empty output or no errors means success for assertion tests
+                output_lower = output.lower()
+                has_error = any(err in output_lower for err in [
+                    "assertionerror", "error:", "traceback", "exception",
+                    "syntaxerror", "nameerror", "typeerror", "valueerror",
+                    "indexerror", "keyerror", "attributeerror", "zerodivisionerror"
+                ])
+                
+                # Also check for explicit failure indicators
+                has_failure = any(fail in output_lower for fail in ["failed", "fail"])
+                
+                if has_error or has_failure:
                     results.append(TestResult(
                         test_case=test_case,
                         passed=False,
                         output=output,
                     ))
                 else:
+                    # No errors and no explicit failures = test passed
                     results.append(TestResult(
                         test_case=test_case,
                         passed=True,
-                        output=output,
+                        output=output or "Test passed (no output)",
                     ))
+                    
+                if DEBUG_BENCHMARK:
+                    print(f"[DEBUG] Test {i} result: {'PASSED' if results[-1].passed else 'FAILED'}")
 
             except Exception as e:
+                if DEBUG_BENCHMARK:
+                    print(f"[DEBUG] Test {i} exception: {str(e)}")
                 results.append(TestResult(
                     test_case=test_case,
                     passed=False,
                     error=str(e),
                 ))
+        
+        if DEBUG_BENCHMARK:
+            passed_count = sum(1 for r in results if r.passed)
+            print(f"\n[DEBUG] Test summary: {passed_count}/{len(results)} tests passed")
 
         return results
 
@@ -834,25 +917,24 @@ class BenchmarkService:
                 # Calculate pass@k for this problem
                 successful_runs = sum(1 for r in problem_results if r.success)
                 
-                # If we stopped early due to success, adjust the calculation
+                # When early stopping is enabled, use actual runs for Pass@k calculation
                 if actual_runs < config.num_samples and successful_runs > 0 and not config.exhaustive_passes:
-                    # We found at least one success and stopped early
-                    # For pass@k calculation, we assume we would have found the solution in the remaining runs
-                    # This is conservative but reasonable since we already have a working solution
-                    effective_successes = config.num_samples  # Assume all would pass
+                    # Early stopped after success - use actual runs for Pass@k
+                    # This gives accurate metrics based on what we actually tested
+                    n_for_passk = actual_runs
                 else:
-                    effective_successes = successful_runs
+                    # Either exhaustive mode or all samples were run
+                    n_for_passk = config.num_samples
                 
                 session.pass_at_k[problem["task_id"]] = {
                     "total_runs": config.num_samples,
                     "actual_runs": actual_runs,
                     "successful_runs": successful_runs,
-                    "effective_successes": effective_successes,
                     "early_stopped": actual_runs < config.num_samples,
-                    "pass_at_1": self._calculate_pass_at_k(config.num_samples, effective_successes, 1),
-                    "pass_at_3": self._calculate_pass_at_k(config.num_samples, effective_successes, 3),
-                    "pass_at_5": self._calculate_pass_at_k(config.num_samples, effective_successes, 5),
-                    "pass_at_10": self._calculate_pass_at_k(config.num_samples, effective_successes, 10),
+                    "pass_at_1": self._calculate_pass_at_k(n_for_passk, successful_runs, 1),
+                    "pass_at_3": self._calculate_pass_at_k(n_for_passk, successful_runs, 3) if n_for_passk >= 3 else None,
+                    "pass_at_5": self._calculate_pass_at_k(n_for_passk, successful_runs, 5) if n_for_passk >= 5 else None,
+                    "pass_at_10": self._calculate_pass_at_k(n_for_passk, successful_runs, 10) if n_for_passk >= 10 else None,
                 }
 
             # Finalize session
@@ -904,13 +986,17 @@ class BenchmarkService:
 
         # Add pass@k aggregates
         if session.pass_at_k:
-            total_problems = len(session.pass_at_k)
+            # Calculate averages only for problems with enough samples
+            pass_at_1_values = [p["pass_at_1"] for p in session.pass_at_k.values()]
+            pass_at_3_values = [p["pass_at_3"] for p in session.pass_at_k.values() if p["pass_at_3"] is not None]
+            pass_at_5_values = [p["pass_at_5"] for p in session.pass_at_k.values() if p["pass_at_5"] is not None]
+            pass_at_10_values = [p["pass_at_10"] for p in session.pass_at_k.values() if p["pass_at_10"] is not None]
 
             stats["pass_at_k"] = {
-                "overall_pass_at_1": sum(p["pass_at_1"] for p in session.pass_at_k.values()) / total_problems,
-                "overall_pass_at_3": sum(p["pass_at_3"] for p in session.pass_at_k.values()) / total_problems,
-                "overall_pass_at_5": sum(p["pass_at_5"] for p in session.pass_at_k.values()) / total_problems,
-                "overall_pass_at_10": sum(p["pass_at_10"] for p in session.pass_at_k.values()) / total_problems,
+                "overall_pass_at_1": sum(pass_at_1_values) / len(pass_at_1_values) if pass_at_1_values else 0.0,
+                "overall_pass_at_3": sum(pass_at_3_values) / len(pass_at_3_values) if pass_at_3_values else None,
+                "overall_pass_at_5": sum(pass_at_5_values) / len(pass_at_5_values) if pass_at_5_values else None,
+                "overall_pass_at_10": sum(pass_at_10_values) / len(pass_at_10_values) if pass_at_10_values else None,
             }
 
         # Temperature metrics

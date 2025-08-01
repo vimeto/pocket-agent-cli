@@ -196,8 +196,12 @@ class MacOSMonitor:
                         elif 'InstantAmperage' in line:
                             match = re.search(r'= (-?\d+)', line)
                             if match:
+                                raw_amperage = int(match.group(1))
+                                # Handle 64-bit unsigned to signed conversion
+                                if raw_amperage > 2**63:
+                                    raw_amperage = raw_amperage - 2**64
                                 # Convert to positive for drain rate
-                                amperage = abs(int(match.group(1)))
+                                amperage = abs(raw_amperage)
                                 metrics['battery_amperage_ma'] = amperage
                         elif 'Voltage' in line and 'Voltage' not in metrics:
                             match = re.search(r'= (\d+)', line)

@@ -448,9 +448,12 @@ def benchmark(
             if 'pass_at_k' in stats:
                 pass_k = stats['pass_at_k']
                 console.print(f"  Pass@1: {pass_k['overall_pass_at_1']:.1%}")
-                console.print(f"  Pass@3: {pass_k['overall_pass_at_3']:.1%}")
-                console.print(f"  Pass@5: {pass_k['overall_pass_at_5']:.1%}")
-                console.print(f"  Pass@10: {pass_k['overall_pass_at_10']:.1%}")
+                if pass_k['overall_pass_at_3'] is not None:
+                    console.print(f"  Pass@3: {pass_k['overall_pass_at_3']:.1%}")
+                if pass_k['overall_pass_at_5'] is not None:
+                    console.print(f"  Pass@5: {pass_k['overall_pass_at_5']:.1%}")
+                if pass_k['overall_pass_at_10'] is not None:
+                    console.print(f"  Pass@10: {pass_k['overall_pass_at_10']:.1%}")
             else:
                 # Fallback to simple pass rate
                 console.print(f"  Pass rate: {stats.get('pass_rate', 0):.1%}")

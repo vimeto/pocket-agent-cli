@@ -19,39 +19,69 @@ ssh <username>@mahti.csc.fi
 ### 2. Set Project Environment
 
 ```bash
-# Replace with your actual project ID
-export PROJECT=project_2xxx
-export PROJECT_DIR=/projappl/$PROJECT/$USER/pocket-agent-cli
+export PROJECT=XXX  # Project number
 ```
 
 ### 3. Clone Repository
 
 ```bash
-cd /projappl/$PROJECT/$USER
+cd /projappl/project_$PROJECT/$USER
 git clone <repository-url> pocket-agent-cli
 cd pocket-agent-cli
 ```
 
-### 4. Setup Environment
+### 4. Start Interactive Session (REQUIRED)
 
-Run the setup script to create a Tykky containerized environment:
+**Important:** You MUST use an interactive session for the initial setup. The login node has limited resources and some modules are not available.
 
 ```bash
+# Request an interactive session for setup
+sinteractive --account project_$PROJECT --time 1:00:00 --mem 12000
+
+# Wait
+```
+
+### 5. Setup Environment
+
+Once on a compute node, run the setup script:
+
+```bash
+# Make sure PROJECT is still set
+export PROJECT=XXX  # Your project number
+
+# Run setup
 chmod +x slurm/setup_environment.sh
 source slurm/setup_environment.sh
 ```
 
+**Common Issues:**
+- If you see "module not found" errors, check available modules with `module spider gcc` and `module spider cuda`
+- If `pip-containerize` is not found, ensure Tykky is loaded: `module load tykky`
+- The setup will warn about missing CUDA on login nodes - this is normal
+
 This script will:
 - Create necessary directories
-- Load required modules (GCC, CUDA)
-- Set up a Tykky containerized Python environment
-- Install dependencies with CUDA support
+- Load required modules (will auto-detect versions)
+- Set up a Tykky containerized Python environment (required on Mahti)
+- Install dependencies with CUDA support (when on compute nodes)
 
 ## Running Tests
 
 ### Quick GPU Test
 
-Test that GPU and CUDA are properly configured:
+First, update the SLURM script with your project ID:
+
+```bash
+# Edit the test script
+nano slurm/test_gpu.sh
+
+# Replace this line:
+#SBATCH --account=project_<YOUR_PROJECT_ID>
+# With your project number:
+#SBATCH --account=project_2013932  # Or your project number
+```
+
+Then submit the test job:
 
 ```bash
 # Submit test job
@@ -171,29 +201,65 @@ export OMP_NUM_THREADS=32  # Match CPU count
 
 ## Troubleshooting
 
-### 1. CUDA Not Detected
+### 1. Module Not Found Errors
+
+If you see errors like "The following module(s) are unknown: gcc/11.3.0":
 
 ```bash
-# Check CUDA installation
+# Check available versions
+module spider gcc
+module spider cuda
+
+# Load available versions (example)
+module load gcc/10.4.0  # Or whatever version is shown
+module load cuda  # Load default version
+```
+
+### 2. pip-containerize: command not found
+
+This means Tykky module is not loaded:
+
+```bash
+# Load Tykky module
+module load tykky
+
+# Verify it's available
+pip-containerize --help
+```
+
+**Note:** This MUST be done on a compute node, not the login node.
+
+### 3. CUDA Not Detected
+
+```bash
+# CUDA is only available on GPU compute nodes
+# Request a GPU node
+sinteractive --partition gputest --gres=gpu:a100:1 --time 00:15:00
+
+# Then check CUDA
 module list
 nvcc --version
 nvidia-smi
-
-# Ensure CUDA module is loaded
-module load cuda/12.2.0
 ```
 
-### 2. Model Loading Issues
+### 4. Running on Login Node
+
+If you accidentally run setup on the login node:
+- You'll see warnings about modules and commands not found
+- Solution: Use `sinteractive` to get a compute node first
+- Login nodes are only for light tasks, not installations
+
+### 5. Model Loading Issues
 
 ```bash
 # Check model path
-ls -la $PROJECT_DIR/models/
+ls -la /projappl/project_$PROJECT/$USER/pocket-agent-cli/models/
 
 # Test with smaller model if memory issues
 pocket-agent model download tinyllama-1.1b
 ```
 
-### 3. Out of Memory
+### 6. Out of Memory
 
 - Use GPU slices for testing
 - Reduce batch size in configuration

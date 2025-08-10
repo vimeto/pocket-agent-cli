@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=pocket-agent-gpu-test
-#SBATCH --account=project_<YOUR_PROJECT_ID>
+#SBATCH --account=project_<YOUR_PROJECT_ID>  # CHANGE THIS to project_2013932 or your project
 #SBATCH --partition=gputest
 #SBATCH --time=00:15:00
 #SBATCH --ntasks=1
@@ -13,7 +13,7 @@
 # Quick GPU test script for Mahti
 
 # Load environment
-source /projappl/$PROJECT/$USER/pocket-agent-cli/slurm/setup_environment.sh
+source /projappl/project_$PROJECT/$USER/pocket-agent-cli/slurm/setup_environment.sh
 
 # Set work directory
 cd /projappl/$PROJECT/$USER/pocket-agent-cli
@@ -53,7 +53,7 @@ import subprocess
 import json
 
 # Get GPU memory info
-result = subprocess.run(['nvidia-smi', '--query-gpu=memory.total,memory.free,memory.used', '--format=csv,nounits,noheader'], 
+result = subprocess.run(['nvidia-smi', '--query-gpu=memory.total,memory.free,memory.used', '--format=csv,nounits,noheader'],
                        capture_output=True, text=True)
 if result.returncode == 0:
     values = result.stdout.strip().split(', ')
@@ -66,7 +66,7 @@ MODEL_PATH="/projappl/$PROJECT/$USER/pocket-agent-cli/models"
 if [ -d "$MODEL_PATH" ] && [ "$(ls -A $MODEL_PATH)" ]; then
     echo "Found models in $MODEL_PATH"
     ls -la $MODEL_PATH
-    
+
     # Try a quick inference
     python -c "
 from pocket_agent_cli.services.inference_service import InferenceService

@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=pocket-agent-benchmark
-#SBATCH --account=project_<YOUR_PROJECT_ID>
+#SBATCH --account=project_<YOUR_PROJECT_ID>  # CHANGE THIS to project_2013932 or your project
 #SBATCH --partition=gpusmall
 #SBATCH --time=02:00:00
 #SBATCH --ntasks=1
@@ -10,8 +10,9 @@
 #SBATCH --output=logs/benchmark_%j.out
 #SBATCH --error=logs/benchmark_%j.err
 
+
 # Load environment
-source /projappl/$PROJECT/$USER/pocket-agent-cli/slurm/setup_environment.sh
+source /projappl/project_$PROJECT/$USER/pocket-agent-cli/slurm/setup_environment.sh
 
 # Set work directory
 cd /projappl/$PROJECT/$USER/pocket-agent-cli

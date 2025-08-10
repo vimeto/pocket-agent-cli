@@ -1,219 +1,209 @@
 #!/bin/bash
-# Setup script for Mahti environment
+# Setup script for Mahti environment with containerization
 
-# Check if running on login node (warn but continue)
-# Use hostname -s to get actual node name
+# Check current node
 CURRENT_NODE=$(hostname -s)
+echo "================================="
+echo "Pocket Agent CLI - Mahti Setup"
+echo "================================="
 echo "Current node: $CURRENT_NODE"
 
+# Warn if on login node but don't exit (some operations can still work)
 if [[ "$CURRENT_NODE" == *"login"* ]]; then
-    echo "WARNING: Running on login node. Some operations may be limited."
-    echo "For full setup, use:"
-    echo "  srun --account=project_$PROJECT --partition=test --time=1:00:00 --mem=12000 --pty bash"
-elif [[ "$CURRENT_NODE" == c* ]] || [[ "$CURRENT_NODE" == g* ]]; then
-    echo "Running on compute node: $CURRENT_NODE - Good!"
+    echo "WARNING: On login node. Full setup requires compute node."
+    echo "To get compute node: srun --account=project_$PROJECT --partition=test --time=1:00:00 --mem=12000 --pty bash"
 fi
 
 # Check if PROJECT is set
 if [ -z "$PROJECT" ]; then
     echo "ERROR: PROJECT environment variable not set"
+    echo "Please run: export PROJECT=2013932 (or your project number)"
     exit 1
 fi
 
 # Set project directory
 export PROJECT_DIR=/projappl/project_$PROJECT/$USER/pocket-agent-cli
-
-# Create necessary directories
-echo "Creating directories in $PROJECT_DIR..."
-mkdir -p $PROJECT_DIR
-mkdir -p $PROJECT_DIR/models
-mkdir -p $PROJECT_DIR/results
-mkdir -p $PROJECT_DIR/logs
-
-# Load necessary modules
-echo "Loading modules..."
-module purge
-
-# Check available GCC versions
-echo "Checking available GCC versions..."
-module spider gcc 2>/dev/null | grep "gcc/" | head -5
-
-# Try to load GCC (use default or available version)
-if module load gcc/10.4.0 2>/dev/null; then
-    echo "Loaded gcc/10.4.0"
-elif module load gcc 2>/dev/null; then
-    echo "Loaded default gcc"
-else
-    echo "WARNING: Could not load GCC module. Using system compiler."
-fi
-
-# Try to load CUDA (check if we're on compute node)
-CURRENT_NODE=$(hostname -s)
-if [[ "$CURRENT_NODE" == c* ]] || [[ "$CURRENT_NODE" == g* ]] || [[ -e /tmp/slurmd.pid ]]; then
-    echo "On compute node ($CURRENT_NODE), attempting to load CUDA module..."
-    if module spider cuda 2>/dev/null | grep -q "cuda"; then
-        # Try common CUDA versions
-        if module load cuda/12.6.1 2>/dev/null; then
-            echo "Loaded cuda/12.6.1"
-        elif module load cuda 2>/dev/null; then
-            echo "Loaded default cuda"
-        else
-            echo "WARNING: CUDA module not available. GPU support may be limited."
-        fi
-    else
-        echo "INFO: CUDA modules not available on this node."
-    fi
-else
-    echo "INFO: Not on compute node. CUDA will be loaded when on compute nodes."
-fi
-
-# Setup Python environment using Tykky (required for CSC)
 export TYKKY_ENV=$PROJECT_DIR/tykky-env
 
-# Load Tykky module
-echo "Loading Tykky module for Python environment..."
+# Create necessary directories
+echo ""
+echo "Creating project directories..."
+mkdir -p $PROJECT_DIR/{models,results,logs}
+
+# Load modules
+echo ""
+echo "Loading modules..."
+module purge
+module load gcc/10.4.0 2>/dev/null || module load gcc 2>/dev/null || echo "GCC module not available"
+
+# Try to load CUDA if on GPU node
+if [[ "$CURRENT_NODE" == g* ]]; then
+    echo "GPU node detected, loading CUDA..."
+    module load cuda 2>/dev/null || echo "CUDA module not available"
+fi
+
+# Load Tykky module (required for containerization)
+echo "Loading Tykky module..."
 if ! module load tykky 2>/dev/null; then
-    echo "ERROR: Cannot load Tykky module. This is required for Python environments on Mahti."
-    echo "Please ensure you're on a compute node or in an interactive session."
-    echo "Run: srun --account=project_$PROJECT --partition=test --time=1:00:00 --mem=12000 --pty bash"
+    echo "ERROR: Cannot load Tykky module."
+    echo "This is required for containerized Python environments on Mahti."
+    echo "Make sure you're on a compute node."
     exit 1
 fi
 
 # Check if Tykky environment exists and is valid
 if [ ! -d "$TYKKY_ENV/bin" ]; then
-    # Remove incomplete environment if it exists
+    # Clean up incomplete environment
     if [ -d "$TYKKY_ENV" ]; then
         echo "Removing incomplete Tykky environment..."
         rm -rf $TYKKY_ENV
     fi
     
-    echo "Creating Tykky containerized environment..."
-    echo "This may take several minutes on first run..."
-
-    # Create requirements file for Tykky (without llama-cpp-python)
-    # llama-cpp-python will be installed separately due to version/CUDA requirements
-    cat > $PROJECT_DIR/requirements-base.txt << EOF
-click>=8.1.7
-rich>=13.7.1
-httpx>=0.27.0
-psutil>=6.0.0
-docker>=7.1.0
-jinja2>=3.1.4
-pydantic>=2.8.2
-tqdm>=4.66.5
-aiofiles>=24.1.0
-huggingface-hub>=0.24.5
-line-profiler>=5.0.0
+    echo ""
+    echo "Creating containerized Python environment..."
+    echo "This will take 5-10 minutes on first run..."
+    
+    # Create minimal requirements for containerization
+    # llama-cpp-python will be installed separately
+    cat > $PROJECT_DIR/requirements-container.txt << EOF
+wheel
+setuptools
+pip
+numpy
+scipy
+click
+rich
+httpx
+psutil
+docker
+jinja2
+pydantic
+tqdm
+aiofiles
+huggingface-hub
+requests
 EOF
 
-    # Create Tykky containerized environment
-    if command -v pip-containerize &> /dev/null; then
-        echo "Running pip-containerize (this may take 5-10 minutes)..."
-        pip-containerize new \
-            --prefix $TYKKY_ENV \
-            $PROJECT_DIR/requirements-base.txt
-        
-        # Check if successful
-        if [ ! -d "$TYKKY_ENV/bin" ]; then
-            echo "ERROR: Tykky environment creation failed."
-            echo "Try running: CW_LOG_LEVEL=3 pip-containerize new --prefix $TYKKY_ENV $PROJECT_DIR/requirements-base.txt"
-            exit 1
-        fi
-    else
-        echo "ERROR: pip-containerize command not found."
-        echo "Make sure Tykky module is loaded: module load tykky"
+    # Create the containerized environment
+    echo "Running pip-containerize..."
+    pip-containerize new \
+        --prefix $TYKKY_ENV \
+        $PROJECT_DIR/requirements-container.txt
+    
+    # Check if successful
+    if [ ! -d "$TYKKY_ENV/bin" ]; then
+        echo ""
+        echo "ERROR: Tykky environment creation failed."
+        echo ""
+        echo "Troubleshooting:"
+        echo "1. Make sure you're on a compute node (not login node)"
+        echo "2. Try with debug output:"
+        echo "   CW_LOG_LEVEL=3 pip-containerize new --prefix $TYKKY_ENV $PROJECT_DIR/requirements-container.txt"
+        echo "3. Check available disk space: lfs quota -hg project_$PROJECT /projappl"
         exit 1
     fi
+    
+    echo "✓ Containerized environment created successfully"
 else
-    echo "Tykky environment already exists at $TYKKY_ENV"
+    echo "✓ Tykky environment already exists at $TYKKY_ENV"
 fi
 
-# Add Tykky environment to PATH
+# Add to PATH
 export PATH="$TYKKY_ENV/bin:$PATH"
 
-# Check if Python is available
+# Verify Python is available
+echo ""
+echo "Checking Python installation..."
 if command -v python &> /dev/null; then
-    echo "Python found: $(which python)"
-    echo "Python version: $(python --version 2>&1)"
+    echo "✓ Python found: $(which python)"
+    echo "  Version: $(python --version)"
 else
-    echo "WARNING: Python not found in Tykky environment."
-    echo "Environment may not be properly initialized."
+    echo "ERROR: Python not found in Tykky environment"
+    exit 1
 fi
 
-# Set CUDA compilation flags for llama-cpp-python
-export CMAKE_ARGS="-DLLAMA_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=80"
-export FORCE_CMAKE=1
+# Install/upgrade pip tools
+echo ""
+echo "Upgrading pip tools..."
+python -m pip install --upgrade pip setuptools wheel --quiet
 
-# Install llama-cpp-python separately after base environment is ready
-if command -v python &> /dev/null; then
-    echo ""
-    echo "Checking llama-cpp-python installation..."
-    
-    if ! python -c "import llama_cpp" 2>/dev/null; then
-        echo "Installing llama-cpp-python..."
-        
-        # First upgrade pip to latest version
-        pip install --upgrade pip setuptools wheel
-        
-        CURRENT_NODE=$(hostname -s)
-        if [[ "$CURRENT_NODE" == g* ]]; then
-            # On GPU node - try CUDA installation
-            if command -v nvcc &> /dev/null; then
-                echo "GPU node with CUDA detected, installing llama-cpp-python with GPU support..."
-                CMAKE_ARGS="-DLLAMA_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=80" \
-                FORCE_CMAKE=1 \
-                pip install llama-cpp-python --no-cache-dir
-            else
-                echo "GPU node but CUDA not loaded. Installing CPU version..."
-                pip install llama-cpp-python
-            fi
-        else
-            # On CPU node - install CPU version
-            echo "Installing CPU version of llama-cpp-python..."
-            pip install llama-cpp-python
-        fi
-        
-        # Verify installation
-        if python -c "import llama_cpp" 2>/dev/null; then
-            echo "✓ llama-cpp-python installed successfully"
-            python -c "import llama_cpp; print(f'Version: {llama_cpp.__version__}')"
-        else
-            echo "⚠ llama-cpp-python installation failed"
-            echo "You may need to install it manually with: pip install llama-cpp-python"
-        fi
+# Install llama-cpp-python
+echo ""
+echo "Installing llama-cpp-python..."
+if ! python -c "import llama_cpp" 2>/dev/null; then
+    if [[ "$CURRENT_NODE" == g* ]] && command -v nvcc &> /dev/null; then
+        echo "GPU node with CUDA detected, installing with GPU support..."
+        CMAKE_ARGS="-DLLAMA_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=80" \
+        FORCE_CMAKE=1 \
+        python -m pip install llama-cpp-python --no-cache-dir
     else
-        echo "✓ llama-cpp-python is already installed"
-        python -c "import llama_cpp; print(f'Version: {llama_cpp.__version__}')"
+        echo "Installing CPU version..."
+        python -m pip install llama-cpp-python
     fi
+    
+    # Verify installation
+    if python -c "import llama_cpp" 2>/dev/null; then
+        version=$(python -c "import llama_cpp; print(llama_cpp.__version__)")
+        echo "✓ llama-cpp-python installed (version: $version)"
+    else
+        echo "⚠ llama-cpp-python installation may have failed"
+    fi
+else
+    version=$(python -c "import llama_cpp; print(llama_cpp.__version__)")
+    echo "✓ llama-cpp-python already installed (version: $version)"
 fi
 
+# Install pocket-agent-cli
+echo ""
+echo "Installing pocket-agent-cli..."
+cd $PROJECT_DIR
+if [ -f "pyproject.toml" ]; then
+    python -m pip install -e . --quiet
+    
+    # Verify installation
+    if python -c "import pocket_agent_cli" 2>/dev/null; then
+        echo "✓ pocket-agent-cli installed"
+    else
+        echo "⚠ pocket-agent-cli installation may have failed"
+    fi
+else
+    echo "ERROR: pyproject.toml not found in $PROJECT_DIR"
+    echo "Make sure you're in the pocket-agent-cli directory"
+fi
+
+# Final summary
 echo ""
 echo "================================="
-echo "Environment setup status:"
+echo "Setup Summary"
 echo "================================="
 echo "Project: project_$PROJECT"
-echo "Project dir: $PROJECT_DIR"
-echo "Tykky env: $TYKKY_ENV"
+echo "Directory: $PROJECT_DIR"
+echo "Environment: $TYKKY_ENV"
+echo "Node type: $CURRENT_NODE"
 
 if command -v python &> /dev/null; then
-    echo "Python: $(which python)"
-else
-    echo "Python: NOT FOUND (may need to run on compute node)"
+    echo "Python: $(python --version)"
 fi
 
 if command -v nvcc &> /dev/null; then
-    echo "CUDA: $(nvcc --version | grep release || echo 'version info not available')"
+    echo "CUDA: Available ($(nvcc --version | grep release | cut -d' ' -f5))"
 else
-    echo "CUDA: Not available (normal on login nodes)"
+    echo "CUDA: Not available (normal on CPU nodes)"
 fi
 
-CURRENT_NODE=$(hostname -s)
-if [[ "$CURRENT_NODE" == *"login"* ]] && [[ ! -e /tmp/slurmd.pid ]]; then
-    echo ""
-    echo "NOTE: You're on a login node. For full setup, run:"
-    echo "  srun --account=project_$PROJECT --partition=test --time=1:00:00 --mem=12000 --pty bash"
-    echo "  Then: source $PROJECT_DIR/slurm/setup_environment.sh"
+# Test if pocket-agent command is available
+if command -v pocket-agent &> /dev/null; then
+    echo "✓ pocket-agent command available"
 else
-    echo ""
-    echo "Setup complete on compute node: $CURRENT_NODE"
+    echo "⚠ pocket-agent command not in PATH"
 fi
+
+echo ""
+echo "Next steps:"
+echo "1. Download a model: pocket-agent model download llama-3.2-3b-instruct"
+echo "2. Test chat: pocket-agent chat --model llama-3.2-3b-instruct"
+echo "3. Run benchmarks: sbatch slurm/run_benchmark.sh"
+echo ""
+echo "To use this environment in future sessions:"
+echo "  export PROJECT=$PROJECT"
+echo "  export PATH=$TYKKY_ENV/bin:\$PATH"

@@ -239,16 +239,26 @@ class InferenceService:
         kwargs["tools"] = tools
         kwargs["tool_choice"] = tool_choice
 
-        # Collect full response
+        # Collect full response and track inter-token latencies
         response_text = ""
         metrics = {}
+        inter_token_latencies = []
+        last_token_time = None
 
         for chunk in self.generate(messages, stream=True, **kwargs):
+            current_time = time.time()
+            if last_token_time is not None:
+                inter_token_latencies.append((current_time - last_token_time) * 1000)
+            last_token_time = current_time
             response_text += chunk["token"]
             metrics = chunk["metrics"]
 
         # Parse tool calls from response
         tool_calls = self._parse_tool_calls(response_text)
+        
+        # Add inter-token latencies to metrics
+        if inter_token_latencies:
+            metrics['inter_token_latencies'] = inter_token_latencies
 
         return response_text, tool_calls, metrics
 

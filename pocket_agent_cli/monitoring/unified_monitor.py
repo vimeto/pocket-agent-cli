@@ -36,6 +36,8 @@ class UnifiedMetrics:
     gpu_temperature_c: Optional[float] = None
     gpu_power_watts: Optional[float] = None
     cpu_power_watts: Optional[float] = None
+    cpu_freq_mhz: Optional[float] = None  # Average CPU frequency
+    gpu_freq_mhz: Optional[float] = None  # GPU frequency
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
@@ -46,9 +48,12 @@ class UnifiedMetrics:
             "cpu_percent": self.cpu_percent,
             "cpu_per_core": self.cpu_per_core,
             "cpu_temperature_c": self.cpu_temperature_c,
+            "cpu_power_watts": self.cpu_power_watts,
+            "cpu_freq_mhz": self.cpu_freq_mhz,
             "gpu_utilization_percent": self.gpu_utilization_percent,
             "gpu_temperature_c": self.gpu_temperature_c,
             "gpu_power_watts": self.gpu_power_watts,
+            "gpu_freq_mhz": self.gpu_freq_mhz,
             "memory_percent": self.memory_percent,
             "memory_used_mb": self.memory_used_mb,
         }
@@ -188,6 +193,8 @@ class UnifiedMonitor:
     def _collect_with_powermetrics(self) -> Optional[UnifiedMetrics]:
         """Collect all metrics using powermetrics (most efficient)."""
         try:
+            if DEBUG_MONITOR:
+                print("[DEBUG] Using _collect_with_powermetrics method")
             # Run powermetrics once for all data (text format to get power values)
             cmd = [
                 "sudo", "-n", "powermetrics",
@@ -215,6 +222,11 @@ class UnifiedMonitor:
             cpu_power = 0.0
             gpu_power = 0.0
             gpu_utilization = 0.0
+            cpu_freq = None
+            gpu_freq = None
+            
+            # Track CPU frequencies across all cores
+            cpu_freqs = []
             
             for line in result.stdout.split('\n'):
                 if 'CPU Power:' in line:
@@ -229,6 +241,23 @@ class UnifiedMonitor:
                     match = re.search(r'GPU HW active residency:\s*([\d.]+)%', line)
                     if match:
                         gpu_utilization = float(match.group(1))
+                elif line.strip().startswith('CPU') and 'frequency:' in line:
+                    # Parse CPU frequency lines like "CPU 0 frequency: 2424 MHz"
+                    match = re.search(r'CPU \d+ frequency:\s*(\d+)\s*MHz', line)
+                    if match:
+                        cpu_freqs.append(float(match.group(1)))
+                elif 'GPU HW active frequency:' in line:
+                    # Parse GPU frequency line like "GPU HW active frequency: 444 MHz"
+                    match = re.search(r'GPU HW active frequency:\s*([\d.]+)\s*MHz', line)
+                    if match:
+                        gpu_freq = float(match.group(1))
+            
+            # Calculate average CPU frequency
+            if cpu_freqs:
+                cpu_freq = sum(cpu_freqs) / len(cpu_freqs)
+                if DEBUG_MONITOR:
+                    print(f"[DEBUG] Found {len(cpu_freqs)} CPU frequencies, avg: {cpu_freq:.1f} MHz")
+                    print(f"[DEBUG] GPU frequency: {gpu_freq} MHz")
             
             # Get temperature from ioreg/smctemp if available
             cpu_temp = None
@@ -245,8 +274,10 @@ class UnifiedMonitor:
                 cpu_percent=cpu_percent,
                 cpu_per_core=cpu_per_core,
                 cpu_temperature_c=cpu_temp,
+                cpu_freq_mhz=cpu_freq,
                 # GPU
                 gpu_utilization_percent=gpu_utilization,
+                gpu_freq_mhz=gpu_freq,
                 # Memory
                 memory_percent=memory.percent,
                 memory_used_mb=memory.used / (1024 * 1024),
@@ -454,6 +485,8 @@ class UnifiedMonitor:
                     "total_energy_joules": self._total_energy_joules,
                     "cpu_power_watts": self._latest_metrics.cpu_power_watts,
                     "gpu_power_watts": self._latest_metrics.gpu_power_watts,
+                    "cpu_freq_mhz": self._latest_metrics.cpu_freq_mhz,
+                    "gpu_freq_mhz": self._latest_metrics.gpu_freq_mhz,
                 }
         return None
     

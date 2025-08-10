@@ -338,6 +338,9 @@ class BenchmarkService:
                 messages=messages,
                 tools=tools,
             )
+            # Extract inter-token latencies from metrics if available
+            if 'inter_token_latencies' in metrics:
+                inter_token_latencies = metrics['inter_token_latencies']
 
         else:  # full_tool mode
             # Full tool mode: iterative tool usage
@@ -354,6 +357,9 @@ class BenchmarkService:
                     messages=messages,
                     tools=tools,
                 )
+                # Extract inter-token latencies from first response
+                if iteration == 0 and 'inter_token_latencies' in metrics:
+                    inter_token_latencies = metrics['inter_token_latencies']
 
                 print(f"[DEBUG] Response: {response}")
 

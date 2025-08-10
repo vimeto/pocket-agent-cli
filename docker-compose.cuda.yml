@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  pocket-agent-cuda:
+    build:
+      context: .
+      dockerfile: Dockerfile.cuda
+    image: pocket-agent-cli:cuda
+    container_name: pocket-agent-cuda
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - CUDA_VISIBLE_DEVICES=0
+    volumes:
+      - ./pocket_agent_cli:/app/pocket_agent_cli
+      - ./tests:/app/tests
+      - ~/.pocket-agent-cli:/root/.pocket-agent-cli
+      - ./benchmark_results:/app/benchmark_results
+    command: --help
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

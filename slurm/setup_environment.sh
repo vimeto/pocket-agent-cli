@@ -8,18 +8,13 @@ echo "Pocket Agent CLI - Mahti Setup"
 echo "================================="
 echo "Current node: $CURRENT_NODE"
 
-# Check disk quota first
-echo ""
-echo "Checking disk quota..."
-if command -v lfs &> /dev/null; then
-    lfs quota -hg project_$PROJECT /projappl | grep project_$PROJECT
-fi
-
-# Warn if on login node but don't exit (some operations can still work)
+# Warn if on login node
 if [[ "$CURRENT_NODE" == *"login"* ]]; then
-    echo "WARNING: On login node. Full setup requires compute node."
-    echo "To get compute node:"
-    echo "  srun --account=project_$PROJECT --partition=small --time=1:00:00 --mem=12000 --pty bash"
+    echo "WARNING: On login node. Full setup requires compute node with local storage."
+    echo "To get compute node with local storage:"
+    echo "  srun --account=project_$PROJECT --partition=small --time=1:00:00 --mem=12000 --gres=nvme:100 --pty bash"
+    echo "OR use GPU node:"
+    echo "  srun --account=project_$PROJECT --partition=gputest --gres=gpu:a100:1 --time=0:15:00 --pty bash"
 fi
 
 # Check if PROJECT is set
@@ -33,6 +28,13 @@ fi
 export PROJECT_DIR=/projappl/project_$PROJECT/$USER/pocket-agent-cli
 export TYKKY_ENV=$PROJECT_DIR/tykky-env
 
+# Check disk quota
+echo ""
+echo "Checking disk quota..."
+if command -v lfs &> /dev/null; then
+    lfs quota -hg project_$PROJECT /projappl | grep project_$PROJECT || true
+fi
+
 # Create necessary directories
 echo ""
 echo "Creating project directories..."
@@ -44,7 +46,7 @@ echo "Loading modules..."
 module purge
 module load gcc/10.4.0 2>/dev/null || module load gcc 2>/dev/null || echo "GCC module not available"
 
-# Try to load CUDA if on GPU node
+# Load CUDA if on GPU node
 if [[ "$CURRENT_NODE" == g* ]]; then
     echo "GPU node detected, loading CUDA..."
     module load cuda 2>/dev/null || echo "CUDA module not available"
@@ -71,22 +73,12 @@ if [ ! -d "$TYKKY_ENV/bin" ]; then
     echo "Creating containerized Python environment..."
     echo "This will take 5-10 minutes on first run..."
     
-    # Create ULTRA-minimal requirements to reduce container size
-    # Everything else will be installed outside the container
-    cat > $PROJECT_DIR/requirements-container.txt << EOF
-pip
-wheel
-setuptools
-EOF
-
-    # Clean up old temp files to free space
+    # Clean up old temp files
     echo "Cleaning up old temporary files..."
-    # Clean various temp locations
     rm -rf /tmp/$USER/*/cw-* 2>/dev/null || true
     rm -rf /tmp/vtoivone/*/cw-* 2>/dev/null || true
-    find /tmp -maxdepth 2 -name "cw-*" -user $USER -exec rm -rf {} \; 2>/dev/null || true
     
-    # Check and use LOCAL_SCRATCH if available (usually on 'small' partition)
+    # Check for LOCAL_SCRATCH
     if [ -d "$LOCAL_SCRATCH" ] && [ -w "$LOCAL_SCRATCH" ]; then
         export TMPDIR=$LOCAL_SCRATCH
         export TEMP=$LOCAL_SCRATCH
@@ -99,13 +91,75 @@ EOF
         df -h /tmp
     fi
     
-    # Create the containerized environment
-    echo "Running pip-containerize..."
-    echo "This may take 5-10 minutes..."
+    # Create conda environment file for Tykky (uses conda-containerize)
+    # This ensures we get Python 3.11 and all dependencies
+    cat > $PROJECT_DIR/environment.yml << EOF
+name: pocket-agent
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - pip
+  - wheel
+  - setuptools
+  - numpy
+  - scipy
+  - pip:
+    - click
+    - rich
+    - httpx
+    - psutil
+    - docker
+    - jinja2
+    - pydantic
+    - tqdm
+    - aiofiles
+    - huggingface-hub
+    - requests
+    - scikit-build
+    - cmake
+    - ninja
+EOF
+
+    # Create the containerized environment using conda-containerize
+    echo "Running conda-containerize (this ensures Python 3.11)..."
     
-    pip-containerize new \
-        --prefix $TYKKY_ENV \
-        $PROJECT_DIR/requirements-container.txt
+    # Check if conda-containerize is available
+    if command -v conda-containerize &> /dev/null; then
+        conda-containerize new \
+            --prefix $TYKKY_ENV \
+            $PROJECT_DIR/environment.yml
+    else
+        echo "conda-containerize not found, falling back to pip-containerize..."
+        echo "WARNING: This will use Python 3.6 which is too old!"
+        
+        # Create requirements file as fallback
+        cat > $PROJECT_DIR/requirements-container.txt << EOF
+pip
+wheel
+setuptools
+scikit-build
+cmake
+ninja
+click
+rich
+httpx
+psutil
+docker
+jinja2
+pydantic
+tqdm
+aiofiles
+huggingface-hub
+requests
+numpy
+EOF
+        
+        pip-containerize new \
+            --prefix $TYKKY_ENV \
+            $PROJECT_DIR/requirements-container.txt
+    fi
     
     # Check if successful
     if [ ! -d "$TYKKY_ENV/bin" ]; then
@@ -114,12 +168,14 @@ EOF
         echo ""
         echo "Most likely cause: Not enough temporary space."
         echo ""
-        echo "Solution: Use 'small' partition which has more local disk:"
-        echo "  srun --account=project_$PROJECT --partition=small --time=1:00:00 --mem=12000 --pty bash"
+        echo "Solution: Request node with local NVMe storage:"
+        echo "  srun --account=project_$PROJECT --partition=small --time=1:00:00 --mem=12000 --gres=nvme:100 --pty bash"
+        echo "OR use GPU node (always has local storage):"
+        echo "  srun --account=project_$PROJECT --partition=gputest --gres=gpu:a100:1 --time=0:15:00 --pty bash"
         echo ""
         echo "Other troubleshooting:"
         echo "1. Check quota: lfs quota -hg project_$PROJECT /projappl"
-        echo "2. Debug mode: CW_LOG_LEVEL=3 pip-containerize new --prefix $TYKKY_ENV $PROJECT_DIR/requirements-container.txt"
+        echo "2. Debug mode: CW_LOG_LEVEL=3 conda-containerize new --prefix $TYKKY_ENV $PROJECT_DIR/environment.yml"
         exit 1
     fi
     
@@ -131,54 +187,56 @@ fi
 # Add to PATH
 export PATH="$TYKKY_ENV/bin:$PATH"
 
-# Verify Python is available
+# Verify Python is available and correct version
 echo ""
 echo "Checking Python installation..."
 if command -v python &> /dev/null; then
     echo "✓ Python found: $(which python)"
-    echo "  Version: $(python --version)"
+    PYTHON_VERSION=$(python --version 2>&1)
+    echo "  Version: $PYTHON_VERSION"
+    
+    # Check if Python version is too old
+    if [[ "$PYTHON_VERSION" == *"3.6"* ]] || [[ "$PYTHON_VERSION" == *"3.7"* ]] || [[ "$PYTHON_VERSION" == *"3.8"* ]]; then
+        echo ""
+        echo "WARNING: Python version is too old for this project!"
+        echo "This project requires Python 3.11+"
+        echo "Please recreate the environment using conda-containerize"
+        echo ""
+        echo "To fix:"
+        echo "1. Remove old environment: rm -rf $TYKKY_ENV"
+        echo "2. Re-run this script"
+    fi
 else
     echo "ERROR: Python not found in Tykky environment"
     exit 1
 fi
 
-# Install/upgrade pip tools
-echo ""
-echo "Upgrading pip tools..."
-python -m pip install --upgrade pip setuptools wheel --quiet
-
-# Install all other packages outside the container
-echo ""
-echo "Installing Python packages..."
-echo "Installing core dependencies..."
-python -m pip install click rich httpx psutil --quiet
-python -m pip install jinja2 pydantic tqdm aiofiles --quiet
-python -m pip install huggingface-hub requests docker --quiet
-
-# Install llama-cpp-python
+# Install llama-cpp-python separately (outside container)
 echo ""
 echo "Installing llama-cpp-python..."
-if ! python -c "import llama_cpp" 2>/dev/null; then
-    if [[ "$CURRENT_NODE" == g* ]] && command -v nvcc &> /dev/null; then
-        echo "GPU node with CUDA detected, installing with GPU support..."
-        CMAKE_ARGS="-DLLAMA_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=80" \
-        FORCE_CMAKE=1 \
-        python -m pip install llama-cpp-python --no-cache-dir
-    else
-        echo "Installing CPU version..."
-        python -m pip install llama-cpp-python
-    fi
-    
-    # Verify installation
-    if python -c "import llama_cpp" 2>/dev/null; then
-        version=$(python -c "import llama_cpp; print(llama_cpp.__version__)")
-        echo "✓ llama-cpp-python installed (version: $version)"
-    else
-        echo "⚠ llama-cpp-python installation may have failed"
-    fi
+
+# Create a separate virtual environment for packages that can't be containerized
+VENV_DIR=$PROJECT_DIR/venv
+if [ ! -d "$VENV_DIR" ]; then
+    echo "Creating virtual environment for additional packages..."
+    python -m venv $VENV_DIR
+fi
+
+# Activate the virtual environment
+source $VENV_DIR/bin/activate
+
+# Upgrade pip in the venv
+pip install --upgrade pip setuptools wheel scikit-build cmake ninja --quiet
+
+# Install llama-cpp-python with CUDA if available
+if [[ "$CURRENT_NODE" == g* ]] && command -v nvcc &> /dev/null; then
+    echo "GPU node with CUDA detected, installing with GPU support..."
+    CMAKE_ARGS="-DLLAMA_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=80" \
+    FORCE_CMAKE=1 \
+    pip install llama-cpp-python --no-cache-dir
 else
-    version=$(python -c "import llama_cpp; print(llama_cpp.__version__)")
-    echo "✓ llama-cpp-python already installed (version: $version)"
+    echo "Installing CPU version of llama-cpp-python..."
+    pip install llama-cpp-python
 fi
 
 # Install pocket-agent-cli
@@ -186,7 +244,7 @@ echo ""
 echo "Installing pocket-agent-cli..."
 cd $PROJECT_DIR
 if [ -f "pyproject.toml" ]; then
-    python -m pip install -e . --quiet
+    pip install -e . --quiet
     
     # Verify installation
     if python -c "import pocket_agent_cli" 2>/dev/null; then
@@ -206,7 +264,8 @@ echo "Setup Summary"
 echo "================================="
 echo "Project: project_$PROJECT"
 echo "Directory: $PROJECT_DIR"
-echo "Environment: $TYKKY_ENV"
+echo "Container env: $TYKKY_ENV"
+echo "Additional packages: $VENV_DIR"
 echo "Node type: $CURRENT_NODE"
 
 if command -v python &> /dev/null; then
@@ -235,3 +294,4 @@ echo ""
 echo "To use this environment in future sessions:"
 echo "  export PROJECT=$PROJECT"
 echo "  export PATH=$TYKKY_ENV/bin:\$PATH"
+echo "  source $VENV_DIR/bin/activate"

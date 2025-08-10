@@ -41,11 +41,14 @@ cd pocket-agent-cli
 ```bash
 # Request interactive session with guaranteed local storage
 
-# Option 1: Request node with local storage explicitly (RECOMMENDED)
-srun --account=project_$PROJECT --partition=small --time=2:00:00 --mem=16000 --tmp=50 --pty bash
+# Option 1: Request node with local NVMe storage (RECOMMENDED)
+srun --account=project_$PROJECT --partition=small --time=2:00:00 --mem=16000 --gres=nvme:100 --pty bash
 
-# Option 2: Use GPU node (always has local storage)
+# Option 2: Use GPU test partition (always has local storage)
 srun --account=project_$PROJECT --partition=gputest --gres=gpu:a100:1 --time=0:15:00 --mem=32000 --pty bash
+
+# Option 3: Use GPU small partition for longer sessions
+srun --account=project_$PROJECT --partition=gpusmall --gres=gpu:a100:1 --time=2:00:00 --mem=32000 --pty bash
 
 # Verify you're on compute node and have local storage
 hostname -s
@@ -195,14 +198,17 @@ module spider tykky
 **Root cause**: Not all nodes have local storage. You need a node with NVMe.
 
 **Solutions**:
-1. Request node with local storage explicitly:
+1. Request node with local NVMe storage:
    ```bash
-   srun --account=project_$PROJECT --partition=small --time=2:00:00 --mem=16000 --tmp=50 --pty bash
+   srun --account=project_$PROJECT --partition=small --time=2:00:00 --mem=16000 --gres=nvme:100 --pty bash
    ```
+   Note: Use `--gres=nvme:100` (100GB) not `--tmp` on Mahti
 
-2. Use GPU node (guaranteed local storage):
+2. Use GPU node (always has local storage):
    ```bash
    srun --account=project_$PROJECT --partition=gputest --gres=gpu:a100:1 --time=0:15:00 --pty bash
+   # OR for longer sessions:
+   srun --account=project_$PROJECT --partition=gpusmall --gres=gpu:a100:1 --time=2:00:00 --mem=32000 --pty bash
    ```
 
 3. Check if LOCAL_SCRATCH exists:
@@ -244,8 +250,8 @@ CSC requires containerized Python environments because:
 export PROJECT=2013932
 export PATH=/projappl/project_$PROJECT/$USER/pocket-agent-cli/tykky-env/bin:$PATH
 
-# Get compute node
-srun --account=project_$PROJECT --partition=small --time=1:00:00 --mem=12000 --pty bash
+# Get compute node with local storage
+srun --account=project_$PROJECT --partition=small --time=1:00:00 --mem=12000 --gres=nvme:100 --pty bash
 
 # Get GPU node
 srun --account=project_$PROJECT --partition=gputest --gres=gpu:a100:1 --time=0:15:00 --mem=32000 --pty bash

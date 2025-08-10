@@ -36,28 +36,38 @@ cd pocket-agent-cli
 
 ```bash
 # Request an interactive session for setup
-sinteractive --account project_$PROJECT --time 1:00:00 --mem 12000
+srun --account=project_$PROJECT --partition=test --time=1:00:00 --mem=12000 --pty bash
 
-# Wait
+# You should see your prompt change from login node to compute node:
+# [username@mahti-login11 ~]$  -->  [username@c1101 ~]$
+
+# Verify you're on compute node (should show c* or g* node):
+hostname -s
 ```
 
 ### 5. Setup Environment
 
-Once on a compute node, run the setup script:
+Once on a compute node (prompt shows c* or g* node like c1101), run the setup script:
 
 ```bash
+# Verify you're on compute node (should show c* or g* like c1101):
+hostname -s
+
 # Make sure PROJECT is still set
-export PROJECT=XXX  # Your project number
+export PROJECT=2013932  # Your project number
 
 # Run setup
 chmod +x slurm/setup_environment.sh
 source slurm/setup_environment.sh
 ```
 
+**Note:** The first run will take 5-10 minutes to create the Tykky environment.
+
 **Common Issues:**
-- If you see "module not found" errors, check available modules with `module spider gcc` and `module spider cuda`
-- If `pip-containerize` is not found, ensure Tykky is loaded: `module load tykky`
-- The setup will warn about missing CUDA on login nodes - this is normal
+- If Tykky environment creation fails, the script will automatically clean up and retry
+- llama-cpp-python is installed separately after the base environment
+- CPU version is installed on regular nodes, GPU version on GPU nodes (g* nodes)
+- If you see version errors, the script handles this by excluding problematic packages
 
 This script will:
 - Create necessary directories

@@ -39,11 +39,17 @@ cd pocket-agent-cli
 **IMPORTANT**: Setup must be done on a compute node, not the login node.
 
 ```bash
-# Request interactive session on compute node
-srun --account=project_$PROJECT --partition=test --time=1:00:00 --mem=12000 --pty bash
+# Request interactive session with guaranteed local storage
 
-# Verify you're on compute node (should show c* or g* like c1101)
+# Option 1: Request node with local storage explicitly (RECOMMENDED)
+srun --account=project_$PROJECT --partition=small --time=2:00:00 --mem=16000 --tmp=50 --pty bash
+
+# Option 2: Use GPU node (always has local storage)
+srun --account=project_$PROJECT --partition=gputest --gres=gpu:a100:1 --time=0:15:00 --mem=32000 --pty bash
+
+# Verify you're on compute node and have local storage
 hostname -s
+df -h $LOCAL_SCRATCH  # Should show available space
 
 # Re-export PROJECT variable (needed after srun)
 export PROJECT=2013932
@@ -184,14 +190,31 @@ module spider cuda
 module spider tykky
 ```
 
-### Tykky environment creation fails
+### Tykky environment creation fails ("No space left on device")
 
-1. Ensure you're on compute node: `hostname -s`
-2. Check disk quota: `lfs quota -hg project_$PROJECT /projappl`
-3. Try with debug output:
-```bash
-CW_LOG_LEVEL=3 pip-containerize new --prefix tykky-env requirements-container.txt
-```
+**Root cause**: Not all nodes have local storage. You need a node with NVMe.
+
+**Solutions**:
+1. Request node with local storage explicitly:
+   ```bash
+   srun --account=project_$PROJECT --partition=small --time=2:00:00 --mem=16000 --tmp=50 --pty bash
+   ```
+
+2. Use GPU node (guaranteed local storage):
+   ```bash
+   srun --account=project_$PROJECT --partition=gputest --gres=gpu:a100:1 --time=0:15:00 --pty bash
+   ```
+
+3. Check if LOCAL_SCRATCH exists:
+   ```bash
+   df -h $LOCAL_SCRATCH
+   ```
+   If it shows "No such file", you're on a node without local storage.
+
+4. Check project quota:
+   ```bash
+   lfs quota -hg project_$PROJECT /projappl
+   ```
 
 ### Python packages not found
 
@@ -222,10 +245,10 @@ export PROJECT=2013932
 export PATH=/projappl/project_$PROJECT/$USER/pocket-agent-cli/tykky-env/bin:$PATH
 
 # Get compute node
-srun --account=project_$PROJECT --partition=test --time=1:00:00 --mem=12000 --pty bash
+srun --account=project_$PROJECT --partition=small --time=1:00:00 --mem=12000 --pty bash
 
 # Get GPU node
-srun --account=project_$PROJECT --partition=gputest --gres=gpu:a100:1 --time=0:15:00 --pty bash
+srun --account=project_$PROJECT --partition=gputest --gres=gpu:a100:1 --time=0:15:00 --mem=32000 --pty bash
 
 # Submit batch job
 sbatch slurm/run_benchmark.sh

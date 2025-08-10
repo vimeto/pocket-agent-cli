@@ -8,10 +8,18 @@ echo "Pocket Agent CLI - Mahti Setup"
 echo "================================="
 echo "Current node: $CURRENT_NODE"
 
+# Check disk quota first
+echo ""
+echo "Checking disk quota..."
+if command -v lfs &> /dev/null; then
+    lfs quota -hg project_$PROJECT /projappl | grep project_$PROJECT
+fi
+
 # Warn if on login node but don't exit (some operations can still work)
 if [[ "$CURRENT_NODE" == *"login"* ]]; then
     echo "WARNING: On login node. Full setup requires compute node."
-    echo "To get compute node: srun --account=project_$PROJECT --partition=test --time=1:00:00 --mem=12000 --pty bash"
+    echo "To get compute node:"
+    echo "  srun --account=project_$PROJECT --partition=small --time=1:00:00 --mem=12000 --pty bash"
 fi
 
 # Check if PROJECT is set
@@ -63,29 +71,38 @@ if [ ! -d "$TYKKY_ENV/bin" ]; then
     echo "Creating containerized Python environment..."
     echo "This will take 5-10 minutes on first run..."
     
-    # Create minimal requirements for containerization
-    # llama-cpp-python will be installed separately
+    # Create ULTRA-minimal requirements to reduce container size
+    # Everything else will be installed outside the container
     cat > $PROJECT_DIR/requirements-container.txt << EOF
+pip
 wheel
 setuptools
-pip
-numpy
-scipy
-click
-rich
-httpx
-psutil
-docker
-jinja2
-pydantic
-tqdm
-aiofiles
-huggingface-hub
-requests
 EOF
 
+    # Clean up old temp files to free space
+    echo "Cleaning up old temporary files..."
+    # Clean various temp locations
+    rm -rf /tmp/$USER/*/cw-* 2>/dev/null || true
+    rm -rf /tmp/vtoivone/*/cw-* 2>/dev/null || true
+    find /tmp -maxdepth 2 -name "cw-*" -user $USER -exec rm -rf {} \; 2>/dev/null || true
+    
+    # Check and use LOCAL_SCRATCH if available (usually on 'small' partition)
+    if [ -d "$LOCAL_SCRATCH" ] && [ -w "$LOCAL_SCRATCH" ]; then
+        export TMPDIR=$LOCAL_SCRATCH
+        export TEMP=$LOCAL_SCRATCH
+        export TMP=$LOCAL_SCRATCH
+        echo "Using LOCAL_SCRATCH for temp files: $LOCAL_SCRATCH"
+        df -h $LOCAL_SCRATCH
+    else
+        echo "LOCAL_SCRATCH not available, using /tmp"
+        echo "Available space in /tmp:"
+        df -h /tmp
+    fi
+    
     # Create the containerized environment
     echo "Running pip-containerize..."
+    echo "This may take 5-10 minutes..."
+    
     pip-containerize new \
         --prefix $TYKKY_ENV \
         $PROJECT_DIR/requirements-container.txt
@@ -95,11 +112,14 @@ EOF
         echo ""
         echo "ERROR: Tykky environment creation failed."
         echo ""
-        echo "Troubleshooting:"
-        echo "1. Make sure you're on a compute node (not login node)"
-        echo "2. Try with debug output:"
-        echo "   CW_LOG_LEVEL=3 pip-containerize new --prefix $TYKKY_ENV $PROJECT_DIR/requirements-container.txt"
-        echo "3. Check available disk space: lfs quota -hg project_$PROJECT /projappl"
+        echo "Most likely cause: Not enough temporary space."
+        echo ""
+        echo "Solution: Use 'small' partition which has more local disk:"
+        echo "  srun --account=project_$PROJECT --partition=small --time=1:00:00 --mem=12000 --pty bash"
+        echo ""
+        echo "Other troubleshooting:"
+        echo "1. Check quota: lfs quota -hg project_$PROJECT /projappl"
+        echo "2. Debug mode: CW_LOG_LEVEL=3 pip-containerize new --prefix $TYKKY_ENV $PROJECT_DIR/requirements-container.txt"
         exit 1
     fi
     
@@ -126,6 +146,14 @@ fi
 echo ""
 echo "Upgrading pip tools..."
 python -m pip install --upgrade pip setuptools wheel --quiet
+
+# Install all other packages outside the container
+echo ""
+echo "Installing Python packages..."
+echo "Installing core dependencies..."
+python -m pip install click rich httpx psutil --quiet
+python -m pip install jinja2 pydantic tqdm aiofiles --quiet
+python -m pip install huggingface-hub requests docker --quiet
 
 # Install llama-cpp-python
 echo ""

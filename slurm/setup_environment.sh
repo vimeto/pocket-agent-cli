@@ -49,7 +49,25 @@ module load gcc/10.4.0 2>/dev/null || module load gcc 2>/dev/null || echo "GCC m
 # Load CUDA if on GPU node
 if [[ "$CURRENT_NODE" == g* ]]; then
     echo "GPU node detected, loading CUDA..."
-    module load cuda 2>/dev/null || echo "CUDA module not available"
+    # Try different CUDA module names
+    if ! module load cuda 2>/dev/null; then
+        if ! module load cuda/11.7.0 2>/dev/null; then
+            if ! module load cuda/12.0.0 2>/dev/null; then
+                module load nvidia 2>/dev/null || echo "WARNING: Could not load CUDA module"
+            fi
+        fi
+    fi
+    
+    # Verify CUDA is loaded
+    if command -v nvcc &> /dev/null; then
+        echo "✓ CUDA loaded: $(nvcc --version | grep release | cut -d' ' -f5,6)"
+    else
+        echo "⚠ CUDA module loaded but nvcc not found"
+        # Try to find nvcc
+        if [ -d "/appl/opt/" ]; then
+            export PATH=/appl/opt/cuda/*/bin:$PATH
+        fi
+    fi
 fi
 
 # Load Tykky module (required for containerization)
@@ -241,15 +259,50 @@ source $VENV_DIR/bin/activate
 # Upgrade pip in the venv
 pip install --upgrade pip setuptools wheel scikit-build cmake ninja --quiet
 
-# Install llama-cpp-python with CUDA if available
-if [[ "$CURRENT_NODE" == g* ]] && command -v nvcc &> /dev/null; then
-    echo "GPU node with CUDA detected, installing with GPU support..."
-    CMAKE_ARGS="-DLLAMA_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=80" \
-    FORCE_CMAKE=1 \
-    pip install llama-cpp-python --no-cache-dir
+# Check if llama-cpp-python is already installed
+if python -c "import llama_cpp" 2>/dev/null; then
+    CURRENT_VERSION=$(python -c "import llama_cpp; print(llama_cpp.__version__)")
+    echo "llama-cpp-python already installed (version $CURRENT_VERSION)"
+    
+    # Check if it has CUDA support
+    if [[ "$CURRENT_NODE" == g* ]]; then
+        # Try to detect CUDA support in existing installation
+        python -c "import llama_cpp" 2>&1 | grep -q "CUDA" && HAS_CUDA=true || HAS_CUDA=false
+        
+        if [ "$HAS_CUDA" = false ]; then
+            echo "⚠ Current installation doesn't have CUDA support"
+            if command -v nvcc &> /dev/null; then
+                echo "Reinstalling with CUDA support..."
+                pip uninstall -y llama-cpp-python
+                CMAKE_ARGS="-DLLAMA_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=80" \
+                FORCE_CMAKE=1 \
+                pip install llama-cpp-python --no-cache-dir --force-reinstall
+            else
+                echo "⚠ CUDA compiler not found. To enable GPU:"
+                echo "  1. module load cuda"
+                echo "  2. pip uninstall llama-cpp-python"
+                echo "  3. CMAKE_ARGS='-DLLAMA_CUDA=on' pip install llama-cpp-python --no-cache-dir"
+            fi
+        else
+            echo "✓ CUDA support detected"
+        fi
+    fi
 else
-    echo "Installing CPU version of llama-cpp-python..."
-    pip install llama-cpp-python
+    # Fresh installation
+    if [[ "$CURRENT_NODE" == g* ]] && command -v nvcc &> /dev/null; then
+        echo "GPU node with CUDA detected, installing with GPU support..."
+        CMAKE_ARGS="-DLLAMA_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=80" \
+        FORCE_CMAKE=1 \
+        pip install llama-cpp-python --no-cache-dir
+    else
+        echo "Installing CPU version of llama-cpp-python..."
+        if [[ "$CURRENT_NODE" == g* ]]; then
+            echo "⚠ On GPU node but CUDA not available. To fix:"
+            echo "  1. module load cuda"
+            echo "  2. Rerun this script"
+        fi
+        pip install llama-cpp-python
+    fi
 fi
 
 # Install pocket-agent-cli

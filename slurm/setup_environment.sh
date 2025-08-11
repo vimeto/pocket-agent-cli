@@ -35,10 +35,10 @@ if command -v lfs &> /dev/null; then
     lfs quota -hg project_$PROJECT /projappl | grep project_$PROJECT || true
 fi
 
-# Create necessary directories
+# Create necessary directories in a data subdirectory to avoid setuptools issues
 echo ""
 echo "Creating project directories..."
-mkdir -p $PROJECT_DIR/{models,results,logs}
+mkdir -p $PROJECT_DIR/data/{models,results,logs}
 
 # Load modules
 echo ""
@@ -86,9 +86,22 @@ if [ ! -d "$TYKKY_ENV/bin" ]; then
         echo "Using LOCAL_SCRATCH for temp files: $LOCAL_SCRATCH"
         df -h $LOCAL_SCRATCH
     else
-        echo "LOCAL_SCRATCH not available, using /tmp"
+        echo "WARNING: LOCAL_SCRATCH not available!"
         echo "Available space in /tmp:"
         df -h /tmp
+        
+        # Check if /tmp is too small
+        TMP_SIZE=$(df /tmp | awk 'NR==2 {print $2}')
+        if [ "$TMP_SIZE" -lt "1000000" ]; then  # Less than 1GB
+            echo ""
+            echo "ERROR: /tmp is too small (only $(df -h /tmp | awk 'NR==2 {print $2}'))!"
+            echo "Conda-containerize needs at least 1GB of temp space."
+            echo ""
+            echo "Solution: Request NVMe storage explicitly:"
+            echo "  Exit and run: srun --account=project_$PROJECT --partition=gputest --gres=gpu:a100:1,nvme:100 --time=0:30:00 --pty bash"
+            echo "  OR: srun --account=project_$PROJECT --partition=small --gres=nvme:100 --time=1:00:00 --mem=16000 --pty bash"
+            exit 1
+        fi
     fi
     
     # Create conda environment file for Tykky (uses conda-containerize)
@@ -244,13 +257,38 @@ echo ""
 echo "Installing pocket-agent-cli..."
 cd $PROJECT_DIR
 if [ -f "pyproject.toml" ]; then
-    pip install -e . --quiet
+    # Create setup.cfg to avoid setuptools confusion with directories
+    cat > setup.cfg << EOF
+[options]
+packages = find:
+package_dir =
+    = .
+
+[options.packages.find]
+include = pocket_agent_cli*
+exclude = logs*, slurm*, models*, results*, tests*, venv*, tykky-env*
+EOF
+    
+    # Try different installation methods
+    echo "Attempting installation..."
+    
+    # Method 1: With config settings
+    if ! pip install -e . --config-settings editable_mode=compat --quiet 2>/dev/null; then
+        echo "First method failed, trying alternative..."
+        # Method 2: Without build isolation
+        if ! pip install --no-build-isolation -e . --quiet 2>/dev/null; then
+            echo "Second method failed, trying standard install..."
+            # Method 3: Standard editable install
+            pip install -e . --quiet || echo "Installation may have issues"
+        fi
+    fi
     
     # Verify installation
     if python -c "import pocket_agent_cli" 2>/dev/null; then
-        echo "✓ pocket-agent-cli installed"
+        echo "✓ pocket-agent-cli installed successfully"
     else
         echo "⚠ pocket-agent-cli installation may have failed"
+        echo "Try manually: pip install -e ."
     fi
 else
     echo "ERROR: pyproject.toml not found in $PROJECT_DIR"
@@ -283,15 +321,73 @@ if command -v pocket-agent &> /dev/null; then
     echo "✓ pocket-agent command available"
 else
     echo "⚠ pocket-agent command not in PATH"
+    echo "Trying to add to PATH..."
+    export PATH="$VENV_DIR/bin:$PATH"
+    if command -v pocket-agent &> /dev/null; then
+        echo "✓ Fixed! pocket-agent now available"
+    fi
+fi
+
+# Run tests to verify everything works
+echo ""
+echo "Running verification tests..."
+echo "----------------------------"
+
+# Test 1: Check Python version
+PYTHON_VERSION=$(python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
+if [[ "$PYTHON_VERSION" == "3.11" ]] || [[ "$PYTHON_VERSION" == "3.12" ]]; then
+    echo "✓ Python version OK: $PYTHON_VERSION"
+else
+    echo "⚠ Python version issue: $PYTHON_VERSION (expected 3.11+)"
+fi
+
+# Test 2: Check llama-cpp-python
+if python -c "import llama_cpp" 2>/dev/null; then
+    LLAMA_VERSION=$(python -c "import llama_cpp; print(llama_cpp.__version__)" 2>/dev/null)
+    echo "✓ llama-cpp-python OK: version $LLAMA_VERSION"
+    
+    # Check if CUDA is enabled
+    if [[ "$CURRENT_NODE" == g* ]]; then
+        python -c "import llama_cpp" 2>&1 | grep -q "CUDA" && echo "  ✓ CUDA support detected" || echo "  ⚠ CUDA support unclear"
+    fi
+else
+    echo "⚠ llama-cpp-python not found"
+fi
+
+# Test 3: Check pocket-agent-cli
+if python -c "import pocket_agent_cli" 2>/dev/null; then
+    echo "✓ pocket-agent-cli module OK"
+else
+    echo "⚠ pocket-agent-cli module not found"
+fi
+
+# Test 4: Check CLI command
+if command -v pocket-agent &> /dev/null; then
+    echo "✓ pocket-agent CLI command OK"
+else
+    echo "⚠ pocket-agent CLI command not found"
 fi
 
 echo ""
-echo "Next steps:"
-echo "1. Download a model: pocket-agent model download llama-3.2-3b-instruct"
-echo "2. Test chat: pocket-agent chat --model llama-3.2-3b-instruct"
-echo "3. Run benchmarks: sbatch slurm/run_benchmark.sh"
+echo "================================="
+echo "Setup Complete!"
+echo "================================="
+
+# Check if all tests passed
+if command -v pocket-agent &> /dev/null && \
+   python -c "import llama_cpp" 2>/dev/null && \
+   python -c "import pocket_agent_cli" 2>/dev/null; then
+    echo "✓ All components installed successfully!"
+    echo ""
+    echo "Next steps:"
+    echo "1. Download a model: pocket-agent model download llama-3.2-3b-instruct"
+    echo "2. Test chat: pocket-agent chat --model llama-3.2-3b-instruct"
+    echo "3. Run benchmarks: sbatch slurm/run_benchmark.sh"
+else
+    echo "⚠ Some components may need attention. Check the verification tests above."
+fi
+
 echo ""
 echo "To use this environment in future sessions:"
-echo "  export PROJECT=$PROJECT"
-echo "  export PATH=$TYKKY_ENV/bin:\$PATH"
-echo "  source $VENV_DIR/bin/activate"
+echo "----------------------------------------"
+echo "source $PROJECT_DIR/slurm/activate_env.sh"

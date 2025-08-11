@@ -44,11 +44,11 @@ cd pocket-agent-cli
 # Option 1: Request node with local NVMe storage (RECOMMENDED)
 srun --account=project_$PROJECT --partition=small --time=2:00:00 --mem=16000 --gres=nvme:100 --pty bash
 
-# Option 2: Use GPU test partition (always has local storage)
-srun --account=project_$PROJECT --partition=gputest --gres=gpu:a100:1 --time=0:15:00 --mem=32000 --pty bash
+# Option 2: Use GPU test partition WITH explicit NVMe request
+srun --account=project_$PROJECT --partition=gputest --gres=gpu:a100:1,nvme:100 --time=0:15:00 --mem=32000 --pty bash
 
-# Option 3: Use GPU small partition for longer sessions
-srun --account=project_$PROJECT --partition=gpusmall --gres=gpu:a100:1 --time=2:00:00 --mem=32000 --pty bash
+# Option 3: Use GPU small partition with NVMe for longer sessions
+srun --account=project_$PROJECT --partition=gpusmall --gres=gpu:a100:1,nvme:100 --time=2:00:00 --mem=32000 --pty bash
 
 # Verify you're on compute node and have local storage
 hostname -s

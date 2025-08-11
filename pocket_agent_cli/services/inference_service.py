@@ -47,24 +47,43 @@ class InferenceService:
             del self.llama
             self.llama = None
 
-        # Initialize llama.cpp with Metal acceleration on macOS
+        # Initialize llama.cpp with GPU acceleration
         import os
+        import platform
 
-        # Optimize thread count for M3 Max
+        # Optimize thread count based on system
         n_threads = config.n_threads
         if n_threads == -1:
-            # M3 Max optimal configuration: use performance cores only
-            n_threads = 8  # M3 Max has 8 performance cores
+            if platform.system() == "Darwin":
+                # M3 Max optimal configuration: use performance cores only
+                n_threads = 8  # M3 Max has 8 performance cores
+            else:
+                # Linux/HPC: use available CPU cores
+                n_threads = os.cpu_count() // 2  # Use half of available cores
 
+        # Check for CUDA availability
+        cuda_available = os.environ.get("CUDA_VISIBLE_DEVICES") is not None
+        
         kwargs = {
             "model_path": str(model.path),
             "use_mmap": True,
             "verbose": False,
             "n_ctx": 4096,  # Increased from 2048 to handle full_tool mode
-            "n_gpu_layers": -1,
-            "flash_attn": True
-
+            "n_gpu_layers": -1 if cuda_available or platform.system() == "Darwin" else 0,
+            "flash_attn": True,
+            "n_threads": n_threads,
+            "n_batch": 512,  # Optimize batch size for GPU
         }
+        
+        # Add CUDA-specific options if available
+        if cuda_available:
+            kwargs["cuda_device"] = int(os.environ.get("CUDA_VISIBLE_DEVICES", "0"))
+            kwargs["tensor_split"] = None  # Let CUDA handle tensor splitting
+            print(f"[INFO] Loading model with CUDA support on device {kwargs['cuda_device']}")
+        elif platform.system() == "Darwin":
+            print("[INFO] Loading model with Metal acceleration on macOS")
+        else:
+            print("[INFO] Loading model with CPU only")
 
         self.llama = Llama(**kwargs)
 

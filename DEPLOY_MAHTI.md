@@ -98,14 +98,12 @@ python -c "import llama_cpp; print('✓ llama-cpp works')"
 
 ### In Future Sessions
 
-When you log in again, you don't need to recreate the environment:
+When you log in again, just activate the environment:
 
 ```bash
-# Set project
+# Set project and activate
 export PROJECT=2013932
-
-# Add environment to PATH
-export PATH=/projappl/project_$PROJECT/$USER/pocket-agent-cli/tykky-env/bin:$PATH
+source /projappl/project_$PROJECT/$USER/pocket-agent-cli/slurm/activate_env.sh
 
 # Now pocket-agent is available
 pocket-agent --help
@@ -114,10 +112,13 @@ pocket-agent --help
 ### Download Models
 
 ```bash
+# Activate environment
+source /projappl/project_$PROJECT/$USER/pocket-agent-cli/slurm/activate_env.sh
+
 # Set HuggingFace token if needed (for gated models)
 export HF_TOKEN=your_token_here
 
-# Download a model
+# Download a model (models stored in data/models/)
 pocket-agent model download llama-3.2-3b-instruct
 ```
 
@@ -135,27 +136,42 @@ pocket-agent benchmark --model llama-3.2-3b-instruct --problems 1-5
 
 #### Batch Jobs
 
-First, update SLURM scripts with your project ID:
+**Quick submission with helper script:**
 
 ```bash
-cd /projappl/project_$PROJECT/$USER/pocket-agent-cli
-sed -i "s/project_<YOUR_PROJECT_ID>/project_$PROJECT/g" slurm/*.sh
-```
+# Activate environment first
+source /projappl/project_2013932/$USER/pocket-agent-cli/slurm/activate_env.sh
 
-Submit jobs:
+# Submit with defaults (all 509 problems, batch size 10)
+./slurm/submit_benchmark.sh
 
-```bash
-# GPU test (15 minutes)
-sbatch slurm/test_gpu.sh
+# Run first 100 problems only
+./slurm/submit_benchmark.sh --total 100
 
-# Full benchmark (2 hours)
-sbatch slurm/run_benchmark.sh
+# Run problems 100-200 with custom batch size
+./slurm/submit_benchmark.sh --start 100 --total 100 --batch 5
+
+# Quick test (10 problems, 3 samples each, 1 hour)
+./slurm/submit_benchmark.sh --total 10 --samples 3 --time 1:00:00 --partition gputest
+
+# Run specific mode only
+./slurm/submit_benchmark.sh --mode base --total 50
 
 # Check job status
 squeue -u $USER
 
 # View output
-tail -f logs/*.out
+tail -f data/logs/benchmark_*.out
+```
+
+**Manual submission for full control:**
+
+```bash
+# Edit and submit the batch script directly
+sbatch slurm/run_benchmark_batch.sh [model] [mode] [start] [total] [batch] [samples]
+
+# Example: Run problems 0-99 with gemma model
+sbatch slurm/run_benchmark_batch.sh gemma-2b base 0 100 10 5
 ```
 
 ## GPU Support

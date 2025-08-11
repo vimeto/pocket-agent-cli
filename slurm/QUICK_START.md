@@ -86,15 +86,30 @@ tail -f data/logs/benchmark_*.out
 
 ## Troubleshooting
 
+### If you get "libcudart.so.12: cannot open shared object file"
+
+This means llama-cpp-python was compiled with CUDA but can't find the libraries.
+
+**Option 1: Reinstall without CUDA (easier, works everywhere):**
+```bash
+pip uninstall -y llama-cpp-python
+pip install llama-cpp-python --no-binary llama-cpp-python
+```
+
+**Option 2: Fix CUDA (if you need GPU acceleration):**
+```bash
+# Run the fix script and choose option 1 or 2
+source slurm/fix_cuda.sh
+```
+
+### Other Issues
+
 ```bash
 # Test installation
 bash slurm/test_installation.sh
 
-# Diagnose CUDA issues
+# Diagnose CUDA issues  
 bash slurm/diagnose_cuda.sh
-
-# Fix CUDA on GPU node
-source slurm/fix_cuda.sh
 
 # If bus errors occur, always use:
 export DISABLE_DOCKER=1

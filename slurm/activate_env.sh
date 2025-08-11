@@ -28,15 +28,44 @@ if [[ "$CURRENT_NODE" == g* ]]; then
     fi
     
     # CRITICAL FIX: llama-cpp-python needs libcudart.so.12 (CUDA 12)
-    # Must set LD_LIBRARY_PATH to CUDA 12 lib directory
-    # Check for CUDA 12 versions first (required by the compiled llama-cpp-python)
-    for cuda_path in /appl/opt/cuda/12.6.0 /appl/opt/cuda/12.2.0 /appl/opt/cuda/12.1.0 /appl/opt/cuda/12.0.0; do
-        if [ -d "$cuda_path/lib64" ] && [ -f "$cuda_path/lib64/libcudart.so.12" ]; then
-            export LD_LIBRARY_PATH=$cuda_path/lib64:$cuda_path/lib:$LD_LIBRARY_PATH
-            export CUDA_HOME=$cuda_path
-            break
+    # Search for CUDA 12 installations
+    CUDA_FOUND=false
+    for cuda_base in /appl/opt /opt /usr/local; do
+        if [ -d "$cuda_base/cuda" ]; then
+            # Check subdirectories for CUDA 12
+            for cuda_dir in $cuda_base/cuda/12* $cuda_base/cuda/cuda-12*; do
+                if [ -d "$cuda_dir/lib64" ] && [ -f "$cuda_dir/lib64/libcudart.so.12" ]; then
+                    export LD_LIBRARY_PATH=$cuda_dir/lib64:$cuda_dir/lib:$LD_LIBRARY_PATH
+                    export CUDA_HOME=$cuda_dir
+                    CUDA_FOUND=true
+                    echo "  Found CUDA 12 at: $cuda_dir"
+                    break 2
+                fi
+            done
+            # Also check specific versions
+            for version in 12.6.0 12.2.0 12.1.0 12.0.0; do
+                cuda_path="$cuda_base/cuda/$version"
+                if [ -d "$cuda_path/lib64" ] && [ -f "$cuda_path/lib64/libcudart.so.12" ]; then
+                    export LD_LIBRARY_PATH=$cuda_path/lib64:$cuda_path/lib:$LD_LIBRARY_PATH
+                    export CUDA_HOME=$cuda_path
+                    CUDA_FOUND=true
+                    echo "  Found CUDA $version at: $cuda_path"
+                    break 2
+                fi
+            done
         fi
     done
+    
+    # If CUDA 12 not found, warn and suggest CPU reinstall
+    if [ "$CUDA_FOUND" = false ]; then
+        echo "  ⚠ WARNING: CUDA 12 libraries not found!"
+        echo "  llama-cpp-python needs CUDA 12 but it's not available."
+        echo "  To fix, either:"
+        echo "    1. Find CUDA 12: ls -la /appl/opt/cuda/"
+        echo "    2. Reinstall llama-cpp-python without CUDA:"
+        echo "       pip uninstall -y llama-cpp-python"
+        echo "       pip install llama-cpp-python --no-binary llama-cpp-python"
+    fi
 fi
 
 # Check if environments exist

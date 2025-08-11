@@ -1,5 +1,5 @@
 #!/bin/bash
-# Fix CUDA and reinstall llama-cpp-python with GPU support
+# Fix CUDA issues - either enable GPU support or fallback to CPU
 
 echo "================================="
 echo "CUDA Fix for Pocket Agent CLI"
@@ -9,8 +9,27 @@ echo "================================="
 CURRENT_NODE=$(hostname -s)
 echo "Current node: $CURRENT_NODE"
 
+# Offer choice
+echo ""
+echo "Choose an option:"
+echo "1. Try to fix CUDA support (GPU node required)"
+echo "2. Reinstall llama-cpp-python WITHOUT CUDA (CPU-only, works everywhere)"
+echo ""
+read -p "Enter choice (1 or 2): " choice
+
+if [ "$choice" = "2" ]; then
+    echo ""
+    echo "Reinstalling llama-cpp-python in CPU-only mode..."
+    pip uninstall -y llama-cpp-python
+    pip install llama-cpp-python --no-binary llama-cpp-python
+    echo ""
+    echo "✓ Installed CPU-only version of llama-cpp-python"
+    echo "Note: This will be slower than GPU version but works on all nodes"
+    exit 0
+fi
+
 if [[ "$CURRENT_NODE" != g* ]]; then
-    echo "⚠ WARNING: Not on a GPU node. This script should be run on GPU nodes (g*)"
+    echo "⚠ WARNING: Not on a GPU node. GPU support requires GPU nodes (g*)"
     echo "To get a GPU node:"
     echo "  srun --account=project_$PROJECT --partition=gputest --gres=gpu:a100:1 --time=0:15:00 --pty bash"
     exit 1

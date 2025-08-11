@@ -36,7 +36,7 @@ export PROJECT=2013932
 PROJECT_DIR=/projappl/project_$PROJECT/$USER/pocket-agent-cli
 
 # Activate environment
-source $PROJECT_DIR/slurm/activate_env.sh
+source $PROJECT_DIR/slurm/setup_environment.sh
 
 # Set work directory
 cd $PROJECT_DIR
@@ -46,7 +46,7 @@ if [ -d "$LOCAL_SCRATCH" ]; then
     echo "Using LOCAL_SCRATCH for temporary files: $LOCAL_SCRATCH"
     export TMPDIR=$LOCAL_SCRATCH
     export TEMP=$LOCAL_SCRATCH
-    
+
     # Copy code to local scratch for faster I/O
     echo "Copying code to local scratch..."
     cp -r pocket_agent_cli $LOCAL_SCRATCH/
@@ -85,7 +85,7 @@ run_benchmark_batch() {
     local start=$1
     local end=$2
     local mode=$3
-    
+
     # Build problem IDs list
     local problem_ids=""
     for ((i=start; i<=end && i<START_INDEX+TOTAL_PROBLEMS; i++)); do
@@ -95,14 +95,14 @@ run_benchmark_batch() {
             problem_ids="${problem_ids},$i"
         fi
     done
-    
+
     echo ""
     echo "Running $mode benchmark for problems: $problem_ids"
-    
+
     # Create output directory with timestamp
     local timestamp=$(date +%Y%m%d_%H%M%S)
     local output_dir="$PROJECT_DIR/data/results/bench_${MODEL_NAME}_${mode}_${timestamp}_job${SLURM_JOB_ID}"
-    
+
     # Run benchmark with error handling
     if timeout 3600 pocket-agent benchmark \
         --model "$MODEL_NAME" \
@@ -116,7 +116,7 @@ run_benchmark_batch() {
         # Log the failure
         echo "$(date),${mode},${problem_ids},FAILED" >> $PROJECT_DIR/data/logs/failures_${SLURM_JOB_ID}.log
     fi
-    
+
     # No Docker cleanup needed on Mahti (Docker not available)
 }
 
@@ -133,10 +133,10 @@ while [ $current_index -lt $end_index ]; do
     if [ $batch_end -ge $end_index ]; then
         batch_end=$((end_index - 1))
     fi
-    
+
     echo ""
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] Processing batch: $current_index to $batch_end"
-    
+
     # Run benchmarks based on mode
     if [ "$MODE" = "all" ]; then
         run_benchmark_batch $current_index $batch_end "base"
@@ -145,13 +145,13 @@ while [ $current_index -lt $end_index ]; do
     else
         run_benchmark_batch $current_index $batch_end "$MODE"
     fi
-    
+
     # Update progress
     current_index=$((batch_end + 1))
     completed=$((current_index - START_INDEX))
     progress=$((completed * 100 / TOTAL_PROBLEMS))
     echo "Progress: $completed/$TOTAL_PROBLEMS ($progress%)"
-    
+
     # Check if we're running out of time (leave 10 minutes for cleanup)
     if [ -n "$SLURM_JOB_END_TIME" ]; then
         time_left=$((SLURM_JOB_END_TIME - $(date +%s)))

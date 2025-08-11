@@ -22,33 +22,21 @@ export DISABLE_DOCKER=1
 # Load CUDA module if on GPU node (required for llama-cpp-python with CUDA)
 CURRENT_NODE=$(hostname -s)
 if [[ "$CURRENT_NODE" == g* ]]; then
-    # Try to load CUDA module
+    # Load CUDA module
     if ! module list 2>&1 | grep -q cuda; then
-        # Try different CUDA versions
-        module load cuda 2>/dev/null || \
-        module load cuda/12.0.0 2>/dev/null || \
-        module load cuda/12.1.0 2>/dev/null || \
-        module load cuda/11.8.0 2>/dev/null || \
-        module load cuda/11.7.0 2>/dev/null || \
-        true
+        module load cuda 2>/dev/null || true
     fi
-
-    # Set CUDA library paths
-    if module list 2>&1 | grep -q cuda; then
-        # Find CUDA installation path
-        CUDA_MODULE_PATH=$(module show cuda 2>&1 | grep "^/appl" | head -1)
-        if [ -n "$CUDA_MODULE_PATH" ] && [ -d "$CUDA_MODULE_PATH" ]; then
-            export LD_LIBRARY_PATH=$CUDA_MODULE_PATH/lib64:$CUDA_MODULE_PATH/lib:$LD_LIBRARY_PATH
+    
+    # CRITICAL FIX: llama-cpp-python needs libcudart.so.12 (CUDA 12)
+    # Must set LD_LIBRARY_PATH to CUDA 12 lib directory
+    # Check for CUDA 12 versions first (required by the compiled llama-cpp-python)
+    for cuda_path in /appl/opt/cuda/12.6.0 /appl/opt/cuda/12.2.0 /appl/opt/cuda/12.1.0 /appl/opt/cuda/12.0.0; do
+        if [ -d "$cuda_path/lib64" ] && [ -f "$cuda_path/lib64/libcudart.so.12" ]; then
+            export LD_LIBRARY_PATH=$cuda_path/lib64:$cuda_path/lib:$LD_LIBRARY_PATH
+            export CUDA_HOME=$cuda_path
+            break
         fi
-
-        # Common CUDA paths on CSC systems
-        for cuda_path in /appl/opt/cuda/12.0.0 /appl/opt/cuda/11.8.0 /appl/opt/cuda/11.7.0; do
-            if [ -d "$cuda_path/lib64" ]; then
-                export LD_LIBRARY_PATH=$cuda_path/lib64:$LD_LIBRARY_PATH
-                break
-            fi
-        done
-    fi
+    done
 fi
 
 # Check if environments exist

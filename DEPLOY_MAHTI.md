@@ -200,6 +200,44 @@ source slurm/setup_environment.sh
 
 ## Troubleshooting
 
+### Bus error (Väylävirhe) when running benchmarks
+
+**Problem**: Getting bus errors when running benchmarks through containerized Python.
+
+**Solution 1: Use the safe benchmark runner**
+```bash
+# On compute node with environment activated
+bash /projappl/project_$PROJECT/$USER/pocket-agent-cli/slurm/run_benchmark_safe.sh gemma-3n-e2b-it base 1-10 5
+```
+
+**Solution 2: Use direct Python runner**
+```bash
+# Set up environment
+export DISABLE_DOCKER=1
+source /projappl/project_$PROJECT/$USER/pocket-agent-cli/slurm/activate_env.sh
+
+# Use the direct Python script
+python /projappl/project_$PROJECT/$USER/pocket-agent-cli/slurm/pocket_agent_direct.py benchmark \
+    --model gemma-3n-e2b-it \
+    --mode base \
+    --problems 1-10 \
+    --num-samples 5 \
+    --output-dir ./results
+```
+
+**Solution 3: Run Python module directly**
+```bash
+# Bypass all wrappers
+python -m pocket_agent_cli.cli benchmark \
+    --model gemma-3n-e2b-it \
+    --mode base \
+    --problems 1-10 \
+    --num-samples 5 \
+    --output-dir ./results
+```
+
+**Note**: Bus errors are often caused by Singularity containerization conflicts. The above methods bypass the containerized wrapper.
+
 ### "Module not found" errors
 
 Check available modules:
@@ -247,9 +285,50 @@ export PATH=/projappl/project_$PROJECT/$USER/pocket-agent-cli/tykky-env/bin:$PAT
 
 ### CUDA not available
 
+**Problem**: Getting "installing CPU version" even on GPU nodes because nvcc not found.
+
+**Solution 1: Run the CUDA fix script**
+```bash
+# On a GPU node
+source /projappl/project_$PROJECT/$USER/pocket-agent-cli/slurm/fix_cuda.sh
+```
+
+**Solution 2: Manual fix**
+```bash
+# Find CUDA installations
+find /appl /opt -name nvcc 2>/dev/null
+
+# Try loading different CUDA module versions
+module load cuda/11.7.0  # or cuda/11.8.0, cuda/12.0.0, cuda/12.1.0
+
+# Verify nvcc is available
+which nvcc
+
+# Reinstall llama-cpp-python with CUDA
+pip uninstall -y llama-cpp-python
+CMAKE_ARGS="-DLLAMA_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=80" pip install llama-cpp-python --no-cache-dir
+```
+
+**Notes**:
 - CUDA is only available on GPU nodes (g* nodes)
 - Request GPU node with `--gres=gpu:a100:1`
-- Module will be loaded automatically on GPU nodes
+- Different Mahti nodes may have different CUDA module names
+
+### Docker tool calling not working
+
+**Problem**: Tool calling features fail because Docker is not available on compute nodes.
+
+**Solution**: The benchmark automatically detects Docker availability and falls back to local execution.
+
+```bash
+# To explicitly disable Docker (if causing issues)
+export DISABLE_DOCKER=1
+
+# Run benchmark without Docker sandboxing
+pocket-agent benchmark --model llama-3.2-3b-instruct --problems 1-10
+```
+
+**Note**: Mahti compute nodes don't have Docker. Tool calling will use subprocess isolation instead.
 
 ## Why Containerization?
 

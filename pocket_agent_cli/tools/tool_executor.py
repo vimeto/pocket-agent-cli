@@ -4,10 +4,21 @@ import json
 import asyncio
 from typing import Dict, Any, List, Optional, Tuple
 from pathlib import Path
-import docker
 import tempfile
 import shutil
+import os
 from ..config import SANDBOX_DIR
+
+# Check if Docker should be disabled before importing
+DOCKER_DISABLED = os.environ.get('DISABLE_DOCKER', '').lower() in ('1', 'true', 'yes')
+if not DOCKER_DISABLED:
+    try:
+        import docker
+    except ImportError:
+        docker = None
+        DOCKER_DISABLED = True
+else:
+    docker = None
 
 
 class ToolExecutor:
@@ -20,15 +31,23 @@ class ToolExecutor:
             use_docker: Whether to use Docker for sandboxing
             test_cases: Optional test cases for the current problem
         """
-        self.use_docker = use_docker
+        # Check if Docker is globally disabled
+        if DOCKER_DISABLED:
+            self.use_docker = False
+        else:
+            self.use_docker = use_docker
+            
         self.docker_client = None
         self.sandbox_dir = None
         self.container = None
         self.test_cases = test_cases or []
 
-        if use_docker:
+        # Only try to initialize Docker if not disabled
+        if self.use_docker and docker is not None:
             try:
                 self.docker_client = docker.from_env()
+                # Test Docker connectivity
+                self.docker_client.ping()
                 # Pull Python image if not present
                 try:
                     self.docker_client.images.get("python:3.11-slim")
@@ -36,8 +55,9 @@ class ToolExecutor:
                     print("Pulling Python Docker image...")
                     self.docker_client.images.pull("python:3.11-slim")
             except Exception as e:
-                print(f"Docker not available: {e}")
+                # Docker not available for any reason
                 self.use_docker = False
+                self.docker_client = None
 
     async def execute_tools(
         self,

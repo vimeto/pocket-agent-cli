@@ -28,6 +28,9 @@ fi
 export PROJECT_DIR=/projappl/project_$PROJECT/$USER/pocket-agent-cli
 export TYKKY_ENV=$PROJECT_DIR/tykky-env
 
+# Disable Docker (not available on Mahti compute nodes)
+export DISABLE_DOCKER=1
+
 # Check disk quota
 echo ""
 echo "Checking disk quota..."
@@ -48,25 +51,97 @@ module load gcc/10.4.0 2>/dev/null || module load gcc 2>/dev/null || echo "GCC m
 
 # Load CUDA if on GPU node
 if [[ "$CURRENT_NODE" == g* ]]; then
-    echo "GPU node detected, loading CUDA..."
-    # Try different CUDA module names
-    if ! module load cuda 2>/dev/null; then
-        if ! module load cuda/11.7.0 2>/dev/null; then
-            if ! module load cuda/12.0.0 2>/dev/null; then
-                module load nvidia 2>/dev/null || echo "WARNING: Could not load CUDA module"
-            fi
-        fi
+    echo "GPU node detected, setting up CUDA..."
+    echo "Node: $CURRENT_NODE"
+    
+    # First, check what CUDA modules are available
+    echo "Available CUDA modules:"
+    module spider cuda 2>&1 | grep -E "cuda/|nvidia" || echo "No CUDA modules found via spider"
+    
+    # Try to load CUDA module with different approaches
+    CUDA_LOADED=false
+    
+    # Method 1: Try generic cuda module
+    if module load cuda 2>/dev/null; then
+        CUDA_LOADED=true
+        echo "✓ Loaded 'cuda' module"
+    # Method 2: Try specific versions that are common on CSC systems
+    elif module load cuda/11.7.0 2>/dev/null; then
+        CUDA_LOADED=true
+        echo "✓ Loaded 'cuda/11.7.0' module"
+    elif module load cuda/11.8.0 2>/dev/null; then
+        CUDA_LOADED=true
+        echo "✓ Loaded 'cuda/11.8.0' module"
+    elif module load cuda/12.0.0 2>/dev/null; then
+        CUDA_LOADED=true
+        echo "✓ Loaded 'cuda/12.0.0' module"
+    elif module load cuda/12.1.0 2>/dev/null; then
+        CUDA_LOADED=true
+        echo "✓ Loaded 'cuda/12.1.0' module"
+    # Method 3: Try nvidia module (some systems use this)
+    elif module load nvidia 2>/dev/null; then
+        CUDA_LOADED=true
+        echo "✓ Loaded 'nvidia' module"
     fi
     
-    # Verify CUDA is loaded
-    if command -v nvcc &> /dev/null; then
-        echo "✓ CUDA loaded: $(nvcc --version | grep release | cut -d' ' -f5,6)"
+    # If module loaded, check for nvcc
+    if [ "$CUDA_LOADED" = true ]; then
+        echo "Checking for CUDA compiler..."
+        
+        # Search common CUDA installation paths
+        CUDA_PATHS="
+            /usr/local/cuda/bin
+            /opt/cuda/bin
+            /appl/opt/cuda/11.7.0/bin
+            /appl/opt/cuda/11.8.0/bin
+            /appl/opt/cuda/12.0.0/bin
+            /appl/opt/cuda/12.1.0/bin
+            /appl/opt/nvidia/hpc_sdk/Linux_x86_64/*/cuda/*/bin
+            /apps/cuda/*/bin
+        "
+        
+        for cuda_path in $CUDA_PATHS; do
+            if [ -f "${cuda_path}/nvcc" ]; then
+                export PATH="${cuda_path}:$PATH"
+                echo "✓ Added CUDA path to PATH: ${cuda_path}"
+                break
+            fi
+        done
     else
-        echo "⚠ CUDA module loaded but nvcc not found"
-        # Try to find nvcc
-        if [ -d "/appl/opt/" ]; then
-            export PATH=/appl/opt/cuda/*/bin:$PATH
-        fi
+        echo "⚠ Could not load any CUDA module"
+        echo "Available modules on this system:"
+        module avail 2>&1 | grep -i cuda || echo "No CUDA modules visible"
+    fi
+    
+    # Final verification
+    if command -v nvcc &> /dev/null; then
+        NVCC_VERSION=$(nvcc --version | grep release | cut -d' ' -f5,6)
+        echo "✓ CUDA compiler found: $NVCC_VERSION"
+        echo "  nvcc location: $(which nvcc)"
+        
+        # Set CUDA environment variables for cmake
+        export CUDA_HOME=$(dirname $(dirname $(which nvcc)))
+        export CMAKE_CUDA_COMPILER=$(which nvcc)
+        echo "  CUDA_HOME set to: $CUDA_HOME"
+    else
+        echo "⚠ CUDA compiler (nvcc) not found in PATH"
+        echo "⚠ This means llama-cpp-python will be installed WITHOUT GPU support"
+        echo ""
+        echo "To manually fix CUDA after setup:"
+        echo "  1. Find CUDA installation: find /appl /opt /usr -name nvcc 2>/dev/null"
+        echo "  2. Add to PATH: export PATH=/path/to/cuda/bin:\$PATH"
+        echo "  3. Reinstall llama-cpp-python with CUDA:"
+        echo "     pip uninstall -y llama-cpp-python"
+        echo "     CMAKE_ARGS='-DLLAMA_CUDA=on' pip install llama-cpp-python --no-cache-dir"
+    fi
+    
+    # Show GPU information
+    echo ""
+    echo "GPU Information:"
+    if command -v nvidia-smi &> /dev/null; then
+        nvidia-smi --query-gpu=name,driver_version,compute_cap --format=csv,noheader
+    else
+        echo "nvidia-smi not found"
     fi
 fi
 
@@ -289,18 +364,45 @@ if python -c "import llama_cpp" 2>/dev/null; then
     fi
 else
     # Fresh installation
-    if [[ "$CURRENT_NODE" == g* ]] && command -v nvcc &> /dev/null; then
-        echo "GPU node with CUDA detected, installing with GPU support..."
-        CMAKE_ARGS="-DLLAMA_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=80" \
-        FORCE_CMAKE=1 \
-        pip install llama-cpp-python --no-cache-dir
-    else
-        echo "Installing CPU version of llama-cpp-python..."
-        if [[ "$CURRENT_NODE" == g* ]]; then
-            echo "⚠ On GPU node but CUDA not available. To fix:"
-            echo "  1. module load cuda"
-            echo "  2. Rerun this script"
+    if [[ "$CURRENT_NODE" == g* ]]; then
+        if command -v nvcc &> /dev/null; then
+            echo "GPU node with CUDA detected, installing with GPU support..."
+            echo "Using nvcc from: $(which nvcc)"
+            
+            # Set all necessary CUDA environment variables
+            export CUDA_HOME=$(dirname $(dirname $(which nvcc)))
+            export CMAKE_CUDA_COMPILER=$(which nvcc)
+            
+            # Install with explicit CUDA support
+            CMAKE_ARGS="-DLLAMA_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=80" \
+            CUDA_DOCKER_ARCH=sm_80 \
+            FORCE_CMAKE=1 \
+            pip install llama-cpp-python --no-cache-dir --force-reinstall --verbose
+        else
+            echo "⚠ On GPU node but CUDA compiler not found!"
+            echo "Installing CPU version for now..."
+            pip install llama-cpp-python
+            
+            echo ""
+            echo "===== IMPORTANT: Manual CUDA Fix Required ====="
+            echo "You're on a GPU node but CUDA isn't properly configured."
+            echo "After setup completes, run these diagnostic commands:"
+            echo ""
+            echo "  # Check for CUDA installations:"
+            echo "  find /appl /opt -name nvcc 2>/dev/null | head -5"
+            echo ""
+            echo "  # Check loaded modules:"
+            echo "  module list"
+            echo ""
+            echo "  # Try loading CUDA manually:"
+            echo "  module load cuda/11.7.0  # or cuda/11.8.0, cuda/12.0.0"
+            echo ""
+            echo "  # Then reinstall llama-cpp-python:"
+            echo "  source $PROJECT_DIR/slurm/fix_cuda.sh"
+            echo "================================================"
         fi
+    else
+        echo "Installing CPU version of llama-cpp-python (not on GPU node)..."
         pip install llama-cpp-python
     fi
 fi

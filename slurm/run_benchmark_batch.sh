@@ -73,28 +73,12 @@ echo "Starting system monitoring..."
 done) &
 CPU_MONITOR_PID=$!
 
-# Docker check and setup (if available)
-DOCKER_AVAILABLE=false
-if command -v docker &> /dev/null; then
-    echo ""
-    echo "Checking Docker availability..."
-    if docker info &> /dev/null; then
-        DOCKER_AVAILABLE=true
-        echo "✓ Docker is available"
-        # Pull Python image if needed
-        docker pull python:3.11-slim &> /dev/null || echo "Could not pull Docker image"
-    else
-        echo "⚠ Docker daemon not accessible"
-    fi
-else
-    echo "⚠ Docker not installed"
-fi
-
-# Disable Docker if not available
-if [ "$DOCKER_AVAILABLE" = false ]; then
-    export DISABLE_DOCKER=1
-    echo "Running without Docker sandboxing"
-fi
+# Docker is not available on Mahti compute nodes
+# Always disable Docker to prevent errors
+export DISABLE_DOCKER=1
+echo ""
+echo "Docker disabled (not available on Mahti compute nodes)"
+echo "Tool execution will use subprocess isolation instead"
 
 # Function to run benchmark for a batch
 run_benchmark_batch() {
@@ -115,9 +99,9 @@ run_benchmark_batch() {
     echo ""
     echo "Running $mode benchmark for problems: $problem_ids"
     
-    # Create output filename with timestamp
+    # Create output directory with timestamp
     local timestamp=$(date +%Y%m%d_%H%M%S)
-    local output_file="$PROJECT_DIR/data/results/bench_${MODEL_NAME}_${mode}_${timestamp}_job${SLURM_JOB_ID}.json"
+    local output_dir="$PROJECT_DIR/data/results/bench_${MODEL_NAME}_${mode}_${timestamp}_job${SLURM_JOB_ID}"
     
     # Run benchmark with error handling
     if timeout 3600 pocket-agent benchmark \
@@ -125,7 +109,7 @@ run_benchmark_batch() {
         --mode "$mode" \
         --problems "$problem_ids" \
         --num-samples "$NUM_SAMPLES" \
-        --output "$output_file"; then
+        --output-dir "$output_dir"; then
         echo "✓ Batch completed successfully"
     else
         echo "⚠ Batch failed or timed out"
@@ -133,10 +117,7 @@ run_benchmark_batch() {
         echo "$(date),${mode},${problem_ids},FAILED" >> $PROJECT_DIR/data/logs/failures_${SLURM_JOB_ID}.log
     fi
     
-    # Clean up any Docker containers if they exist
-    if [ "$DOCKER_AVAILABLE" = true ]; then
-        docker ps -a --filter "label=pocket_agent_cli_sandbox" -q | xargs -r docker rm -f &> /dev/null || true
-    fi
+    # No Docker cleanup needed on Mahti (Docker not available)
 }
 
 # Main benchmark loop

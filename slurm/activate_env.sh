@@ -16,6 +16,9 @@ export PROJECT_DIR=/projappl/project_$PROJECT/$USER/pocket-agent-cli
 export TYKKY_ENV=$PROJECT_DIR/tykky-env
 export VENV_DIR=$PROJECT_DIR/venv
 
+# Disable Docker (not available on Mahti compute nodes)
+export DISABLE_DOCKER=1
+
 # Check if environments exist
 if [ ! -d "$TYKKY_ENV" ]; then
     echo "ERROR: Tykky environment not found at $TYKKY_ENV"

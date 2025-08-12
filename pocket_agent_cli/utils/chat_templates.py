@@ -32,35 +32,9 @@ GEMMA_TEMPLATE = """{% for message in messages %}
 <start_of_turn>model
 """
 
-# Tool-enabled Gemma template
+# Tool-enabled Gemma template - simplified to use model_prompts.py system prompts
 GEMMA_TOOL_TEMPLATE = """{% if messages and messages[0].role == 'system' %}<start_of_turn>user
-{{ messages[0].content }}
-
-{% if tools %}You have access to the following tools:
-{% for tool in tools %}
-- {{ tool.function.name }}: {{ tool.function.description }}
-{% endfor %}
-
-CRITICAL INSTRUCTIONS:
-- You MUST use the format: [function_name(param1="value1", param2="value2")]
-
-EXAMPLES:
-1. Test-first approach:
-User: Write a function to check if a number is prime
-Assistant: [upsert_file(filename="prime.py", content="def is_prime(n):\n    if n < 2:\n        return False\n    for i in range(2, int(n**0.5) + 1):\n        if n % i == 0:\n            return False\n    return True\n\nassert is_prime(7) == True\nassert is_prime(10) == False")]
-User: File created
-Assistant: [run_submission_tests(filename="prime.py")]
-User: True
-Assistant: [submit_python_solution(filename="prime.py")]
-
-FORBIDDEN (will fail):
-- ```python blocks
-- ```tool_call blocks
-- Plain code without function call wrapper
-- Any explanatory text
-
-Your response MUST start with [ or { {% endif %}
-<end_of_turn>
+{{ messages[0].content }}<end_of_turn>
 {% endif %}
 {% for message in messages %}
 {% if not (loop.first and message.role == 'system') %}
@@ -92,51 +66,25 @@ QWEN_TEMPLATE = """{% for message in messages %}
 <|im_start|>assistant
 """
 
-# Tool-enabled Qwen template
-QWEN_TOOL_TEMPLATE = """<|im_start|>system
-{% if tools %}
-You have access to the following tools:
-{% for tool in tools %}
-- {{ tool.function.name }}: {{ tool.function.description }}
-{% endfor %}
-
-When you need to use a tool, respond with a JSON tool call:
-{"name": "tool_name", "parameters": {"param1": "value1"}}
-{% endif %}
-{{ messages[0].content if messages and messages[0].role == 'system' else '' }}<|im_end|>
-{% for message in messages %}
-{% if not (loop.first and message['role'] == 'system') %}
-{% if message['role'] == 'user' %}
+# Tool-enabled Qwen template - simplified to use model_prompts.py system prompts  
+QWEN_TOOL_TEMPLATE = """{% for message in messages %}
+{% if message['role'] == 'system' %}
+<|im_start|>system
+{{ message['content'] }}<|im_end|>
+{% elif message['role'] == 'user' %}
 <|im_start|>user
 {{ message['content'] }}<|im_end|>
 {% elif message['role'] == 'assistant' %}
 <|im_start|>assistant
 {{ message['content'] }}<|im_end|>
 {% endif %}
-{% endif %}
 {% endfor %}
 <|im_start|>assistant
 """
 
-# Tool-enabled Llama template
-LLAMA_TOOL_TEMPLATE = """{% if tools %}
-<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-
-You have access to the following tools:
-{% for tool in tools %}
-- {{ tool.function.name }}: {{ tool.function.description }}
-  Parameters: {{ tool.function.parameters.properties | tojson }}
-{% endfor %}
-
-When you need to use a tool, respond with ONLY a JSON tool call in one of these formats:
-- For a single tool: {"name": "tool_name", "parameters": {"param1": "value1"}}
-- For multiple tools: [{"name": "tool1", "parameters": {...}}, {"name": "tool2", "parameters": {...}}]
-
-Do not include any other text when making tool calls, just the JSON.
-<|eot_id|>
-{% endif %}
-{% for message in messages %}
-{% if message['role'] == 'system' and not tools %}
+# Tool-enabled Llama template - simplified to use model_prompts.py system prompts
+LLAMA_TOOL_TEMPLATE = """{% for message in messages %}
+{% if message['role'] == 'system' %}
 <|begin_of_text|><|start_header_id|>system<|end_header_id|>
 
 {{ message['content'] }}<|eot_id|>

@@ -130,6 +130,21 @@ class InferenceService:
 
         # Format prompt
         prompt = self._format_prompt(messages, config)
+        
+        # Log prompts being sent
+        if os.environ.get("DEBUG_PROMPTS", "").lower() == "true":
+            print("\n" + "="*60)
+            print("DEBUG: Prompts sent to llama.cpp (text generation)")
+            print("="*60)
+            for msg in messages:
+                print(f"\n[{msg['role'].upper()}]:")
+                print(msg['content'][:500] if len(msg['content']) > 500 else msg['content'])
+            if config.tools:
+                print("\n[TOOLS]:", [t['function']['name'] for t in config.tools if t and 'function' in t])
+            print("\n[FORMATTED PROMPT]:")
+            print(prompt[:1000] if len(prompt) > 1000 else prompt)
+            print("="*60 + "\n")
+        
         if DEBUG_INFERENCE:
             print(f"[DEBUG InferenceService] Prompt length: {len(prompt)} characters")
 
@@ -264,6 +279,7 @@ class InferenceService:
         supports_native_tools = (
             self.current_model and 
             self.current_model.id == "deepseek-r1-distill-qwen-1.5b" and
+            tools and  # Check tools is not None
             len(tools) == 1  # Only use native tools for single tool scenarios
         )
         
@@ -277,6 +293,17 @@ class InferenceService:
                         'role': 'system',
                         'content': 'You are a helpful assistant with access to tools.'
                     })
+                
+                # Log prompts being sent
+                if os.environ.get("DEBUG_PROMPTS", "").lower() == "true":
+                    print("\n" + "="*60)
+                    print("DEBUG: Prompts sent to llama.cpp (native tools)")
+                    print("="*60)
+                    for msg in messages_with_system:
+                        print(f"\n[{msg['role'].upper()}]:")
+                        print(msg['content'][:500] if len(msg['content']) > 500 else msg['content'])
+                    print("\n[TOOLS]:", [t['function']['name'] for t in tools if t])
+                    print("="*60 + "\n")
                 
                 response = self.llama.create_chat_completion(
                     messages=messages_with_system,

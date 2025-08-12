@@ -15,37 +15,43 @@ MODEL_PROMPTS = {
             "user_suffix": "\n\nSubmit using [submit_python_solution(code=\"...\")]:"
         },
         "full_tool": {
-            "system_prompt": """CRITICAL: You MUST output ONLY function calls in these EXACT formats:
+            "system_prompt": """CRITICAL: You are an AI coding assistant with access to these EXACT tools:
 
-[function_name(param1="value1", param2="value2")]
-OR
-{"name": "function_name", "parameters": {"param1": "value1"}}
+1. run_python_code - Execute Python code directly or from a file
+   Parameters: code (string) OR filename (string)
+   Example: [run_python_code(code="print(2+2)")]
 
-EXAMPLES:
+2. upsert_file - Create or update a file with content
+   Parameters: filename (string), content (string)
+   Example: [upsert_file(filename="solution.py", content="def func():\\n    return 42")]
 
-1. Simple submission:
-Q: Write a function to add two numbers
-A: [submit_python_solution(code="def add_two_numbers(a, b):\\n    return a + b")]
+3. read_file - Read contents of an existing file
+   Parameters: filename (string)
+   Example: [read_file(filename="test.py")]
 
-2. Full agentic workflow with testing:
-Q: Write a function to find the factorial of a number
+4. run_submission_tests - Test your solution against problem test cases
+   Parameters: filename (string)
+   Example: [run_submission_tests(filename="solution.py")]
+
+5. submit_python_solution - Submit your final solution (REQUIRED)
+   Parameters: code (string) OR filename (string)
+   Example: [submit_python_solution(code="def solution(x):\\n    return x * 2")]
+
+OUTPUT FORMAT: Use ONLY [function_name(param="value")] or {"name": "function_name", "parameters": {...}}
+
+WORKFLOW EXAMPLE:
+Q: Write a function to calculate factorial
 A: [upsert_file(filename="factorial.py", content="def factorial(n):\\n    if n <= 1:\\n        return 1\\n    return n * factorial(n-1)")]
-User: File created successfully
+System: File created
 A: [run_submission_tests(filename="factorial.py")]
-User: Test Results: 3/3 passed
-----------------------------------------
-Test 1: PASSED
-Test 2: PASSED  
-Test 3: PASSED
+System: All tests passed
 A: [submit_python_solution(filename="factorial.py")]
 
-DO NOT:
-- Use ```python blocks
-- Add any explanations
-- Output plain code
-- Use any other format
-
-ALWAYS use [function_name(...)] or {"name": "...", "parameters": {...}}""",
+RULES:
+- MUST call submit_python_solution at the end
+- NO explanations or plain text
+- NO ```python blocks
+- ONLY tool calls in the specified format""",
             "tool_format_example": """Example function calls:
 [run_python_code(code="print('Hello')")]
 [submit_python_solution(code="def solution():\\n    return 42")]
@@ -62,8 +68,21 @@ ALWAYS use [function_name(...)] or {"name": "...", "parameters": {...}}""",
             "user_suffix": ""
         },
         "full_tool": {
-            "system_prompt": """Python environment available. Tools: run_python_code (code/file), upsert_file, read_file, submit_python_solution.
-MUST submit final solution with submit_python_solution.""",
+            "system_prompt": """You have a Python development environment with these tools:
+
+AVAILABLE TOOLS:
+1. run_python_code(code="..." OR filename="...") - Execute Python code
+2. upsert_file(filename="...", content="...") - Create/update files
+3. read_file(filename="...") - Read file contents
+4. run_submission_tests(filename="...") - Test against problem test cases
+5. submit_python_solution(code="..." OR filename="...") - Submit final solution (REQUIRED)
+
+Use tools in ```tool_call blocks with JSON format:
+```tool_call
+{"name": "tool_name", "parameters": {"param": "value"}}
+```
+
+You MUST use submit_python_solution to submit your final solution.""",
             "tool_format_example": """```tool_call
 {"name": "submit_python_solution", "parameters": {"code": "solution code here"}}
 ```"""
@@ -71,16 +90,35 @@ MUST submit final solution with submit_python_solution.""",
     },
     "qwen": {
         "base": {
-            "system_prompt": "Generate Python code only.",
-            "user_suffix": ""
+            "system_prompt": "You are a Python programmer. Complete functions by providing the implementation.",
+            "user_suffix": "\n\nComplete this function:"
         },
         "tool_submission": {
-            "system_prompt": "Use submit_python_solution in ```tool_call block.",
-            "user_suffix": ""
+            "system_prompt": """Submit Python solutions using this exact format:
+
+```tool_call
+{"name": "submit_python_solution", "parameters": {"code": "solution"}}
+```
+
+Always wrap tool calls in ```tool_call blocks.""",
+            "user_suffix": "\n\nSubmit the complete function:"
         },
         "full_tool": {
-            "system_prompt": """Python environment. Tools: run_python_code, upsert_file, read_file, submit_python_solution.
-Use JSON in ```tool_call blocks. MUST submit with submit_python_solution.""",
+            "system_prompt": """Example input: def add(a, b): '''Add two numbers'''
+Example output:
+```tool_call
+{"name": "submit_python_solution", "parameters": {"code": "def add(a, b):\\n    return a + b"}}
+```
+
+Follow this exact pattern. Available tools:
+1. run_python_code - Execute code
+2. upsert_file - Create/update files
+3. read_file - Read files
+4. run_submission_tests - Test solution
+5. submit_python_solution - Submit final solution (REQUIRED)
+
+Always use ```tool_call format.""",
+            "user_suffix": "\n\nYour output:",
             "tool_format_example": """```tool_call
 {"name": "submit_python_solution", "parameters": {"code": "solution"}}
 ```"""
@@ -106,16 +144,59 @@ MUST submit final solution with submit_python_solution.""",
 }
 
 
-def get_model_prompt(architecture: str, mode: str) -> Dict[str, str]:
+def get_model_prompt(architecture: str, mode: str, model_id: str = None) -> Dict[str, str]:
     """Get model-specific prompt configuration for a given mode.
 
     Args:
         architecture: Model architecture (gemma, llama, qwen, etc.)
         mode: Benchmark mode (base, tool_submission, full_tool)
+        model_id: Optional specific model ID for fine-tuned prompts
 
     Returns:
         Dict with system_prompt and optional tool_format_example and user_suffix
     """
+    # Special handling for specific models in full_tool mode
+    if mode == "full_tool" and model_id:
+        if model_id == "qwen-3-0.6b":
+            # Small model needs example-driven prompt
+            return {
+                "system_prompt": """Example input: def add(a, b): '''Add two numbers'''
+Example output:
+```tool_call
+{"name": "submit_python_solution", "parameters": {"code": "def add(a, b):\\n    return a + b"}}
+```
+
+Follow this exact pattern. Available tools:
+1. run_python_code - Execute code
+2. upsert_file - Create/update files
+3. read_file - Read files
+4. run_submission_tests - Test solution
+5. submit_python_solution - Submit final solution (REQUIRED)
+
+Always use ```tool_call format.""",
+                "user_suffix": "\n\nYour output:"
+            }
+        elif model_id in ["deepseek-r1-distill-qwen-1.5b", "qwen-3-4b"]:
+            # Larger Qwen-based models need clearer instructions
+            return {
+                "system_prompt": """You are a Python coding assistant. Use these tools:
+
+1. run_python_code(code="...") - Execute Python code
+2. upsert_file(filename="...", content="...") - Create/update files
+3. read_file(filename="...") - Read file contents
+4. run_submission_tests(filename="...") - Test your solution
+5. submit_python_solution(code="...") - Submit final solution (REQUIRED)
+
+Output tool calls in ```tool_call blocks:
+```tool_call
+{"name": "submit_python_solution", "parameters": {"code": "def solution():\\n    return result"}}
+```
+
+You MUST call submit_python_solution with your complete solution.""",
+                "user_suffix": "\n\nSolve and submit:"
+            }
+    
+    # Default behavior
     model_config = MODEL_PROMPTS.get(architecture, MODEL_PROMPTS["default"])
     mode_config = model_config.get(mode, model_config.get("full_tool", {}))
     

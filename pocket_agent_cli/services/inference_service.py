@@ -75,6 +75,10 @@ class InferenceService:
             "n_batch": 512,  # Optimize batch size for GPU
         }
         
+        # Special handling for DeepSeek R1 Distill Qwen - supports native tool calling
+        if model.id == "deepseek-r1-distill-qwen-1.5b":
+            kwargs["chat_format"] = "chatml-function-calling"
+        
         # Add CUDA-specific options if available
         if cuda_available:
             kwargs["cuda_device"] = int(os.environ.get("CUDA_VISIBLE_DEVICES", "0"))
@@ -253,8 +257,64 @@ class InferenceService:
         """
         if not self.llama or not self.config:
             raise RuntimeError("No model loaded")
+        
+        # Check if model supports native tool calling
+        # Note: Disable native tools for DeepSeek when multiple tools are available
+        # as it doesn't handle them well
+        supports_native_tools = (
+            self.current_model and 
+            self.current_model.id == "deepseek-r1-distill-qwen-1.5b" and
+            len(tools) == 1  # Only use native tools for single tool scenarios
+        )
+        
+        if supports_native_tools:
+            # Use native tool calling via create_chat_completion
+            try:
+                # DeepSeek R1 requires a system message for tool calling to work
+                messages_with_system = messages.copy()
+                if not any(msg['role'] == 'system' for msg in messages_with_system):
+                    messages_with_system.insert(0, {
+                        'role': 'system',
+                        'content': 'You are a helpful assistant with access to tools.'
+                    })
+                
+                response = self.llama.create_chat_completion(
+                    messages=messages_with_system,
+                    tools=tools,
+                    tool_choice=tool_choice,
+                    max_tokens=kwargs.get("max_tokens", self.config.max_tokens),
+                    temperature=kwargs.get("temperature", self.config.temperature),
+                    top_p=kwargs.get("top_p", self.config.top_p),
+                    stream=False
+                )
+                
+                # Extract response and tool calls
+                message = response["choices"][0]["message"]
+                response_text = message.get("content", "")
+                tool_calls = message.get("tool_calls", None)
+                
+                # DeepSeek might return tool_calls as empty list instead of None
+                if tool_calls == []:
+                    tool_calls = None
+                
+                # Calculate basic metrics
+                metrics = {
+                    "tokens": response["usage"]["completion_tokens"],
+                    "ttft": None,  # Not available in non-streaming
+                    "tps": 0,  # Would need timing info
+                }
+                
+                # Add inter-token latencies to metrics (empty for non-streaming)
+                metrics['inter_token_latencies'] = []
+                
+                return response_text, tool_calls, metrics
+                
+            except Exception as e:
+                # Fallback to manual parsing if native fails
+                print(f"[DEBUG] Native tool calling failed, falling back to parsing: {e}")
 
-        # # Add tools to config
+        # Original implementation with manual parsing
+        # Add tools to config
         kwargs["tools"] = tools
         kwargs["tool_choice"] = tool_choice
 

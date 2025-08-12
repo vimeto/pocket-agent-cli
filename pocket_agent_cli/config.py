@@ -57,6 +57,15 @@ DEFAULT_MODELS = [
         "architecture": "qwen",
         "requiresAuth": False,
     },
+    {
+        "id": "qwen-3-0.6b",
+        "name": "Qwen 3 0.6B",
+        "url": "https://huggingface.co/bartowski/Qwen_Qwen3-0.6B-GGUF/blob/main/Qwen_Qwen3-0.6B-Q4_K_M.gguf",
+        "size": 4841854080,  # ~2.3GB
+        "quantization": "Q4_K_M",
+        "architecture": "qwen",
+        "requiresAuth": False,
+    },
 ]
 
 

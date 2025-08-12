@@ -27,6 +27,8 @@ class ToolExtractor:
         strategies = [
             self._extract_gemma_python_style,  # Gemma's official format
             self._extract_gemma_json_style,    # Gemma's JSON format
+            self._extract_qwen_thinking_json,  # Qwen's thinking pattern
+            self._extract_deepseek_function_format,  # DeepSeek's "functions.X:" format
             self._extract_tool_call_blocks,
             self._extract_tool_code_blocks,
             self._extract_json_blocks,
@@ -179,6 +181,72 @@ class ToolExtractor:
             })
         
         return parsed_tools
+    
+    def _extract_qwen_thinking_json(self, response: str) -> List[Dict[str, Any]]:
+        """Extract JSON from Qwen's thinking patterns after </think> tags."""
+        tools = []
+        
+        # Remove thinking blocks first
+        cleaned = re.sub(r'<think>.*?</think>', '', response, flags=re.DOTALL)
+        
+        # Now look for JSON in the cleaned response
+        json_pattern = r'\{[^{}]*"name"\s*:\s*"[^"]+"\s*,\s*"parameters"\s*:\s*\{[^{}]*\}[^{}]*\}'
+        
+        for match in re.finditer(json_pattern, cleaned):
+            try:
+                tool = json.loads(match.group())
+                if self._validate_tool(tool):
+                    tools.append(tool)
+            except json.JSONDecodeError:
+                continue
+        
+        return tools
+    
+    def _extract_deepseek_function_format(self, response: str) -> List[Dict[str, Any]]:
+        """Extract DeepSeek's 'functions.tool_name:' format."""
+        tools = []
+        
+        # Pattern: functions.tool_name: followed by optional parameters
+        pattern = r'functions\.([a-zA-Z_]\w*):\s*(.*?)(?=functions\.|$)'
+        
+        for match in re.finditer(pattern, response, re.DOTALL):
+            tool_name = match.group(1)
+            params_text = match.group(2).strip()
+            
+            # Try to extract parameters if present
+            params = {}
+            if params_text:
+                # Try to parse as JSON if it looks like JSON
+                if params_text.startswith('{'):
+                    try:
+                        params = json.loads(params_text.split('\n')[0])  # Take first line
+                    except:
+                        pass
+                # Otherwise try to extract from the text following
+                elif '\n' in params_text:
+                    # Extract code from following lines
+                    code_lines = params_text.split('\n')
+                    if code_lines:
+                        # Join non-empty lines as code
+                        code = '\n'.join(line for line in code_lines if line.strip())
+                        if code:
+                            params = {"code": code}
+            
+            # Special handling for submit_python_solution without explicit params
+            if tool_name == "submit_python_solution" and not params:
+                # Look for code in the response after the function call
+                remaining_response = response[match.end():]
+                # Extract any code block or function definition
+                code_match = re.search(r'(def\s+\w+.*?(?:\n\n|\Z))', remaining_response, re.DOTALL)
+                if code_match:
+                    params = {"code": code_match.group(1).strip()}
+            
+            tools.append({
+                "name": tool_name,
+                "parameters": params
+            })
+        
+        return tools
     
     def _extract_gemma_json_style(self, response: str) -> List[Dict[str, Any]]:
         """Extract Gemma's JSON-style function calls."""

@@ -4,7 +4,7 @@
 #SBATCH --partition=gpusmall
 #SBATCH --time=24:00:00
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=32
+#SBATCH --cpus-per-task=16
 #SBATCH --mem=120G
 #SBATCH --gres=gpu:a100:1,nvme:200
 #SBATCH --output=logs/benchmark_%j.out

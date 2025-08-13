@@ -1,16 +1,16 @@
 #!/bin/bash
 
 # Battery threshold percentage
-BATTERY_THRESHOLD=75
+BATTERY_THRESHOLD=5
 
 # Number of problems to run at once
 BATCH_SIZE=5
-222222222
+
 # Total number of problems
 TOTAL_PROBLEMS=509
 
 # Starting problem index
-START_INDEX=225
+START_INDEX=200
 
 # Check if resuming from a specific index
 if [ "$1" ]; then

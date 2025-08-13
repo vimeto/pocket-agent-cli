@@ -266,7 +266,7 @@ class BenchmarkService:
             test_examples = "\n".join(test_list[:3])
         problem_with_tests = f"{problem['text']}\n\nExample test cases:\n{test_examples}"
         
-        user_content = mode.user_prompt_template.format(problem_description=problem_with_tests)
+        user_content = mode.user_prompt_template.format(problem=problem_with_tests)
         
         # Add model-specific user suffix if provided
         if user_suffix:

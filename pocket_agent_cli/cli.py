@@ -43,19 +43,30 @@ def list_models():
     table = Table(title="Available Models")
     table.add_column("ID", style="cyan")
     table.add_column("Name", style="magenta")
-    table.add_column("Size", style="green")
-    table.add_column("Quantization", style="yellow")
-    table.add_column("Downloaded", style="blue")
+    table.add_column("Versions", style="yellow")
+    table.add_column("Downloaded", style="green")
     
     for model in models:
-        size_mb = f"{model.size / (1024*1024):.0f} MB"
-        downloaded = "✓" if model.downloaded else "✗"
+        # Build versions string showing which are downloaded
+        versions_info = []
+        for v_name, v_data in model.versions.items():
+            size_gb = v_data.size / (1024*1024*1024)
+            if v_data.downloaded:
+                versions_info.append(f"[green]✓ {v_name}[/green] ({size_gb:.1f}GB)")
+            else:
+                versions_info.append(f"[dim]✗ {v_name}[/dim] ({size_gb:.1f}GB)")
+        
+        versions_str = "\n".join(versions_info)
+        
+        # Overall downloaded status (any version)
+        any_downloaded = any(v.downloaded for v in model.versions.values())
+        downloaded_str = "[green]Yes[/green]" if any_downloaded else "[red]No[/red]"
+        
         table.add_row(
             model.id,
             model.name,
-            size_mb,
-            model.quantization or "-",
-            downloaded
+            versions_str,
+            downloaded_str
         )
     
     console.print(table)
@@ -63,8 +74,9 @@ def list_models():
 
 @model.command("download")
 @click.argument("model_id")
+@click.option("--version", "-v", help="Model version to download (Q4_K_M, F16, BF16, etc)")
 @click.option("--token", envvar="HF_TOKEN", help="Hugging Face token for gated models")
-def download_model(model_id: str, token: Optional[str]):
+def download_model(model_id: str, version: Optional[str], token: Optional[str]):
     """Download a model from Hugging Face."""
     service = ModelService()
     
@@ -76,7 +88,8 @@ def download_model(model_id: str, token: Optional[str]):
             TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
             console=console,
         ) as progress:
-            task = progress.add_task(f"Downloading {model_id}...", total=100)
+            version_str = f" ({version})" if version else ""
+            task = progress.add_task(f"Downloading {model_id}{version_str}...", total=100)
             
             def update_progress(downloaded, total):
                 if total > 0:
@@ -85,10 +98,11 @@ def download_model(model_id: str, token: Optional[str]):
             try:
                 model = await service.download_model(
                     model_id,
+                    version=version,
                     hf_token=token,
                     progress_callback=update_progress
                 )
-                console.print(f"[green]✓[/green] Model {model.name} downloaded successfully!")
+                console.print(f"[green]✓[/green] Model {model.name}{version_str} downloaded successfully!")
             except Exception as e:
                 console.print(f"[red]✗[/red] Failed to download model: {e}")
     
@@ -106,6 +120,22 @@ def delete_model(model_id: str):
             console.print(f"[green]✓[/green] Model {model_id} deleted.")
         else:
             console.print(f"[red]✗[/red] Model {model_id} not found or not downloaded.")
+
+
+@model.command("refresh")
+def refresh_models():
+    """Refresh model metadata from config defaults.
+    
+    Updates the models.json file with any changes from DEFAULT_MODELS in config.py,
+    while preserving download status and paths for existing versions.
+    """
+    service = ModelService()
+    
+    # The service already does this on init, but we'll make it explicit
+    service.refresh_from_defaults()
+    
+    console.print("[green]✓[/green] Model metadata refreshed from defaults")
+    console.print("This command syncs any changes from config.py to your models.json file.")
 
 
 @cli.command("chat")
@@ -299,6 +329,7 @@ When using run_python_code, make sure your code is complete and will produce out
 
 @cli.command("benchmark")
 @click.option("--model", "-m", required=True, help="Model ID to use or 'all' for all models")
+@click.option("--model-version", "-v", help="Model version (Q4_K_M, F16, BF16, etc)")
 @click.option("--mode", default="base", help="Benchmark mode or 'all' for all modes")
 @click.option("--problems", "-p", help="Comma-separated problem IDs (e.g., 1,2,3)")
 @click.option("--problems-limit", "-l", type=int, help="Number of problems to run")
@@ -311,6 +342,7 @@ When using run_python_code, make sure your code is complete and will produce out
 @click.option("--exhaustive-passes", is_flag=True, help="Run all samples even if problem already passes")
 def benchmark(
     model: str, 
+    model_version: Optional[str],
     mode: str, 
     problems: Optional[str], 
     problems_limit: Optional[int],
@@ -368,6 +400,7 @@ def benchmark(
     
     benchmark_config = BenchmarkConfig(
         model_name=model,
+        model_version=model_version,
         mode=mode,
         problem_ids=problem_ids,
         problems_limit=problems_limit,
@@ -385,9 +418,15 @@ def benchmark(
     # Validate models if not "all"
     if model != "all":
         model_service = ModelService()
-        model_obj = model_service.get_model(model)
-        if not model_obj or not model_obj.downloaded:
-            console.print(f"[red]Error:[/red] Model {model} not found or not downloaded.")
+        model_obj = model_service.get_model(model, version=model_version)
+        if not model_obj:
+            console.print(f"[red]Error:[/red] Model {model} not found.")
+            return
+        if model_version and not model_obj.is_downloaded(model_version):
+            console.print(f"[red]Error:[/red] Model {model} version {model_version} not downloaded.")
+            return
+        elif not model_version and not model_obj.is_downloaded():
+            console.print(f"[red]Error:[/red] Model {model} not downloaded.")
             return
     
     # Validate mode if not "all"

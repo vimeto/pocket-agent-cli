@@ -19,52 +19,102 @@ for dir_path in [APP_DIR, MODELS_DIR, DATA_DIR, SANDBOX_DIR, RESULTS_DIR]:
     dir_path.mkdir(parents=True, exist_ok=True)
 
 
-# Model configurations
+# Model configurations with versioning support
 DEFAULT_MODELS = [
     {
         "id": "llama-3.2-3b-instruct",
         "name": "Llama 3.2 3B Instruct",
-        "url": "https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-GGUF/resolve/main/Llama-3.2-3B-Instruct-Q4_K_M.gguf",
-        "size": 2018916352,  # ~2GB
-        "quantization": "Q4_K_M",
         "architecture": "llama",
         "requiresAuth": True,
+        "versions": {
+            "Q4_K_M": {
+                "url": "https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-GGUF/resolve/main/Llama-3.2-3B-Instruct-Q4_K_M.gguf",
+                "size": 2018916352,  # ~2GB
+                "quantization": "Q4_K_M",
+            },
+            "F16": {
+                "url": "https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-GGUF/resolve/main/Llama-3.2-3B-Instruct-f16.gguf",
+                "size": 6896974848,  # ~6.43GB
+                "quantization": "F16",
+            }
+        },
+        "default_version": "Q4_K_M"
     },
     {
         "id": "gemma-3n-e2b-it",
         "name": "Gemma 3n E2B IT",
-        "url": "https://huggingface.co/bartowski/google_gemma-3n-E2B-it-GGUF/resolve/main/google_gemma-3n-E2B-it-Q4_K_M.gguf",
-        "size": 1611466752,  # ~1.5GB
-        "quantization": "Q4_K_M",
         "architecture": "gemma",
         "requiresAuth": False,
+        "versions": {
+            "Q4_K_M": {
+                "url": "https://huggingface.co/bartowski/google_gemma-3n-E2B-it-GGUF/resolve/main/google_gemma-3n-E2B-it-Q4_K_M.gguf",
+                "size": 1611466752,  # ~1.5GB
+                "quantization": "Q4_K_M",
+            },
+            "F16": {
+                "url": "https://huggingface.co/ggml-org/gemma-3n-E2B-it-GGUF/resolve/main/gemma-3n-E2B-it-f16.gguf",
+                "size": 9580102656,  # ~8.92GB
+                "quantization": "F16",
+            }
+        },
+        "default_version": "Q4_K_M"
     },
     {
         "id": "deepseek-r1-distill-qwen-1.5b",
         "name": "DeepSeek R1 Distill Qwen 1.5B",
-        "url": "https://huggingface.co/bartowski/DeepSeek-R1-Distill-Qwen-1.5B-GGUF/resolve/main/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf",
-        "size": 1181908992,  # ~1.1GB
-        "quantization": "Q4_K_M",
         "architecture": "qwen",
         "requiresAuth": False,
+        "versions": {
+            "Q4_K_M": {
+                "url": "https://huggingface.co/bartowski/DeepSeek-R1-Distill-Qwen-1.5B-GGUF/resolve/main/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf",
+                "size": 1181908992,  # ~1.1GB
+                "quantization": "Q4_K_M",
+            },
+            "F16": {
+                "url": "https://huggingface.co/bartowski/DeepSeek-R1-Distill-Qwen-1.5B-GGUF/resolve/main/DeepSeek-R1-Distill-Qwen-1.5B-f16.gguf",
+                "size": 3821789184,  # ~3.56GB
+                "quantization": "F16",
+            }
+        },
+        "default_version": "Q4_K_M"
     },
     {
         "id": "qwen-3-4b",
         "name": "Qwen 3 4B",
-        "url": "https://huggingface.co/bartowski/Qwen_Qwen3-4B-GGUF/resolve/main/Qwen_Qwen3-4B-Q4_K_M.gguf",
-        "size": 2471854080,  # ~2.3GB
-        "quantization": "Q4_K_M",
         "architecture": "qwen",
         "requiresAuth": False,
+        "versions": {
+            "Q4_K_M": {
+                "url": "https://huggingface.co/bartowski/Qwen_Qwen3-4B-GGUF/resolve/main/Qwen_Qwen3-4B-Q4_K_M.gguf",
+                "size": 2471854080,  # ~2.3GB
+                "quantization": "Q4_K_M",
+            },
+            "F16": {
+                "url": "https://huggingface.co/unsloth/Qwen3-4B-GGUF/resolve/main/Qwen3-4B-BF16.gguf",
+                "size": 8641699840,  # ~8.05GB
+                "quantization": "F16",
+            }
+        },
+        "default_version": "Q4_K_M"
     },
     {
         "id": "qwen-3-0.6b",
         "name": "Qwen 3 0.6B",
-        "url": "https://huggingface.co/bartowski/Qwen_Qwen3-0.6B-GGUF/resolve/main/Qwen_Qwen3-0.6B-Q4_K_M.gguf",
-        "size": 515396608,  # ~0.48GB
-        "quantization": "Q4_K_M",
         "architecture": "qwen",
         "requiresAuth": False,
+        "versions": {
+            "Q4_K_M": {
+                "url": "https://huggingface.co/bartowski/Qwen_Qwen3-0.6B-GGUF/resolve/main/Qwen_Qwen3-0.6B-Q4_K_M.gguf",
+                "size": 515396608,  # ~0.48GB
+                "quantization": "Q4_K_M",
+            },
+            "F16": {
+                "url": "https://huggingface.co/ggml-org/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-f16.gguf",
+                "size": 1621491712,  # ~1.51GB
+                "quantization": "F16",
+            }
+        },
+        "default_version": "Q4_K_M"
     },
 ]
 
@@ -96,18 +146,47 @@ class InferenceConfig(BaseModel):
     use_mmap: bool = Field(default=True)
 
 
+class ModelVersion(BaseModel):
+    """Model version metadata."""
+
+    url: str
+    size: int
+    quantization: str
+    downloaded: bool = False
+    path: Optional[Path] = None
+
+
 class Model(BaseModel):
-    """Model metadata."""
+    """Model metadata with versioning support."""
 
     id: str
     name: str
-    size: int
+    architecture: str
+    requiresAuth: bool = False
+    versions: Dict[str, ModelVersion] = {}
+    default_version: str = "Q4_K_M"
+    current_version: Optional[str] = None  # Track which version is currently loaded
+
+    # Legacy fields for backward compatibility
+    size: Optional[int] = None
     url: Optional[str] = None
     quantization: Optional[str] = None
-    architecture: str
     downloaded: bool = False
     path: Optional[Path] = None
-    requiresAuth: bool = False
+
+    def get_version(self, version: Optional[str] = None) -> ModelVersion:
+        """Get a specific version or the default."""
+        version = version or self.default_version
+        if version not in self.versions:
+            raise ValueError(f"Version {version} not found for model {self.id}")
+        return self.versions[version]
+
+    def is_downloaded(self, version: Optional[str] = None) -> bool:
+        """Check if a specific version is downloaded."""
+        if version:
+            return self.versions.get(version, ModelVersion(url="", size=0, quantization="")).downloaded
+        # Check if any version is downloaded
+        return any(v.downloaded for v in self.versions.values())
 
 
 class BenchmarkMode(BaseModel):
@@ -127,6 +206,7 @@ class BenchmarkConfig(BaseModel):
     model_config = {"protected_namespaces": ()}  # Allow model_ prefix
 
     model_name: str = Field(description="Model ID or 'all' for all models")
+    model_version: Optional[str] = Field(default=None, description="Model version (Q4_K_M, F16, etc)")
     mode: str = Field(default="base", description="Benchmark mode or 'all' for all modes")
     problems_limit: Optional[int] = Field(default=None, description="Number of problems to run")
     problem_ids: Optional[List[int]] = Field(default=None, description="Specific problem IDs to run")
@@ -148,60 +228,63 @@ BENCHMARK_MODES = {
         name="base",
         description="Simple code generation without tools",
         system_prompt="Output ONLY Python function code. No explanations, comments, or text.",
-        user_prompt_template="{problem_description}\n\nONLY code:",
+        user_prompt_template="{problem}",
         requires_tools=False,
-        max_iterations=1,
     ),
     "tool_submission": BenchmarkMode(
         name="tool_submission",
-        description="Reasoning with code submission tool",
-        system_prompt="Use submit_python_solution tool. Code only, no text.",
-        user_prompt_template="{problem_description}\n\nSubmit solution:",
+        description="Reasoning and code submission via tool",
+        system_prompt="You are a Python programming expert. Solve the given problem step by step, then submit your solution using the submit_python_solution tool.",
+        user_prompt_template="{problem}",
         requires_tools=True,
         max_iterations=1,
     ),
     "full_tool": BenchmarkMode(
         name="full_tool",
-        description="Full development environment with all tools",
-        system_prompt="""You are coding in Python, with a Python env available. You must return JSON-formatted tool calls. You should return anything except tool calls. Tools: run_python_code (code/file), upsert_file, read_file, submit_python_solution.
-MUST submit final solution with submit_python_solution. Tool calls must be made in ```tool_call``` blocks, e.g. ```tool_call
-{
-    "name": "run_python_code",
-    "parameters": {
-        "code": "print('Hello, world!')"
-    }
-}
-```""",
-        user_prompt_template="{problem_description}",
+        description="Complete development environment with all tools",
+        system_prompt="You are a Python programming expert. You have access to multiple tools to develop, test, and submit solutions. Use the tools effectively to solve the problem.",
+        user_prompt_template="{problem}",
         requires_tools=True,
-        max_iterations=20,
+        max_iterations=5,
     ),
 }
 
 
 # Tool definitions
+SUBMIT_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "submit_python_solution",
+        "description": "Submit a Python solution for evaluation",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "solution": {
+                    "type": "string",
+                    "description": "The complete Python solution code",
+                }
+            },
+            "required": ["solution"],
+        },
+    },
+}
+
+# All available tools
 AVAILABLE_TOOLS = [
     {
         "type": "function",
         "function": {
             "name": "run_python_code",
-            "description": "Run Python code or file",
+            "description": "Execute Python code and return the output",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "code": {
                         "type": "string",
-                        "description": "Python code",
-                    },
-                    "filename": {
-                        "type": "string",
-                        "description": "File path",
+                        "description": "The Python code to execute",
                     }
                 },
-                "oneOf": [
-                    {"required": ["code"]},
-                    {"required": ["filename"]}
-                ],
+                "required": ["code"],
             },
         },
     },
@@ -209,17 +292,17 @@ AVAILABLE_TOOLS = [
         "type": "function",
         "function": {
             "name": "upsert_file",
-            "description": "Create/update file",
+            "description": "Create or update a file with the given content",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "filename": {
                         "type": "string",
-                        "description": "Path",
+                        "description": "The name of the file to create or update",
                     },
                     "content": {
                         "type": "string",
-                        "description": "Content",
+                        "description": "The content to write to the file",
                     },
                 },
                 "required": ["filename", "content"],
@@ -230,13 +313,13 @@ AVAILABLE_TOOLS = [
         "type": "function",
         "function": {
             "name": "read_file",
-            "description": "Read file",
+            "description": "Read the contents of a file",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "filename": {
                         "type": "string",
-                        "description": "Path",
+                        "description": "The name of the file to read",
                     }
                 },
                 "required": ["filename"],
@@ -247,68 +330,18 @@ AVAILABLE_TOOLS = [
         "type": "function",
         "function": {
             "name": "run_submission_tests",
-            "description": "Test solution against problem test cases",
+            "description": "Run test cases against the submitted solution",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "filename": {
+                    "solution": {
                         "type": "string",
-                        "description": "Path to solution file",
+                        "description": "The Python solution to test",
                     }
                 },
-                "required": ["filename"],
+                "required": ["solution"],
             },
         },
     },
-    {
-        "type": "function",
-        "function": {
-            "name": "submit_python_solution",
-            "description": "Submit final solution",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "code": {
-                        "type": "string",
-                        "description": "Code",
-                    },
-                    "filename": {
-                        "type": "string",
-                        "description": "File",
-                    }
-                },
-                "oneOf": [
-                    {"required": ["code"]},
-                    {"required": ["filename"]}
-                ],
-            },
-        },
-    },
+    SUBMIT_TOOL,
 ]
-
-
-# Special tool for benchmark submission mode
-SUBMIT_TOOL = {
-    "type": "function",
-    "function": {
-        "name": "submit_python_solution",
-        "description": "Submit final solution",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "string",
-                    "description": "Code",
-                },
-                "filename": {
-                    "type": "string",
-                    "description": "File",
-                }
-            },
-            "oneOf": [
-                {"required": ["code"]},
-                {"required": ["filename"]}
-            ],
-        },
-    },
-}

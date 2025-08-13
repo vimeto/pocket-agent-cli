@@ -70,18 +70,21 @@ class BenchmarkCoordinator:
     def _get_models_to_run(self) -> List[str]:
         """Get list of models to benchmark."""
         if self.config.model_name == "all":
-            # Get all downloaded models
+            # Get all downloaded models with specified version
             models = []
             for model_config in DEFAULT_MODELS:
                 model = self.model_service.get_model(model_config["id"])
-                if model and model.downloaded:
+                if model and model.is_downloaded(self.config.model_version):
                     models.append(model.id)
             return models
         else:
             # Single model
-            model = self.model_service.get_model(self.config.model_name)
-            if not model or not model.downloaded:
-                raise ValueError(f"Model {self.config.model_name} not found or not downloaded")
+            model = self.model_service.get_model(self.config.model_name, version=self.config.model_version)
+            if not model:
+                raise ValueError(f"Model {self.config.model_name} not found")
+            if not model.is_downloaded(self.config.model_version):
+                version_str = f" version {self.config.model_version}" if self.config.model_version else ""
+                raise ValueError(f"Model {self.config.model_name}{version_str} not downloaded")
             return [self.config.model_name]
 
     def _get_modes_to_run(self) -> List[str]:
@@ -100,13 +103,14 @@ class BenchmarkCoordinator:
         progress_callback: Optional[callable] = None
     ) -> BenchmarkSession:
         """Run a single model/mode benchmark."""
-        # Load model
-        model = self.model_service.get_model(model_id)
+        # Load model with specified version
+        model = self.model_service.get_model(model_id, version=self.config.model_version)
         inference_service = InferenceService()
 
         # Create config for this specific run
         run_config = BenchmarkConfig(
             model_name=model_id,
+            model_version=self.config.model_version,
             mode=mode,
             problem_ids=self.config.problem_ids,
             problems_limit=self.config.problems_limit,

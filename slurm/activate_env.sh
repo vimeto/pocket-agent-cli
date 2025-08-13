@@ -24,9 +24,9 @@ CURRENT_NODE=$(hostname -s)
 if [[ "$CURRENT_NODE" == g* ]]; then
     echo "GPU node detected, loading CUDA modules..."
     
-    # Load the correct modules for Mahti (use CUDA 12.4 for prebuilt wheels)
+    # Load the correct modules for Mahti (use CUDA 12.1.1 for prebuilt wheels)
     module purge
-    module load gcc/10.4.0 cuda/12.4.0 2>/dev/null || module load gcc/10.4.0 cuda/12.4.1 2>/dev/null || module load gcc/10.4.0 cuda
+    module load gcc/10.4.0 cuda/12.1.1
     
     # Set CUDA environment variables
     if command -v nvcc &> /dev/null; then
@@ -37,13 +37,13 @@ if [[ "$CURRENT_NODE" == g* ]]; then
         # Add CUDA libraries to LD_LIBRARY_PATH
         export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$CUDA_HOME/lib:$LD_LIBRARY_PATH
         
-        echo "  ✓ CUDA 12.4 loaded successfully"
+        echo "  ✓ CUDA 12.1.1 loaded successfully"
         echo "  CUDA_HOME: $CUDA_HOME"
         echo "  nvcc: $(which nvcc)"
     else
         echo "  ⚠ WARNING: CUDA not properly loaded!"
         echo "  This is critical for GPU benchmarks."
-        echo "  Try manually: module load gcc/10.4.0 cuda/12.4.0"
+        echo "  Try manually: module load gcc/10.4.0 cuda/12.1.1"
     fi
 else
     echo "CPU node detected, CUDA not needed"

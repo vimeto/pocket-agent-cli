@@ -56,11 +56,11 @@ if [[ "$CURRENT_NODE" == g* ]] || command -v nvidia-smi >/dev/null 2>&1; then
     echo "Node: $CURRENT_NODE"
 
     # On Mahti, load the correct CUDA module with GCC
-    # Use CUDA 12.4 to match available prebuilt wheels (cu124)
+    # Use CUDA 12.1.1 to match available prebuilt wheels (cu121)
     echo "Loading Mahti CUDA modules..."
-    module load gcc/10.4.0 cuda/12.4.0 2>/dev/null || module load gcc/10.4.0 cuda/12.4.1 2>/dev/null || module load gcc/10.4.0 cuda
+    module load gcc/10.4.0 cuda/12.1.1
     CUDA_LOADED=true
-    echo "✓ Loaded gcc/10.4.0 and cuda/12.4 modules"
+    echo "✓ Loaded gcc/10.4.0 and cuda/12.1.1 modules"
 
     # Verify CUDA is available
     echo "Checking for CUDA compiler..."
@@ -80,11 +80,11 @@ if [[ "$CURRENT_NODE" == g* ]] || command -v nvidia-smi >/dev/null 2>&1; then
         echo "⚠ This should not happen on Mahti GPU nodes"
         echo ""
         echo "To fix:"
-        echo "  1. Ensure modules are loaded: module load gcc/10.4.0 cuda/12.4.0"
+        echo "  1. Ensure modules are loaded: module load gcc/10.4.0 cuda/12.1.1"
         echo "  2. Check module list: module list"
         echo "  3. Reinstall llama-cpp-python:"
         echo "     pip uninstall -y llama-cpp-python"
-        echo "     python -m pip install --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu124 llama-cpp-python"
+        echo "     python -m pip install --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu121 llama-cpp-python"
     fi
 
     # Show GPU information
@@ -325,8 +325,12 @@ if python -c "import llama_cpp" 2>/dev/null; then
 
             # Pick the right CUDA wheel channel
             CUDA_REL=$(nvcc --version | sed -n 's/.*release \([0-9]\+\)\.\([0-9]\+\).*/\1\2/p')
-            # Cap at 124 since that's the newest prebuilt wheel available
-            if [[ -z "$CUDA_REL" ]] || [[ "$CUDA_REL" -gt 124 ]]; then CUDA_REL=124; fi
+            # Use cu121 for CUDA 12.1, or cap at 124 for newer versions
+            if [[ "$CUDA_REL" == "121" ]]; then
+                CUDA_REL=121
+            elif [[ -z "$CUDA_REL" ]] || [[ "$CUDA_REL" -gt 124 ]]; then
+                CUDA_REL=121  # Default to cu121 which is stable and available
+            fi
             echo "Installing prebuilt CUDA wheel for cu${CUDA_REL}..."
 
             # Install prebuilt CUDA wheel
@@ -343,10 +347,14 @@ else
             echo "GPU node with CUDA detected, installing prebuilt CUDA wheel..."
             echo "Using nvcc from: $(which nvcc)"
 
-            # Pick the right CUDA wheel channel (e.g., CUDA 12.4 → cu124)
+            # Pick the right CUDA wheel channel (e.g., CUDA 12.1 → cu121)
             CUDA_REL=$(nvcc --version | sed -n 's/.*release \([0-9]\+\)\.\([0-9]\+\).*/\1\2/p')
-            # Cap at 124 since that's the newest prebuilt wheel available
-            if [[ -z "$CUDA_REL" ]] || [[ "$CUDA_REL" -gt 124 ]]; then CUDA_REL=124; fi
+            # Use cu121 for CUDA 12.1, or cap at 124 for newer versions
+            if [[ "$CUDA_REL" == "121" ]]; then
+                CUDA_REL=121
+            elif [[ -z "$CUDA_REL" ]] || [[ "$CUDA_REL" -gt 124 ]]; then
+                CUDA_REL=121  # Default to cu121 which is stable and available
+            fi
             echo "Selecting CUDA wheel channel: cu${CUDA_REL}"
 
             # Prefer official prebuilt CUDA wheel (avoids long/fragile source builds)
@@ -363,7 +371,7 @@ else
         else
             echo "ERROR: On GPU node but CUDA compiler not found!"
             echo "This is critical - cannot run GPU benchmarks without CUDA."
-            echo "Please ensure modules are loaded: module load gcc/10.4.0 cuda/12.4.0"
+            echo "Please ensure modules are loaded: module load gcc/10.4.0 cuda/12.1.1"
             exit 1
         fi
     else

@@ -47,7 +47,7 @@ mkdir -p $PROJECT_DIR/data/{models,results,logs}
 echo ""
 echo "Loading modules..."
 module --force purge
-module load gcc/10.4.0 2>/dev/null || module load gcc 2>/dev/null || echo "GCC module not available"
+module load gcc/13.1.0 2>/dev/null || module load gcc 2>/dev/null || echo "GCC module not available"
 module load git 2>/dev/null || echo "Git module not needed for build"
 
 # Load CUDA if we are on a GPU node (hostname OR presence of NVIDIA tools)
@@ -55,12 +55,12 @@ if [[ "$CURRENT_NODE" == g* ]] || command -v nvidia-smi >/dev/null 2>&1; then
     echo "GPU node detected, setting up CUDA..."
     echo "Node: $CURRENT_NODE"
 
-    # On Mahti, load the correct CUDA module with GCC
-    # Use CUDA 12.1.1 to match available prebuilt wheels (cu121)
+    # On Mahti, load the specific CUDA module requested
+    # Using gcc/13.1.0 and cuda/11.5.0 as requested
     echo "Loading Mahti CUDA modules..."
-    module load gcc/10.4.0 cuda/12.1.1
+    module load gcc/13.1.0 cuda/11.5.0
     CUDA_LOADED=true
-    echo "✓ Loaded gcc/10.4.0 and cuda/12.1.1 modules"
+    echo "✓ Loaded gcc/13.1.0 and cuda/11.5.0 modules"
 
     # Verify CUDA is available
     echo "Checking for CUDA compiler..."
@@ -80,7 +80,7 @@ if [[ "$CURRENT_NODE" == g* ]] || command -v nvidia-smi >/dev/null 2>&1; then
         echo "⚠ This should not happen on Mahti GPU nodes"
         echo ""
         echo "To fix:"
-        echo "  1. Ensure modules are loaded: module load gcc/10.4.0 cuda/12.1.1"
+        echo "  1. Ensure modules are loaded: module load gcc/13.1.0 cuda/11.5.0"
         echo "  2. Check module list: module list"
         echo "  3. Reinstall llama-cpp-python:"
         echo "     pip uninstall -y llama-cpp-python"
@@ -294,6 +294,14 @@ fi
 # Activate the virtual environment
 source $VENV_DIR/bin/activate
 
+# CRITICAL: Ensure CUDA libraries are in LD_LIBRARY_PATH before installing
+if [[ "$CURRENT_NODE" == g* ]] || command -v nvidia-smi >/dev/null 2>&1; then
+    if [ -n "$CUDA_HOME" ]; then
+        export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$CUDA_HOME/lib:$LD_LIBRARY_PATH
+        echo "LD_LIBRARY_PATH updated for CUDA: $CUDA_HOME/lib64"
+    fi
+fi
+
 # Install uv for faster package management
 python -m pip install -U uv --quiet
 
@@ -308,82 +316,128 @@ else
     uv pip install -U pip setuptools wheel scikit-build-core cmake ninja
 fi
 
-# Check if llama-cpp-python is already installed
-if python -c "import llama_cpp" 2>/dev/null; then
-    CURRENT_VERSION=$(python -c "import llama_cpp; print(llama_cpp.__version__)")
-    echo "llama-cpp-python already installed (version $CURRENT_VERSION)"
+# Create a wheels cache directory for built packages
+WHEEL_CACHE_DIR=$PROJECT_DIR/wheel_cache
+mkdir -p $WHEEL_CACHE_DIR
 
-    # Check if it has CUDA support
-    if [[ "$CURRENT_NODE" == g* ]]; then
-        # Try to detect CUDA support in existing installation
-        # Check if we can import llama_cpp and if it has CUDA support
-        HAS_CUDA=false
-        if python -c "from llama_cpp import llama_backend_init; llama_backend_init()" 2>&1 | grep -q "ggml_cuda"; then
-            HAS_CUDA=true
-        elif python -c "import llama_cpp; print(llama_cpp._lib_base_name)" 2>&1 | grep -q "cuda"; then
-            HAS_CUDA=true
-        fi
-
-        if [ "$HAS_CUDA" = false ]; then
-            echo "⚠ Current installation doesn't have CUDA support"
-            echo "Reinstalling with CUDA support (REQUIRED for GPU benchmarks)..."
-            pip uninstall -y llama-cpp-python
-
-            # Pick the right CUDA wheel channel
-            CUDA_REL=$(nvcc --version | sed -n 's/.*release \([0-9]\+\)\.\([0-9]\+\).*/\1\2/p')
-            # Use cu121 for CUDA 12.1, or cap at 124 for newer versions
-            if [[ "$CUDA_REL" == "121" ]]; then
-                CUDA_REL=121
-            elif [[ -z "$CUDA_REL" ]] || [[ "$CUDA_REL" -gt 124 ]]; then
-                CUDA_REL=121  # Default to cu121 which is stable and available
-            fi
-            echo "Installing prebuilt CUDA wheel for cu${CUDA_REL}..."
-
-            # Install prebuilt CUDA wheel
-            PIP_ARGS="--prefer-binary --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu${CUDA_REL}"
-            python -m pip install $PIP_ARGS 'llama-cpp-python==0.3.15'
-        else
-            echo "✓ CUDA support detected"
-        fi
-    fi
+# Define the wheel filename based on Python version and CUDA version
+PYTHON_VERSION=$(python -c "import sys; print(f'cp{sys.version_info.major}{sys.version_info.minor}')")
+if [[ "$CURRENT_NODE" == g* ]]; then
+    CUDA_VERSION=$(nvcc --version | grep "release" | sed 's/.*release \([0-9]\+\.[0-9]\+\).*/\1/' | sed 's/\./_/g')
+    WHEEL_NAME="llama_cpp_python-0.3.15-${PYTHON_VERSION}-${PYTHON_VERSION}-linux_x86_64_cuda${CUDA_VERSION}_gcc13.whl"
 else
-    # Fresh installation
+    WHEEL_NAME="llama_cpp_python-0.3.15-${PYTHON_VERSION}-${PYTHON_VERSION}-linux_x86_64_cpu.whl"
+fi
+
+CACHED_WHEEL="$WHEEL_CACHE_DIR/$WHEEL_NAME"
+
+# Check if we have a cached wheel
+if [ -f "$CACHED_WHEEL" ]; then
+    echo "Found cached wheel: $WHEEL_NAME"
+    echo "Installing from cache..."
+    pip install "$CACHED_WHEEL"
+    
+    # Verify installation
+    if python -c "import llama_cpp" 2>/dev/null; then
+        CURRENT_VERSION=$(python -c "import llama_cpp; print(llama_cpp.__version__)")
+        echo "✓ llama-cpp-python installed from cache (version $CURRENT_VERSION)"
+        
+        # Verify CUDA support if on GPU node
+        if [[ "$CURRENT_NODE" == g* ]]; then
+            if python -c "from llama_cpp import llama_backend_init; llama_backend_init()" 2>&1 | grep -q "ggml_cuda"; then
+                echo "✓ CUDA support verified"
+            else
+                echo "⚠ CUDA support not detected, rebuilding..."
+                rm -f "$CACHED_WHEEL"
+                pip uninstall -y llama-cpp-python
+            fi
+        fi
+    else
+        echo "⚠ Installation from cache failed, rebuilding..."
+        rm -f "$CACHED_WHEEL"
+    fi
+fi
+
+# If not installed yet (no cache or cache failed), build from source
+if ! python -c "import llama_cpp" 2>/dev/null; then
+    echo "Building llama-cpp-python from source..."
+    
     if [[ "$CURRENT_NODE" == g* ]]; then
         if command -v nvcc &> /dev/null; then
-            echo "GPU node with CUDA detected, installing prebuilt CUDA wheel..."
+            echo "Building with CUDA support..."
             echo "Using nvcc from: $(which nvcc)"
-
-            # Pick the right CUDA wheel channel (e.g., CUDA 12.1 → cu121)
-            CUDA_REL=$(nvcc --version | sed -n 's/.*release \([0-9]\+\)\.\([0-9]\+\).*/\1\2/p')
-            # Use cu121 for CUDA 12.1, or cap at 124 for newer versions
-            if [[ "$CUDA_REL" == "121" ]]; then
-                CUDA_REL=121
-            elif [[ -z "$CUDA_REL" ]] || [[ "$CUDA_REL" -gt 124 ]]; then
-                CUDA_REL=121  # Default to cu121 which is stable and available
-            fi
-            echo "Selecting CUDA wheel channel: cu${CUDA_REL}"
-
-            # Prefer official prebuilt CUDA wheel (avoids long/fragile source builds)
-            PIP_ARGS="--prefer-binary --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu${CUDA_REL}"
-            python -m pip install $PIP_ARGS 'llama-cpp-python==0.3.15'
-
-            # Fallback: if no wheel exists for this combo, try a source build as last resort
-            if ! python -c "import llama_cpp" >/dev/null 2>&1; then
-                echo "Prebuilt wheel unavailable; falling back to source build with CUDA."
-                export FORCE_CMAKE=1
-                export CMAKE_ARGS="-DGGML_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=80 -DCMAKE_CUDA_COMPILER=$(which nvcc)"
+            echo "CUDA version: $(nvcc --version | grep release)"
+            echo "GCC version: $(gcc --version | head -n1)"
+            
+            # Set build environment for CUDA
+            export FORCE_CMAKE=1
+            # Use all available cores for faster compilation
+            export CMAKE_BUILD_PARALLEL_LEVEL=$(nproc)
+            export CMAKE_ARGS="-DGGML_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=80 -DCMAKE_CUDA_COMPILER=$(which nvcc)"
+            
+            # Build the wheel
+            echo "This will take 10-15 minutes on first build (using $(nproc) cores)..."
+            
+            # First, download and build the wheel
+            pip wheel --no-deps --wheel-dir="$WHEEL_CACHE_DIR" \
+                --no-build-isolation \
+                -v 'llama-cpp-python==0.3.15'
+            
+            # Find the built wheel (it might have a different name)
+            BUILT_WHEEL=$(ls -t $WHEEL_CACHE_DIR/llama_cpp_python-0.3.15*.whl 2>/dev/null | head -1)
+            
+            if [ -f "$BUILT_WHEEL" ]; then
+                # Rename to our standard name for easier caching
+                if [ "$BUILT_WHEEL" != "$CACHED_WHEEL" ]; then
+                    mv "$BUILT_WHEEL" "$CACHED_WHEEL"
+                fi
+                
+                echo "✓ Wheel built successfully and cached"
+                echo "Installing the built wheel..."
+                pip install "$CACHED_WHEEL"
+                
+                # Verify CUDA support
+                if python -c "from llama_cpp import llama_backend_init; llama_backend_init()" 2>&1 | grep -q "ggml_cuda"; then
+                    echo "✓ CUDA support verified in built wheel"
+                else
+                    echo "⚠ Built wheel doesn't have CUDA support - build may have failed"
+                fi
+            else
+                echo "⚠ Wheel build failed, trying direct installation..."
+                export CMAKE_BUILD_PARALLEL_LEVEL=$(nproc)
                 python -m pip install --no-build-isolation --no-cache-dir -v 'llama-cpp-python==0.3.15'
             fi
         else
             echo "ERROR: On GPU node but CUDA compiler not found!"
             echo "This is critical - cannot run GPU benchmarks without CUDA."
-            echo "Please ensure modules are loaded: module load gcc/10.4.0 cuda/12.1.1"
+            echo "Please ensure modules are loaded: module load gcc/13.1.0 cuda/11.5.0"
             exit 1
         fi
     else
-        echo "Installing CPU version of llama-cpp-python (not on GPU node)..."
-        python -m pip install 'llama-cpp-python==0.3.15'
+        echo "Building CPU version of llama-cpp-python..."
+        
+        # Build CPU wheel
+        pip wheel --no-deps --wheel-dir="$WHEEL_CACHE_DIR" 'llama-cpp-python==0.3.15'
+        
+        # Find and rename the built wheel
+        BUILT_WHEEL=$(ls -t $WHEEL_CACHE_DIR/llama_cpp_python-0.3.15*.whl 2>/dev/null | head -1)
+        if [ -f "$BUILT_WHEEL" ] && [ "$BUILT_WHEEL" != "$CACHED_WHEEL" ]; then
+            mv "$BUILT_WHEEL" "$CACHED_WHEEL"
+        fi
+        
+        # Install it
+        pip install "$CACHED_WHEEL"
     fi
+fi
+
+# Final verification
+if python -c "import llama_cpp" 2>/dev/null; then
+    CURRENT_VERSION=$(python -c "import llama_cpp; print(llama_cpp.__version__)")
+    echo "✓ llama-cpp-python successfully installed (version $CURRENT_VERSION)"
+    echo "  Cached wheel: $CACHED_WHEEL"
+else
+    echo "⚠ llama-cpp-python installation failed"
+    echo "Please check the error messages above"
 fi
 
 # Install pocket-agent-cli

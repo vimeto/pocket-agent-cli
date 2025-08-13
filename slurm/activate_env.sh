@@ -21,12 +21,13 @@ export DISABLE_DOCKER=1
 
 # Load CUDA module if on GPU node (required for llama-cpp-python with CUDA)
 CURRENT_NODE=$(hostname -s)
-if [[ "$CURRENT_NODE" == g* ]]; then
+if [[ "$CURRENT_NODE" == g* ]] || command -v nvidia-smi >/dev/null 2>&1; then
     echo "GPU node detected, loading CUDA modules..."
     
-    # Load the correct modules for Mahti (use CUDA 12.1.1 for prebuilt wheels)
+    # Load the correct modules for Mahti
+    # Using gcc/13.1.0 and cuda/11.5.0 as requested
     module purge
-    module load gcc/10.4.0 cuda/12.1.1
+    module load gcc/13.1.0 cuda/11.5.0
     
     # Set CUDA environment variables
     if command -v nvcc &> /dev/null; then
@@ -34,16 +35,39 @@ if [[ "$CURRENT_NODE" == g* ]]; then
         export CMAKE_CUDA_COMPILER=$(which nvcc)
         export CUDACXX=$(which nvcc)
         
-        # Add CUDA libraries to LD_LIBRARY_PATH
+        # CRITICAL: Add CUDA libraries to LD_LIBRARY_PATH
+        # The prebuilt wheel expects to find libcudart.so.12 in these paths
         export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$CUDA_HOME/lib:$LD_LIBRARY_PATH
         
-        echo "  ✓ CUDA 12.1.1 loaded successfully"
+        # Also add the compat libraries which often contain versioned .so files
+        if [ -d "$CUDA_HOME/compat" ]; then
+            export LD_LIBRARY_PATH=$CUDA_HOME/compat:$LD_LIBRARY_PATH
+        fi
+        
+        # Add the targets directory which contains architecture-specific libraries
+        if [ -d "$CUDA_HOME/targets/x86_64-linux/lib" ]; then
+            export LD_LIBRARY_PATH=$CUDA_HOME/targets/x86_64-linux/lib:$LD_LIBRARY_PATH
+        fi
+        
+        echo "  ✓ CUDA loaded successfully"
         echo "  CUDA_HOME: $CUDA_HOME"
         echo "  nvcc: $(which nvcc)"
+        echo "  LD_LIBRARY_PATH includes: $CUDA_HOME/lib64"
+        
+        # Handle CUDA library version mismatch
+        # The prebuilt wheel expects libcudart.so.12 but CUDA 12.1.1 might provide .11
+        if ls $CUDA_HOME/lib64/libcudart.so.12* >/dev/null 2>&1; then
+            echo "  ✓ libcudart.so.12 found in $CUDA_HOME/lib64"
+        elif ls $CUDA_HOME/lib64/libcudart.so.11* >/dev/null 2>&1; then
+            echo "  ⚠ Found libcudart.so.11 but wheel expects libcudart.so.12"
+            echo "  ERROR: CUDA version mismatch. Please use CUDA 12.4 or newer."
+        else
+            echo "  ⚠ libcudart.so not found in expected location"
+        fi
     else
         echo "  ⚠ WARNING: CUDA not properly loaded!"
         echo "  This is critical for GPU benchmarks."
-        echo "  Try manually: module load gcc/10.4.0 cuda/12.1.1"
+        echo "  Try manually: module load gcc/13.1.0 cuda/11.5.0"
     fi
 else
     echo "CPU node detected, CUDA not needed"

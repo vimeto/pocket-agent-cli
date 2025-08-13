@@ -340,29 +340,37 @@ fi
 
 CACHED_WHEEL="$WHEEL_CACHE_DIR/$WHEEL_NAME"
 
-# Check if we have a cached wheel
+# Check if we have a cached wheel and try to use it
 if [ -f "$CACHED_WHEEL" ]; then
     echo "Found cached wheel: $WHEEL_NAME"
-    echo "Installing from cache..."
-    pip install --force-reinstall "$CACHED_WHEEL"
     
-    # Verify installation
-    if python -c "import llama_cpp" 2>/dev/null; then
-        CURRENT_VERSION=$(python -c "import llama_cpp; print(llama_cpp.__version__)")
-        echo "✓ llama-cpp-python installed from cache (version $CURRENT_VERSION)"
+    # First check if the wheel is actually valid
+    if unzip -t "$CACHED_WHEEL" >/dev/null 2>&1; then
+        echo "Installing from cache..."
+        pip install --force-reinstall "$CACHED_WHEEL" 2>/dev/null
         
-        # Verify CUDA support if on GPU node
-        if [[ "$CURRENT_NODE" == g* ]]; then
-            if python -c "from llama_cpp import llama_backend_init; llama_backend_init()" 2>&1 | grep -q "ggml_cuda"; then
-                echo "✓ CUDA support verified"
-            else
-                echo "⚠ CUDA support not detected, rebuilding..."
-                rm -f "$CACHED_WHEEL"
-                pip uninstall -y llama-cpp-python
+        # Verify installation
+        if python -c "import llama_cpp" 2>/dev/null; then
+            CURRENT_VERSION=$(python -c "import llama_cpp; print(llama_cpp.__version__)")
+            echo "✓ llama-cpp-python installed from cache (version $CURRENT_VERSION)"
+            
+            # Verify CUDA support if on GPU node
+            if [[ "$CURRENT_NODE" == g* ]]; then
+                if python -c "from llama_cpp import llama_backend_init; llama_backend_init()" 2>&1 | grep -q "ggml_cuda"; then
+                    echo "✓ CUDA support verified"
+                else
+                    echo "⚠ CUDA support not detected, rebuilding..."
+                    rm -f "$CACHED_WHEEL"
+                    pip uninstall -y llama-cpp-python
+                fi
             fi
+        else
+            echo "⚠ Installation from cache failed, rebuilding..."
+            rm -f "$CACHED_WHEEL"
+            pip uninstall -y llama-cpp-python 2>/dev/null || true
         fi
     else
-        echo "⚠ Installation from cache failed, rebuilding..."
+        echo "⚠ Cached wheel is corrupted, removing and rebuilding..."
         rm -f "$CACHED_WHEEL"
     fi
 fi
@@ -382,7 +390,9 @@ if ! python -c "import llama_cpp" 2>/dev/null; then
             export FORCE_CMAKE=1
             # Use all available cores for faster compilation
             export CMAKE_BUILD_PARALLEL_LEVEL=$(nproc)
-            export CMAKE_ARGS="-DGGML_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=80 -DCMAKE_CUDA_COMPILER=$(which nvcc)"
+            # Add -allow-unsupported-compiler flag to bypass GCC version check
+            export CUDAFLAGS="-allow-unsupported-compiler"
+            export CMAKE_ARGS="-DGGML_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=80 -DCMAKE_CUDA_COMPILER=$(which nvcc) -DCMAKE_CUDA_FLAGS='-allow-unsupported-compiler'"
             
             # Build the wheel
             echo "This will take 10-15 minutes on first build (using $(nproc) cores)..."
@@ -401,12 +411,10 @@ if ! python -c "import llama_cpp" 2>/dev/null; then
             BUILT_WHEEL=$(ls -t $WHEEL_CACHE_DIR/llama_cpp_python-0.3.15*.whl 2>/dev/null | head -1)
             
             if [ -f "$BUILT_WHEEL" ]; then
-                # Rename to our standard name for easier caching
-                if [ "$BUILT_WHEEL" != "$CACHED_WHEEL" ]; then
-                    # Remove the old cached wheel name if it exists
-                    rm -f "$CACHED_WHEEL" 2>/dev/null || true
-                    mv "$BUILT_WHEEL" "$CACHED_WHEEL"
-                fi
+                # Keep the original wheel name - don't rename
+                # pip is very particular about wheel naming conventions
+                CACHED_WHEEL="$BUILT_WHEEL"
+                echo "Wheel cached as: $(basename $CACHED_WHEEL)"
                 
                 echo "✓ Wheel built successfully and cached"
                 echo "Installing the built wheel..."
@@ -421,6 +429,8 @@ if ! python -c "import llama_cpp" 2>/dev/null; then
             else
                 echo "⚠ Wheel build failed, trying direct installation..."
                 export CMAKE_BUILD_PARALLEL_LEVEL=$(nproc)
+                export CUDAFLAGS="-allow-unsupported-compiler"
+                export CMAKE_ARGS="-DGGML_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=80 -DCMAKE_CUDA_COMPILER=$(which nvcc) -DCMAKE_CUDA_FLAGS='-allow-unsupported-compiler'"
                 python -m pip install --no-build-isolation --no-cache-dir --no-binary llama-cpp-python -v 'llama-cpp-python==0.3.15'
             fi
         else

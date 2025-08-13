@@ -56,7 +56,7 @@ mkdir -p $PROJECT_DIR/data/{models,results,logs}
 echo ""
 echo "Loading modules..."
 module --force purge
-module load gcc/13.1.0 2>/dev/null || module load gcc 2>/dev/null || echo "GCC module not available"
+module load gcc/10.4.0 2>/dev/null || module load gcc 2>/dev/null || echo "GCC module not available"
 module load git 2>/dev/null || echo "Git module not needed for build"
 
 # Load CUDA if we are on a GPU node (hostname OR presence of NVIDIA tools)
@@ -64,12 +64,38 @@ if [[ "$CURRENT_NODE" == g* ]] || command -v nvidia-smi >/dev/null 2>&1; then
     echo "GPU node detected, setting up CUDA..."
     echo "Node: $CURRENT_NODE"
 
-    # On Mahti, load the specific CUDA module requested
-    # Using gcc/13.1.0 and cuda/11.5.0 as requested
+    # On Mahti, try to load available CUDA module
+    # First ensure we have the right GCC
     echo "Loading Mahti CUDA modules..."
-    module load gcc/13.1.0 cuda/11.5.0
-    CUDA_LOADED=true
-    echo "✓ Loaded gcc/13.1.0 and cuda/11.5.0 modules"
+    
+    # Try to load CUDA module with different approaches
+    CUDA_LOADED=false
+    
+    # Method 1: Try specific versions that work on Mahti
+    if module load cuda/11.7.0 2>/dev/null; then
+        CUDA_LOADED=true
+        echo "✓ Loaded cuda/11.7.0 module"
+    elif module load cuda/11.8.0 2>/dev/null; then
+        CUDA_LOADED=true
+        echo "✓ Loaded cuda/11.8.0 module"
+    elif module load cuda/12.0.0 2>/dev/null; then
+        CUDA_LOADED=true
+        echo "✓ Loaded cuda/12.0.0 module"
+    elif module load cuda/12.1.0 2>/dev/null; then
+        CUDA_LOADED=true
+        echo "✓ Loaded cuda/12.1.0 module"
+    elif module load cuda/12.1.1 2>/dev/null; then
+        CUDA_LOADED=true
+        echo "✓ Loaded cuda/12.1.1 module"
+    # Method 2: Try generic cuda module
+    elif module load cuda 2>/dev/null; then
+        CUDA_LOADED=true
+        echo "✓ Loaded generic 'cuda' module"
+    else
+        echo "⚠ WARNING: Could not load any CUDA module"
+        echo "Available modules:"
+        module avail cuda 2>&1 | grep cuda || true
+    fi
 
     # Verify CUDA is available
     echo "Checking for CUDA compiler..."
@@ -89,7 +115,7 @@ if [[ "$CURRENT_NODE" == g* ]] || command -v nvidia-smi >/dev/null 2>&1; then
         echo "⚠ This should not happen on Mahti GPU nodes"
         echo ""
         echo "To fix:"
-        echo "  1. Ensure modules are loaded: module load gcc/13.1.0 cuda/11.5.0"
+        echo "  1. Ensure modules are loaded: module load gcc/10.4.0 cuda/11.7.0"
         echo "  2. Check module list: module list"
         echo "  3. Reinstall llama-cpp-python:"
         echo "     pip uninstall -y llama-cpp-python"
@@ -325,149 +351,52 @@ else
     uv pip install -U pip setuptools wheel scikit-build-core cmake ninja
 fi
 
-# Create a wheels cache directory for built packages
-WHEEL_CACHE_DIR=$PROJECT_DIR/wheel_cache
-mkdir -p $WHEEL_CACHE_DIR
-
-# Define the wheel filename based on Python version and CUDA version
-PYTHON_VERSION=$(python -c "import sys; print(f'cp{sys.version_info.major}{sys.version_info.minor}')")
-if [[ "$CURRENT_NODE" == g* ]]; then
-    CUDA_VERSION=$(nvcc --version | grep "release" | sed 's/.*release \([0-9]\+\.[0-9]\+\).*/\1/' | sed 's/\./_/g')
-    WHEEL_NAME="llama_cpp_python-0.3.15-${PYTHON_VERSION}-${PYTHON_VERSION}-linux_x86_64_cuda${CUDA_VERSION}_gcc13.whl"
-else
-    WHEEL_NAME="llama_cpp_python-0.3.15-${PYTHON_VERSION}-${PYTHON_VERSION}-linux_x86_64_cpu.whl"
-fi
-
-CACHED_WHEEL="$WHEEL_CACHE_DIR/$WHEEL_NAME"
-
-# Check if we have a cached wheel and try to use it
-if [ -f "$CACHED_WHEEL" ]; then
-    echo "Found cached wheel: $WHEEL_NAME"
-    
-    # First check if the wheel is actually valid
-    if unzip -t "$CACHED_WHEEL" >/dev/null 2>&1; then
-        echo "Installing from cache..."
-        pip install --force-reinstall "$CACHED_WHEEL" 2>/dev/null
-        
-        # Verify installation
-        if python -c "import llama_cpp" 2>/dev/null; then
-            CURRENT_VERSION=$(python -c "import llama_cpp; print(llama_cpp.__version__)")
-            echo "✓ llama-cpp-python installed from cache (version $CURRENT_VERSION)"
-            
-            # Verify CUDA support if on GPU node
-            if [[ "$CURRENT_NODE" == g* ]]; then
-                if python -c "from llama_cpp import llama_backend_init; llama_backend_init()" 2>&1 | grep -q "ggml_cuda"; then
-                    echo "✓ CUDA support verified"
-                else
-                    echo "⚠ CUDA support not detected, rebuilding..."
-                    rm -f "$CACHED_WHEEL"
-                    pip uninstall -y llama-cpp-python
-                fi
-            fi
-        else
-            echo "⚠ Installation from cache failed, rebuilding..."
-            rm -f "$CACHED_WHEEL"
-            pip uninstall -y llama-cpp-python 2>/dev/null || true
-        fi
-    else
-        echo "⚠ Cached wheel is corrupted, removing and rebuilding..."
-        rm -f "$CACHED_WHEEL"
-    fi
-fi
-
-# If not installed yet (no cache or cache failed), build from source
+# If not installed yet, install llama-cpp-python
 if ! python -c "import llama_cpp" 2>/dev/null; then
-    echo "Building llama-cpp-python from source..."
-    
     if [[ "$CURRENT_NODE" == g* ]]; then
         if command -v nvcc &> /dev/null; then
-            echo "Building with CUDA support..."
+            echo "GPU node with CUDA detected, installing with GPU support..."
             echo "Using nvcc from: $(which nvcc)"
-            echo "CUDA version: $(nvcc --version | grep release)"
-            echo "GCC version: $(gcc --version | head -n1)"
             
-            # Set build environment for CUDA
-            export FORCE_CMAKE=1
-            # Use all available cores for faster compilation
-            export CMAKE_BUILD_PARALLEL_LEVEL=$(nproc)
-            # Add -allow-unsupported-compiler flag to bypass GCC version check
-            export CUDAFLAGS="-allow-unsupported-compiler"
-            export CMAKE_ARGS="-DGGML_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=80 -DCMAKE_CUDA_COMPILER=$(which nvcc) -DCMAKE_CUDA_FLAGS='-allow-unsupported-compiler'"
+            # Set all necessary CUDA environment variables
+            export CUDA_HOME=$(dirname $(dirname $(which nvcc)))
+            export CMAKE_CUDA_COMPILER=$(which nvcc)
             
-            # Build the wheel
-            echo "This will take 10-15 minutes on first build (using $(nproc) cores)..."
-            
-            # Clear any cached wheels first to force source build
-            pip cache remove llama-cpp-python 2>/dev/null || true
-            rm -f $WHEEL_CACHE_DIR/llama_cpp_python-0.3.15-cp*-cp*-linux_x86_64.whl 2>/dev/null || true
-            
-            # Force download source and build the wheel (no-binary forces source build)
-            pip wheel --no-deps --wheel-dir="$WHEEL_CACHE_DIR" \
-                --no-cache-dir --no-binary llama-cpp-python \
-                --no-build-isolation \
-                -v 'llama-cpp-python==0.3.15'
-            
-            # Find the built wheel (it might have a different name)
-            BUILT_WHEEL=$(ls -t $WHEEL_CACHE_DIR/llama_cpp_python-0.3.15*.whl 2>/dev/null | head -1)
-            
-            if [ -f "$BUILT_WHEEL" ]; then
-                # Keep the original wheel name - don't rename
-                # pip is very particular about wheel naming conventions
-                CACHED_WHEEL="$BUILT_WHEEL"
-                echo "Wheel cached as: $(basename $CACHED_WHEEL)"
-                
-                echo "✓ Wheel built successfully and cached"
-                echo "Installing the built wheel..."
-                pip install "$CACHED_WHEEL"
-                
-                # Verify CUDA support
-                if python -c "from llama_cpp import llama_backend_init; llama_backend_init()" 2>&1 | grep -q "ggml_cuda"; then
-                    echo "✓ CUDA support verified in built wheel"
-                else
-                    echo "⚠ Built wheel doesn't have CUDA support - build may have failed"
-                fi
-            else
-                echo "⚠ Wheel build failed, trying direct installation..."
-                export CMAKE_BUILD_PARALLEL_LEVEL=$(nproc)
-                export CUDAFLAGS="-allow-unsupported-compiler"
-                export CMAKE_ARGS="-DGGML_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=80 -DCMAKE_CUDA_COMPILER=$(which nvcc) -DCMAKE_CUDA_FLAGS='-allow-unsupported-compiler'"
-                python -m pip install --no-build-isolation --no-cache-dir --no-binary llama-cpp-python -v 'llama-cpp-python==0.3.15'
-            fi
+            # Install with explicit CUDA support
+            CMAKE_ARGS="-DLLAMA_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=80" \
+            CUDA_DOCKER_ARCH=sm_80 \
+            FORCE_CMAKE=1 \
+            pip install llama-cpp-python --no-cache-dir --force-reinstall --verbose
         else
-            echo "ERROR: On GPU node but CUDA compiler not found!"
-            echo "This is critical - cannot run GPU benchmarks without CUDA."
-            echo "Please ensure modules are loaded: module load gcc/13.1.0 cuda/11.5.0"
-            exit 1
+            echo "⚠ On GPU node but CUDA compiler not found!"
+            echo "Installing CPU version for now..."
+            pip install llama-cpp-python
+            
+            echo ""
+            echo "===== IMPORTANT: Manual CUDA Fix Required ====="
+            echo "You're on a GPU node but CUDA isn't properly configured."
+            echo "After setup completes, run these diagnostic commands:"
+            echo ""
+            echo "  # Check for CUDA installations:"
+            echo "  find /appl /opt -name nvcc 2>/dev/null | head -5"
+            echo ""
+            echo "  # Check loaded modules:"
+            echo "  module list"
+            echo ""
+            echo "  # Try loading CUDA manually:"
+            echo "  module load cuda/11.7.0  # or cuda/11.8.0, cuda/12.0.0"
+            echo ""
+            echo "  # Then reinstall llama-cpp-python:"
+            echo "  pip uninstall -y llama-cpp-python"
+            echo "  CMAKE_ARGS='-DLLAMA_CUDA=on' FORCE_CMAKE=1 pip install llama-cpp-python --no-cache-dir"
+            echo "================================================"
         fi
     else
-        echo "Building CPU version of llama-cpp-python..."
-        
-        # Clear cache and build CPU wheel from source
-        pip cache remove llama-cpp-python 2>/dev/null || true
-        pip wheel --no-deps --wheel-dir="$WHEEL_CACHE_DIR" \
-            --no-cache-dir --no-binary llama-cpp-python \
-            'llama-cpp-python==0.3.15'
-        
-        # Find and rename the built wheel
-        BUILT_WHEEL=$(ls -t $WHEEL_CACHE_DIR/llama_cpp_python-0.3.15*.whl 2>/dev/null | head -1)
-        if [ -f "$BUILT_WHEEL" ] && [ "$BUILT_WHEEL" != "$CACHED_WHEEL" ]; then
-            mv "$BUILT_WHEEL" "$CACHED_WHEEL"
-        fi
-        
-        # Install it
-        pip install "$CACHED_WHEEL"
+        echo "Installing CPU version of llama-cpp-python (not on GPU node)..."
+        pip install llama-cpp-python
     fi
 fi
 
-# Final verification
-if python -c "import llama_cpp" 2>/dev/null; then
-    CURRENT_VERSION=$(python -c "import llama_cpp; print(llama_cpp.__version__)")
-    echo "✓ llama-cpp-python successfully installed (version $CURRENT_VERSION)"
-    echo "  Cached wheel: $CACHED_WHEEL"
-else
-    echo "⚠ llama-cpp-python installation failed"
-    echo "Please check the error messages above"
-fi
 
 # Install pocket-agent-cli
 echo ""
@@ -610,7 +539,25 @@ echo "================================="
 if command -v pocket-agent &> /dev/null && \
    python -c "import llama_cpp" 2>/dev/null && \
    python -c "import pocket_agent_cli" 2>/dev/null; then
-    echo "✓ All components installed successfully!"
+    
+    # Additional check for GPU nodes - MUST have CUDA support
+    if [[ "$CURRENT_NODE" == g* ]]; then
+        if python -c "from llama_cpp import llama_backend_init; llama_backend_init()" 2>&1 | grep -q "ggml_cuda"; then
+            echo "✓ All components installed successfully with GPU support!"
+        else
+            echo ""
+            echo "CRITICAL ERROR: GPU node but CUDA support not detected!"
+            echo "GPU benchmarks WILL FAIL without CUDA support."
+            echo ""
+            echo "To fix:"
+            echo "1. Ensure CUDA module is loaded: module load cuda/11.7.0"
+            echo "2. Re-run: source $PROJECT_DIR/slurm/setup_environment.sh"
+            exit 1
+        fi
+    else
+        echo "✓ All components installed successfully!"
+    fi
+    
     echo ""
     echo "Next steps:"
     echo "1. Download a model: pocket-agent model download llama-3.2-3b-instruct"
@@ -618,6 +565,9 @@ if command -v pocket-agent &> /dev/null && \
     echo "3. Run benchmarks: sbatch slurm/run_benchmark.sh"
 else
     echo "⚠ Some components may need attention. Check the verification tests above."
+    if [[ "$CURRENT_NODE" == g* ]]; then
+        echo "CRITICAL: GPU node detected - ensure CUDA support is working!"
+    fi
 fi
 
 echo ""

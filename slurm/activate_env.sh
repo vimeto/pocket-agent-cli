@@ -25,9 +25,24 @@ if [[ "$CURRENT_NODE" == g* ]] || command -v nvidia-smi >/dev/null 2>&1; then
     echo "GPU node detected, loading CUDA modules..."
     
     # Load the correct modules for Mahti
-    # Using gcc/13.1.0 and cuda/11.5.0 as requested
+    # Using gcc/10.4.0 and any available CUDA
     module purge
-    module load gcc/13.1.0 cuda/11.5.0
+    module load gcc/10.4.0
+    
+    # Try to load CUDA - use first available version
+    if module load cuda/11.7.0 2>/dev/null; then
+        echo "  Loaded cuda/11.7.0"
+    elif module load cuda/11.8.0 2>/dev/null; then
+        echo "  Loaded cuda/11.8.0"
+    elif module load cuda/12.0.0 2>/dev/null; then
+        echo "  Loaded cuda/12.0.0"
+    elif module load cuda/12.1.0 2>/dev/null; then
+        echo "  Loaded cuda/12.1.0"
+    elif module load cuda 2>/dev/null; then
+        echo "  Loaded generic cuda module"
+    else
+        echo "  ⚠ WARNING: Could not load CUDA module!"
+    fi
     
     # Set CUDA environment variables
     if command -v nvcc &> /dev/null; then
@@ -67,7 +82,7 @@ if [[ "$CURRENT_NODE" == g* ]] || command -v nvidia-smi >/dev/null 2>&1; then
     else
         echo "  ⚠ WARNING: CUDA not properly loaded!"
         echo "  This is critical for GPU benchmarks."
-        echo "  Try manually: module load gcc/13.1.0 cuda/11.5.0"
+        echo "  Try manually: module load gcc/10.4.0 cuda/11.7.0"
     fi
 else
     echo "CPU node detected, CUDA not needed"

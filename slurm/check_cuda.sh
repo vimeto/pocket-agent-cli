@@ -14,7 +14,7 @@ echo ""
 echo "Loaded modules:"
 module list 2>&1 | grep -E "(cuda|gcc)" || echo "  No CUDA/GCC modules loaded"
 echo ""
-echo "Expected: gcc/13.1.0 and cuda/11.5.0"
+echo "Expected: gcc/10.4.0 and cuda/12.1.1"
 echo ""
 
 # Check CUDA compiler

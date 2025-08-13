@@ -27,7 +27,7 @@ fi
 # Load CUDA modules
 echo "Loading CUDA modules..."
 module purge
-module load gcc/13.1.0 cuda/11.5.0
+module load gcc/10.4.0 cuda/12.1.1
 
 # Verify CUDA
 if ! command -v nvcc &> /dev/null; then
@@ -59,9 +59,8 @@ export CUDA_HOME=$(dirname $(dirname $(which nvcc)))
 export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$CUDA_HOME/lib:$LD_LIBRARY_PATH
 export FORCE_CMAKE=1
 export CMAKE_BUILD_PARALLEL_LEVEL=$(nproc)
-# Add -allow-unsupported-compiler flag to bypass GCC 13.1 + CUDA 11.5 incompatibility
-export CUDAFLAGS="-allow-unsupported-compiler"
-export CMAKE_ARGS="-DGGML_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=80 -DCMAKE_CUDA_COMPILER=$(which nvcc) -DCMAKE_CUDA_FLAGS='-allow-unsupported-compiler'"
+# No need for -allow-unsupported-compiler with gcc/10.4.0 + cuda/12.1.1
+export CMAKE_ARGS="-DGGML_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=80 -DCMAKE_CUDA_COMPILER=$(which nvcc)"
 
 echo ""
 echo "Build configuration:"

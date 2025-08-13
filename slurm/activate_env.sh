@@ -22,50 +22,31 @@ export DISABLE_DOCKER=1
 # Load CUDA module if on GPU node (required for llama-cpp-python with CUDA)
 CURRENT_NODE=$(hostname -s)
 if [[ "$CURRENT_NODE" == g* ]]; then
-    # Load CUDA module
-    if ! module list 2>&1 | grep -q cuda; then
-        module load cuda 2>/dev/null || true
-    fi
+    echo "GPU node detected, loading CUDA modules..."
     
-    # CRITICAL FIX: llama-cpp-python needs libcudart.so.12 (CUDA 12)
-    # Search for CUDA 12 installations
-    CUDA_FOUND=false
-    for cuda_base in /appl/opt /opt /usr/local; do
-        if [ -d "$cuda_base/cuda" ]; then
-            # Check subdirectories for CUDA 12
-            for cuda_dir in $cuda_base/cuda/12* $cuda_base/cuda/cuda-12*; do
-                if [ -d "$cuda_dir/lib64" ] && [ -f "$cuda_dir/lib64/libcudart.so.12" ]; then
-                    export LD_LIBRARY_PATH=$cuda_dir/lib64:$cuda_dir/lib:$LD_LIBRARY_PATH
-                    export CUDA_HOME=$cuda_dir
-                    CUDA_FOUND=true
-                    echo "  Found CUDA 12 at: $cuda_dir"
-                    break 2
-                fi
-            done
-            # Also check specific versions
-            for version in 12.6.0 12.2.0 12.1.0 12.0.0; do
-                cuda_path="$cuda_base/cuda/$version"
-                if [ -d "$cuda_path/lib64" ] && [ -f "$cuda_path/lib64/libcudart.so.12" ]; then
-                    export LD_LIBRARY_PATH=$cuda_path/lib64:$cuda_path/lib:$LD_LIBRARY_PATH
-                    export CUDA_HOME=$cuda_path
-                    CUDA_FOUND=true
-                    echo "  Found CUDA $version at: $cuda_path"
-                    break 2
-                fi
-            done
-        fi
-    done
+    # Load the correct modules for Mahti (as per CSC docs)
+    module purge
+    module load gcc/10.4.0 cuda/12.6.1
     
-    # If CUDA 12 not found, warn and suggest CPU reinstall
-    if [ "$CUDA_FOUND" = false ]; then
-        echo "  ⚠ WARNING: CUDA 12 libraries not found!"
-        echo "  llama-cpp-python needs CUDA 12 but it's not available."
-        echo "  To fix, either:"
-        echo "    1. Find CUDA 12: ls -la /appl/opt/cuda/"
-        echo "    2. Reinstall llama-cpp-python without CUDA:"
-        echo "       pip uninstall -y llama-cpp-python"
-        echo "       pip install llama-cpp-python --no-binary llama-cpp-python"
+    # Set CUDA environment variables
+    if command -v nvcc &> /dev/null; then
+        export CUDA_HOME=$(dirname $(dirname $(which nvcc)))
+        export CMAKE_CUDA_COMPILER=$(which nvcc)
+        export CUDACXX=$(which nvcc)
+        
+        # Add CUDA libraries to LD_LIBRARY_PATH
+        export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$CUDA_HOME/lib:$LD_LIBRARY_PATH
+        
+        echo "  ✓ CUDA 12.6.1 loaded successfully"
+        echo "  CUDA_HOME: $CUDA_HOME"
+        echo "  nvcc: $(which nvcc)"
+    else
+        echo "  ⚠ WARNING: CUDA not properly loaded!"
+        echo "  This is critical for GPU benchmarks."
+        echo "  Try manually: module load gcc/10.4.0 cuda/12.6.1"
     fi
+else
+    echo "CPU node detected, CUDA not needed"
 fi
 
 # Check if environments exist

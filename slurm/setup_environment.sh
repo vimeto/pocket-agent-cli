@@ -164,6 +164,7 @@ dependencies:
   - numpy
   - scipy
   - pip:
+    - uv
     - click
     - rich
     - httpx
@@ -291,8 +292,12 @@ fi
 # Activate the virtual environment
 source $VENV_DIR/bin/activate
 
-# Upgrade pip in the venv
-pip install --upgrade pip setuptools wheel scikit-build cmake ninja --quiet
+# Install uv for faster package management
+pip install --upgrade uv --quiet
+
+# Use uv to install build dependencies (much faster)
+echo "Installing build dependencies with uv..."
+uv pip install --upgrade pip setuptools wheel scikit-build scikit-build-core cmake ninja
 
 # Check if llama-cpp-python is already installed
 if python -c "import llama_cpp" 2>/dev/null; then
@@ -306,7 +311,16 @@ if python -c "import llama_cpp" 2>/dev/null; then
 
         if [ "$HAS_CUDA" = false ]; then
             echo "⚠ Current installation doesn't have CUDA support"
-            echo "Note: Using CPU-only version to avoid compilation issues"
+            echo "Reinstalling with CUDA support (REQUIRED for GPU benchmarks)..."
+            uv pip uninstall -y llama-cpp-python
+            
+            # Reinstall with CUDA
+            export CUDA_HOME=$(dirname $(dirname $(which nvcc)))
+            export CMAKE_CUDA_COMPILER=$(which nvcc)
+            export CUDACXX=$(which nvcc)
+            CMAKE_ARGS="-DGGML_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=80" \
+            FORCE_CMAKE=1 \
+            uv pip install llama-cpp-python --no-cache-dir --force-reinstall
         else
             echo "✓ CUDA support detected"
         fi
@@ -324,23 +338,34 @@ else
             export CUDACXX=$(which nvcc)
 
             # Install with explicit CUDA support for A100 (compute capability 8.0)
-            # Use verbose output to debug any issues
-            echo "Building llama-cpp-python with CUDA support for A100 GPUs..."
-            CMAKE_ARGS="-DGGML_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=80" \
-            CUDA_DOCKER_ARCH=sm_80 \
-            FORCE_CMAKE=1 \
-            pip install llama-cpp-python --no-cache-dir --force-reinstall --verbose
+            echo "Building llama-cpp-python with CUDA support for A100 GPUs (REQUIRED)..."
+            
+            # Set build environment
+            export CUDA_DOCKER_ARCH=sm_80
+            export TORCH_CUDA_ARCH_LIST="8.0"
+            export FORCE_CMAKE=1
+            export CMAKE_ARGS="-DGGML_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=80 -DCMAKE_CUDA_COMPILER=${CMAKE_CUDA_COMPILER}"
+            
+            # Install with uv (faster)
+            uv pip install llama-cpp-python --no-cache-dir --force-reinstall
 
             if ! python -c "import llama_cpp" 2>/dev/null; then
-                echo "CUDA build failed. Trying alternative build flags..."
-                # Try with legacy LLAMA_CUDA flag
-                CMAKE_ARGS="-DLLAMA_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=80" \
-                pip install llama-cpp-python --no-cache-dir --force-reinstall
+                echo "ERROR: CUDA build failed. This is critical for GPU benchmarks!"
+                echo "Trying alternative installation method..."
+                # Try with pip directly and verbose output to see errors
+                pip install llama-cpp-python --no-cache-dir --force-reinstall --verbose
+                
+                if ! python -c "import llama_cpp" 2>/dev/null; then
+                    echo "ERROR: Cannot install llama-cpp-python with CUDA support!"
+                    echo "GPU benchmarks will NOT work without this."
+                    exit 1
+                fi
             fi
         else
-            echo "⚠ On GPU node but CUDA compiler not found!"
-            echo "Installing CPU version as fallback..."
-            pip install llama-cpp-python
+            echo "ERROR: On GPU node but CUDA compiler not found!"
+            echo "This is critical - cannot run GPU benchmarks without CUDA."
+            echo "Please ensure modules are loaded: module load gcc/10.4.0 cuda/12.6.1"
+            exit 1
         fi
     else
         echo "Installing CPU version of llama-cpp-python (not on GPU node)..."

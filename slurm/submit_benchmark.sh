@@ -8,6 +8,7 @@ START=0
 TOTAL=509
 BATCH=10
 SAMPLES=10
+VERSION="Q4_K_M"
 TIME="24:00:00"
 PARTITION="gpusmall"
 
@@ -38,6 +39,10 @@ while [[ $# -gt 0 ]]; do
             SAMPLES="$2"
             shift 2
             ;;
+        --version)
+            VERSION="$2"
+            shift 2
+            ;;
         --time)
             TIME="$2"
             shift 2
@@ -56,6 +61,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --total COUNT       Total number of problems (default: 509)"
             echo "  --batch SIZE        Batch size (default: 10)"
             echo "  --samples NUM       Number of samples per problem (default: 10)"
+            echo "  --version VERSION   Model version: Q4_K_M, F16, BF16, etc. (default: Q4_K_M)"
             echo "  --time TIME         Wall time limit (default: 24:00:00)"
             echo "  --partition PART    SLURM partition (default: gpusmall)"
             echo ""
@@ -65,6 +71,9 @@ while [[ $# -gt 0 ]]; do
             echo ""
             echo "  # Run problems 100-200 with batch size 5"
             echo "  $0 --start 100 --total 100 --batch 5"
+            echo ""
+            echo "  # Run with F16 model version"
+            echo "  $0 --model gemma-3n-e2b-it --version F16 --total 100"
             echo ""
             echo "  # Quick test run"
             echo "  $0 --total 10 --samples 3 --time 1:00:00 --partition gputest"
@@ -91,14 +100,15 @@ fi
 LOGS_DIR="/projappl/project_$PROJECT/$USER/pocket-agent-cli/data/logs"
 mkdir -p "$LOGS_DIR"
 
-# Generate job name
-JOB_NAME="bench_${MODEL}_${MODE}_s${START}_t${TOTAL}"
+# Generate job name (include version)
+JOB_NAME="bench_${MODEL}_${VERSION}_${MODE}_s${START}_t${TOTAL}"
 
 # Submit the job
 echo "================================="
 echo "Submitting Benchmark Job"
 echo "================================="
 echo "Model: $MODEL"
+echo "Version: $VERSION"
 echo "Mode: $MODE"
 echo "Problems: $START to $((START + TOTAL - 1))"
 echo "Batch size: $BATCH"
@@ -122,8 +132,8 @@ cat > "$TEMP_SCRIPT" << EOF
 #SBATCH --output=$LOGS_DIR/benchmark_%j.out
 #SBATCH --error=$LOGS_DIR/benchmark_%j.err
 
-# Run the benchmark script with parameters
-bash /projappl/project_2013932/\$USER/pocket-agent-cli/slurm/run_benchmark_batch.sh "$MODEL" "$MODE" "$START" "$TOTAL" "$BATCH" "$SAMPLES"
+# Run the benchmark script with parameters (including version)
+bash /projappl/project_2013932/\$USER/pocket-agent-cli/slurm/run_benchmark_batch.sh "$MODEL" "$MODE" "$START" "$TOTAL" "$BATCH" "$SAMPLES" "$VERSION"
 EOF
 
 # Submit the job

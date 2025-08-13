@@ -6,13 +6,20 @@ from pydantic import BaseModel, Field
 import os
 
 
-# Directories
+# Directories with environment variable override support
 HOME_DIR = Path.home()
-APP_DIR = HOME_DIR / ".pocket-agent-cli"
-MODELS_DIR = APP_DIR / "models"
-DATA_DIR = APP_DIR / "data"
-SANDBOX_DIR = APP_DIR / "sandbox"
-RESULTS_DIR = APP_DIR / "results"
+
+# Allow environment variables to override default paths
+if os.environ.get("POCKET_AGENT_HOME"):
+    APP_DIR = Path(os.environ["POCKET_AGENT_HOME"])
+else:
+    APP_DIR = HOME_DIR / ".pocket-agent-cli"
+
+# Individual directory overrides or defaults
+MODELS_DIR = Path(os.environ.get("POCKET_AGENT_MODELS_DIR", APP_DIR / "models"))
+DATA_DIR = Path(os.environ.get("POCKET_AGENT_DATA_DIR", APP_DIR / "data"))
+SANDBOX_DIR = Path(os.environ.get("POCKET_AGENT_SANDBOX_DIR", APP_DIR / "sandbox"))
+RESULTS_DIR = Path(os.environ.get("POCKET_AGENT_RESULTS_DIR", APP_DIR / "results"))
 
 # Create directories if they don't exist
 for dir_path in [APP_DIR, MODELS_DIR, DATA_DIR, SANDBOX_DIR, RESULTS_DIR]:

@@ -16,6 +16,14 @@ export PROJECT_DIR=/projappl/project_$PROJECT/$USER/pocket-agent-cli
 export TYKKY_ENV=$PROJECT_DIR/tykky-env
 export VENV_DIR=$PROJECT_DIR/venv
 
+# Set pocket-agent directories to use project space instead of home directory
+# This prevents disk quota issues on HPC systems
+export POCKET_AGENT_HOME=$PROJECT_DIR/data/pocket-agent
+export POCKET_AGENT_MODELS_DIR=$PROJECT_DIR/data/models
+export POCKET_AGENT_DATA_DIR=$PROJECT_DIR/data/data
+export POCKET_AGENT_SANDBOX_DIR=$PROJECT_DIR/data/sandbox
+export POCKET_AGENT_RESULTS_DIR=$PROJECT_DIR/data/results
+
 # Disable Docker (not available on Mahti compute nodes)
 export DISABLE_DOCKER=1
 

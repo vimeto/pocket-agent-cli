@@ -1,6 +1,15 @@
 #!/bin/bash
 # Setup script for Mahti environment with containerization
 
+# Check for --clean-cache flag to force rebuild
+if [[ "$1" == "--clean-cache" ]]; then
+    echo "Cleaning cached wheels and forcing rebuild..."
+    rm -rf /projappl/project_${PROJECT:-2013932}/$USER/pocket-agent-cli/wheel_cache
+    pip cache remove llama-cpp-python 2>/dev/null || true
+    echo "Cache cleaned. Continuing with setup..."
+    echo ""
+fi
+
 # Check current node
 CURRENT_NODE=$(hostname -s)
 echo "================================="
@@ -335,7 +344,7 @@ CACHED_WHEEL="$WHEEL_CACHE_DIR/$WHEEL_NAME"
 if [ -f "$CACHED_WHEEL" ]; then
     echo "Found cached wheel: $WHEEL_NAME"
     echo "Installing from cache..."
-    pip install "$CACHED_WHEEL"
+    pip install --force-reinstall "$CACHED_WHEEL"
     
     # Verify installation
     if python -c "import llama_cpp" 2>/dev/null; then
@@ -378,8 +387,13 @@ if ! python -c "import llama_cpp" 2>/dev/null; then
             # Build the wheel
             echo "This will take 10-15 minutes on first build (using $(nproc) cores)..."
             
-            # First, download and build the wheel
+            # Clear any cached wheels first to force source build
+            pip cache remove llama-cpp-python 2>/dev/null || true
+            rm -f $WHEEL_CACHE_DIR/llama_cpp_python-0.3.15-cp*-cp*-linux_x86_64.whl 2>/dev/null || true
+            
+            # Force download source and build the wheel (no-binary forces source build)
             pip wheel --no-deps --wheel-dir="$WHEEL_CACHE_DIR" \
+                --no-cache-dir --no-binary llama-cpp-python \
                 --no-build-isolation \
                 -v 'llama-cpp-python==0.3.15'
             
@@ -389,6 +403,8 @@ if ! python -c "import llama_cpp" 2>/dev/null; then
             if [ -f "$BUILT_WHEEL" ]; then
                 # Rename to our standard name for easier caching
                 if [ "$BUILT_WHEEL" != "$CACHED_WHEEL" ]; then
+                    # Remove the old cached wheel name if it exists
+                    rm -f "$CACHED_WHEEL" 2>/dev/null || true
                     mv "$BUILT_WHEEL" "$CACHED_WHEEL"
                 fi
                 
@@ -405,7 +421,7 @@ if ! python -c "import llama_cpp" 2>/dev/null; then
             else
                 echo "⚠ Wheel build failed, trying direct installation..."
                 export CMAKE_BUILD_PARALLEL_LEVEL=$(nproc)
-                python -m pip install --no-build-isolation --no-cache-dir -v 'llama-cpp-python==0.3.15'
+                python -m pip install --no-build-isolation --no-cache-dir --no-binary llama-cpp-python -v 'llama-cpp-python==0.3.15'
             fi
         else
             echo "ERROR: On GPU node but CUDA compiler not found!"
@@ -416,8 +432,11 @@ if ! python -c "import llama_cpp" 2>/dev/null; then
     else
         echo "Building CPU version of llama-cpp-python..."
         
-        # Build CPU wheel
-        pip wheel --no-deps --wheel-dir="$WHEEL_CACHE_DIR" 'llama-cpp-python==0.3.15'
+        # Clear cache and build CPU wheel from source
+        pip cache remove llama-cpp-python 2>/dev/null || true
+        pip wheel --no-deps --wheel-dir="$WHEEL_CACHE_DIR" \
+            --no-cache-dir --no-binary llama-cpp-python \
+            'llama-cpp-python==0.3.15'
         
         # Find and rename the built wheel
         BUILT_WHEEL=$(ls -t $WHEEL_CACHE_DIR/llama_cpp_python-0.3.15*.whl 2>/dev/null | head -1)

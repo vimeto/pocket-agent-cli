@@ -297,10 +297,16 @@ source $VENV_DIR/bin/activate
 # Install uv for faster package management
 python -m pip install -U uv --quiet
 
-# On Lustre, hardlinks are fragile; force copy mode to avoid EXDEV/permission issues
-UV_FLAGS="--link-mode=copy"
+# Check uv version and set flags accordingly
 echo "Installing build dependencies with uv..."
-uv $UV_FLAGS pip install -U pip setuptools wheel scikit-build-core cmake ninja
+if uv --version 2>&1 | grep -q "0\.[3-9]"; then
+    # Newer uv versions support --link-mode
+    UV_FLAGS="--link-mode=copy"
+    uv pip install $UV_FLAGS -U pip setuptools wheel scikit-build-core cmake ninja
+else
+    # Older uv versions don't support --link-mode
+    uv pip install -U pip setuptools wheel scikit-build-core cmake ninja
+fi
 
 # Check if llama-cpp-python is already installed
 if python -c "import llama_cpp" 2>/dev/null; then
@@ -469,13 +475,13 @@ else
     echo "⚠ Python version issue: $PYTHON_VERSION (expected 3.11+)"
 fi
 
-# Test 2: Check llama-cpp-python
-if python -c "import llama_cpp" 2>/dev/null; then
+# Test 2: Check llama-cpp-python (make sure we're in the venv)
+if [ -n "$VIRTUAL_ENV" ] && python -c "import llama_cpp" 2>/dev/null; then
     LLAMA_VERSION=$(python -c "import llama_cpp; print(llama_cpp.__version__)" 2>/dev/null)
     echo "✓ llama-cpp-python OK: version $LLAMA_VERSION"
 
     # Check if CUDA is enabled
-    if [[ "$CURRENT_NODE" == g* ]]; then
+    if [[ "$CURRENT_NODE" == g* ]] || command -v nvidia-smi >/dev/null 2>&1; then
         if python -c "from llama_cpp import llama_backend_init; llama_backend_init()" 2>&1 | grep -q "ggml_cuda"; then
             echo "  ✓ CUDA support detected"
         else
@@ -484,7 +490,18 @@ if python -c "import llama_cpp" 2>/dev/null; then
         fi
     fi
 else
-    echo "⚠ llama-cpp-python not found"
+    # Try activating venv and checking again
+    if [ -d "$VENV_DIR/bin" ]; then
+        source $VENV_DIR/bin/activate
+        if python -c "import llama_cpp" 2>/dev/null; then
+            LLAMA_VERSION=$(python -c "import llama_cpp; print(llama_cpp.__version__)" 2>/dev/null)
+            echo "✓ llama-cpp-python OK: version $LLAMA_VERSION (in venv)"
+        else
+            echo "⚠ llama-cpp-python not found"
+        fi
+    else
+        echo "⚠ llama-cpp-python not found"
+    fi
 fi
 
 # Test 3: Check pocket-agent-cli
@@ -524,3 +541,5 @@ echo ""
 echo "To use this environment in future sessions:"
 echo "----------------------------------------"
 echo "source $PROJECT_DIR/slurm/activate_env.sh"
+echo ""
+echo "IMPORTANT: Use 'source' not './' to run activate_env.sh!"

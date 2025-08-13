@@ -17,6 +17,7 @@ START_INDEX=${3:-0}
 TOTAL_PROBLEMS=${4:-509}
 BATCH_SIZE=${5:-10}
 NUM_SAMPLES=${6:-10}
+MODEL_VERSION=${7:-"Q4_K_M"}  # Q4_K_M, F16, BF16, etc.
 
 echo "================================="
 echo "Pocket Agent Benchmark Job"
@@ -25,6 +26,7 @@ echo "Job ID: $SLURM_JOB_ID"
 echo "Node: $(hostname)"
 echo "Start time: $(date)"
 echo "Model: $MODEL_NAME"
+echo "Model Version: $MODEL_VERSION"
 echo "Mode: $MODE"
 echo "Problems: $START_INDEX to $((START_INDEX + TOTAL_PROBLEMS - 1))"
 echo "Batch size: $BATCH_SIZE"
@@ -99,13 +101,14 @@ run_benchmark_batch() {
     echo ""
     echo "Running $mode benchmark for problems: $problem_ids"
 
-    # Create output directory with timestamp
+    # Create output directory with timestamp (include version in name)
     local timestamp=$(date +%Y%m%d_%H%M%S)
-    local output_dir="$PROJECT_DIR/data/results/bench_${MODEL_NAME}_${mode}_${timestamp}_job${SLURM_JOB_ID}"
+    local output_dir="$PROJECT_DIR/data/results/bench_${MODEL_NAME}_${MODEL_VERSION}_${mode}_${timestamp}_job${SLURM_JOB_ID}"
 
     # Run benchmark with error handling
     if timeout 3600 pocket-agent benchmark \
         --model "$MODEL_NAME" \
+        --model-version "$MODEL_VERSION" \
         --mode "$mode" \
         --problems "$problem_ids" \
         --num-samples "$NUM_SAMPLES" \

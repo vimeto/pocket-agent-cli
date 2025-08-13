@@ -307,20 +307,26 @@ if python -c "import llama_cpp" 2>/dev/null; then
     # Check if it has CUDA support
     if [[ "$CURRENT_NODE" == g* ]]; then
         # Try to detect CUDA support in existing installation
-        python -c "import llama_cpp" 2>&1 | grep -q "CUDA" && HAS_CUDA=true || HAS_CUDA=false
+        # Check if we can import llama_cpp and if it has CUDA support
+        HAS_CUDA=false
+        if python -c "from llama_cpp import llama_backend_init; llama_backend_init()" 2>&1 | grep -q "ggml_cuda"; then
+            HAS_CUDA=true
+        elif python -c "import llama_cpp; print(llama_cpp._lib_base_name)" 2>&1 | grep -q "cuda"; then
+            HAS_CUDA=true
+        fi
 
         if [ "$HAS_CUDA" = false ]; then
             echo "⚠ Current installation doesn't have CUDA support"
             echo "Reinstalling with CUDA support (REQUIRED for GPU benchmarks)..."
-            uv pip uninstall -y llama-cpp-python
+            pip uninstall -y llama-cpp-python
             
-            # Reinstall with CUDA
+            # Reinstall with CUDA using regular pip (uv has issues with build)
             export CUDA_HOME=$(dirname $(dirname $(which nvcc)))
             export CMAKE_CUDA_COMPILER=$(which nvcc)
             export CUDACXX=$(which nvcc)
             CMAKE_ARGS="-DGGML_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=80" \
             FORCE_CMAKE=1 \
-            uv pip install llama-cpp-python --no-cache-dir --force-reinstall
+            pip install llama-cpp-python --no-cache-dir --force-reinstall
         else
             echo "✓ CUDA support detected"
         fi
@@ -346,13 +352,14 @@ else
             export FORCE_CMAKE=1
             export CMAKE_ARGS="-DGGML_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=80 -DCMAKE_CUDA_COMPILER=${CMAKE_CUDA_COMPILER}"
             
-            # Install with uv (faster)
-            uv pip install llama-cpp-python --no-cache-dir --force-reinstall
+            # Use regular pip for building (uv has issues with Tykky paths)
+            echo "Starting build (this may take 2-3 minutes)..."
+            pip install llama-cpp-python --no-cache-dir --force-reinstall
 
             if ! python -c "import llama_cpp" 2>/dev/null; then
                 echo "ERROR: CUDA build failed. This is critical for GPU benchmarks!"
-                echo "Trying alternative installation method..."
-                # Try with pip directly and verbose output to see errors
+                echo "Trying with verbose output to debug..."
+                # Try with verbose to see what's happening
                 pip install llama-cpp-python --no-cache-dir --force-reinstall --verbose
                 
                 if ! python -c "import llama_cpp" 2>/dev/null; then
@@ -469,7 +476,11 @@ if python -c "import llama_cpp" 2>/dev/null; then
 
     # Check if CUDA is enabled
     if [[ "$CURRENT_NODE" == g* ]]; then
-        python -c "import llama_cpp" 2>&1 | grep -q "CUDA" && echo "  ✓ CUDA support detected" || echo "  ⚠ CUDA support unclear"
+        if python -c "from llama_cpp import llama_backend_init; llama_backend_init()" 2>&1 | grep -q "ggml_cuda"; then
+            echo "  ✓ CUDA support detected"
+        else
+            echo "  ⚠ CUDA support NOT detected - GPU benchmarks will fail!"
+            echo "  To fix: Re-run setup_environment.sh"
     fi
 else
     echo "⚠ llama-cpp-python not found"

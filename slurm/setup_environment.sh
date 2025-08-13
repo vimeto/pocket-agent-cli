@@ -46,21 +46,21 @@ mkdir -p $PROJECT_DIR/data/{models,results,logs}
 # Load modules
 echo ""
 echo "Loading modules..."
-module purge
+module --force purge
 module load gcc/10.4.0 2>/dev/null || module load gcc 2>/dev/null || echo "GCC module not available"
 module load git 2>/dev/null || echo "Git module not needed for build"
 
-# Load CUDA if on GPU node
-if [[ "$CURRENT_NODE" == g* ]]; then
+# Load CUDA if we are on a GPU node (hostname OR presence of NVIDIA tools)
+if [[ "$CURRENT_NODE" == g* ]] || command -v nvidia-smi >/dev/null 2>&1; then
     echo "GPU node detected, setting up CUDA..."
     echo "Node: $CURRENT_NODE"
 
     # On Mahti, load the correct CUDA module with GCC
-    # According to CSC docs, use gcc/10.4.0 and cuda/12.6.1
+    # Use CUDA 12.4 to match available prebuilt wheels (cu124)
     echo "Loading Mahti CUDA modules..."
-    module load gcc/10.4.0 cuda/12.6.1
+    module load gcc/10.4.0 cuda/12.4.0 2>/dev/null || module load gcc/10.4.0 cuda/12.4.1 2>/dev/null || module load gcc/10.4.0 cuda
     CUDA_LOADED=true
-    echo "✓ Loaded gcc/10.4.0 and cuda/12.6.1 modules"
+    echo "✓ Loaded gcc/10.4.0 and cuda/12.4 modules"
 
     # Verify CUDA is available
     echo "Checking for CUDA compiler..."
@@ -80,11 +80,11 @@ if [[ "$CURRENT_NODE" == g* ]]; then
         echo "⚠ This should not happen on Mahti GPU nodes"
         echo ""
         echo "To fix:"
-        echo "  1. Ensure modules are loaded: module load gcc/10.4.0 cuda/12.6.1"
+        echo "  1. Ensure modules are loaded: module load gcc/10.4.0 cuda/12.4.0"
         echo "  2. Check module list: module list"
         echo "  3. Reinstall llama-cpp-python:"
         echo "     pip uninstall -y llama-cpp-python"
-        echo "     CMAKE_ARGS='-DGGML_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=80' pip install llama-cpp-python --no-cache-dir"
+        echo "     python -m pip install --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu124 llama-cpp-python"
     fi
 
     # Show GPU information
@@ -279,6 +279,8 @@ if [ -d "$LOCAL_SCRATCH" ] && [ -w "$LOCAL_SCRATCH" ]; then
     export TMPDIR=$LOCAL_SCRATCH
     export TEMP=$LOCAL_SCRATCH
     export TMP=$LOCAL_SCRATCH
+    # Also use LOCAL_SCRATCH for uv cache to reduce metadata overhead
+    export UV_CACHE_DIR="${LOCAL_SCRATCH}/uv-cache"
     echo "Using LOCAL_SCRATCH for build: $LOCAL_SCRATCH"
 fi
 
@@ -293,11 +295,12 @@ fi
 source $VENV_DIR/bin/activate
 
 # Install uv for faster package management
-pip install --upgrade uv --quiet
+python -m pip install -U uv --quiet
 
-# Use uv to install build dependencies (much faster)
+# On Lustre, hardlinks are fragile; force copy mode to avoid EXDEV/permission issues
+UV_FLAGS="--link-mode=copy"
 echo "Installing build dependencies with uv..."
-uv pip install --upgrade pip setuptools wheel scikit-build scikit-build-core cmake ninja
+uv $UV_FLAGS pip install -U pip setuptools wheel scikit-build-core cmake ninja
 
 # Check if llama-cpp-python is already installed
 if python -c "import llama_cpp" 2>/dev/null; then
@@ -319,14 +322,16 @@ if python -c "import llama_cpp" 2>/dev/null; then
             echo "⚠ Current installation doesn't have CUDA support"
             echo "Reinstalling with CUDA support (REQUIRED for GPU benchmarks)..."
             pip uninstall -y llama-cpp-python
-            
-            # Reinstall with CUDA using regular pip (uv has issues with build)
-            export CUDA_HOME=$(dirname $(dirname $(which nvcc)))
-            export CMAKE_CUDA_COMPILER=$(which nvcc)
-            export CUDACXX=$(which nvcc)
-            CMAKE_ARGS="-DGGML_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=80" \
-            FORCE_CMAKE=1 \
-            pip install llama-cpp-python --no-cache-dir --force-reinstall
+
+            # Pick the right CUDA wheel channel
+            CUDA_REL=$(nvcc --version | sed -n 's/.*release \([0-9]\+\)\.\([0-9]\+\).*/\1\2/p')
+            # Cap at 124 since that's the newest prebuilt wheel available
+            if [[ -z "$CUDA_REL" ]] || [[ "$CUDA_REL" -gt 124 ]]; then CUDA_REL=124; fi
+            echo "Installing prebuilt CUDA wheel for cu${CUDA_REL}..."
+
+            # Install prebuilt CUDA wheel
+            PIP_ARGS="--prefer-binary --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu${CUDA_REL}"
+            python -m pip install $PIP_ARGS 'llama-cpp-python==0.3.15'
         else
             echo "✓ CUDA support detected"
         fi
@@ -335,48 +340,35 @@ else
     # Fresh installation
     if [[ "$CURRENT_NODE" == g* ]]; then
         if command -v nvcc &> /dev/null; then
-            echo "GPU node with CUDA detected, installing with GPU support..."
+            echo "GPU node with CUDA detected, installing prebuilt CUDA wheel..."
             echo "Using nvcc from: $(which nvcc)"
 
-            # Set all necessary CUDA environment variables
-            export CUDA_HOME=$(dirname $(dirname $(which nvcc)))
-            export CMAKE_CUDA_COMPILER=$(which nvcc)
-            export CUDACXX=$(which nvcc)
+            # Pick the right CUDA wheel channel (e.g., CUDA 12.4 → cu124)
+            CUDA_REL=$(nvcc --version | sed -n 's/.*release \([0-9]\+\)\.\([0-9]\+\).*/\1\2/p')
+            # Cap at 124 since that's the newest prebuilt wheel available
+            if [[ -z "$CUDA_REL" ]] || [[ "$CUDA_REL" -gt 124 ]]; then CUDA_REL=124; fi
+            echo "Selecting CUDA wheel channel: cu${CUDA_REL}"
 
-            # Install with explicit CUDA support for A100 (compute capability 8.0)
-            echo "Building llama-cpp-python with CUDA support for A100 GPUs (REQUIRED)..."
-            
-            # Set build environment
-            export CUDA_DOCKER_ARCH=sm_80
-            export TORCH_CUDA_ARCH_LIST="8.0"
-            export FORCE_CMAKE=1
-            export CMAKE_ARGS="-DGGML_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=80 -DCMAKE_CUDA_COMPILER=${CMAKE_CUDA_COMPILER}"
-            
-            # Use regular pip for building (uv has issues with Tykky paths)
-            echo "Starting build (this may take 2-3 minutes)..."
-            pip install llama-cpp-python --no-cache-dir --force-reinstall
+            # Prefer official prebuilt CUDA wheel (avoids long/fragile source builds)
+            PIP_ARGS="--prefer-binary --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu${CUDA_REL}"
+            python -m pip install $PIP_ARGS 'llama-cpp-python==0.3.15'
 
-            if ! python -c "import llama_cpp" 2>/dev/null; then
-                echo "ERROR: CUDA build failed. This is critical for GPU benchmarks!"
-                echo "Trying with verbose output to debug..."
-                # Try with verbose to see what's happening
-                pip install llama-cpp-python --no-cache-dir --force-reinstall --verbose
-                
-                if ! python -c "import llama_cpp" 2>/dev/null; then
-                    echo "ERROR: Cannot install llama-cpp-python with CUDA support!"
-                    echo "GPU benchmarks will NOT work without this."
-                    exit 1
-                fi
+            # Fallback: if no wheel exists for this combo, try a source build as last resort
+            if ! python -c "import llama_cpp" >/dev/null 2>&1; then
+                echo "Prebuilt wheel unavailable; falling back to source build with CUDA."
+                export FORCE_CMAKE=1
+                export CMAKE_ARGS="-DGGML_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=80 -DCMAKE_CUDA_COMPILER=$(which nvcc)"
+                python -m pip install --no-build-isolation --no-cache-dir -v 'llama-cpp-python==0.3.15'
             fi
         else
             echo "ERROR: On GPU node but CUDA compiler not found!"
             echo "This is critical - cannot run GPU benchmarks without CUDA."
-            echo "Please ensure modules are loaded: module load gcc/10.4.0 cuda/12.6.1"
+            echo "Please ensure modules are loaded: module load gcc/10.4.0 cuda/12.4.0"
             exit 1
         fi
     else
         echo "Installing CPU version of llama-cpp-python (not on GPU node)..."
-        pip install llama-cpp-python
+        python -m pip install 'llama-cpp-python==0.3.15'
     fi
 fi
 
@@ -481,6 +473,7 @@ if python -c "import llama_cpp" 2>/dev/null; then
         else
             echo "  ⚠ CUDA support NOT detected - GPU benchmarks will fail!"
             echo "  To fix: Re-run setup_environment.sh"
+        fi
     fi
 else
     echo "⚠ llama-cpp-python not found"

@@ -297,6 +297,8 @@ class BenchmarkService:
         # Track token generation for inter-token latencies
         inter_token_latencies = []
         last_token_time = None
+        thinking_tokens_count = 0
+        regular_tokens_count = 0
 
         # Generate response based on mode
         if mode.name == "base":
@@ -315,10 +317,16 @@ class BenchmarkService:
                     inter_token_latencies.append((current_time - last_token_time) * 1000)
                 last_token_time = current_time
 
-                token = chunk["token"]
-                response += token
+                token = chunk["token"]  # This is already filtered
+                response += token  # Only add non-thinking tokens to response
                 metrics = chunk["metrics"]
                 token_count += 1
+                
+                # Track thinking vs regular tokens
+                if chunk.get("is_thinking", False):
+                    thinking_tokens_count += 1
+                else:
+                    regular_tokens_count += 1
 
                 # Show progress every 100 tokens (less frequent)
                 if DEBUG_BENCHMARK and token_count % 100 == 0:
@@ -328,8 +336,22 @@ class BenchmarkService:
             if STREAM_OUTPUT and token_buffer:
                 print(''.join(token_buffer), flush=True)
 
+            # Add thinking token stats to metrics
+            if "thinking_stats" in metrics:
+                thinking_stats = metrics["thinking_stats"]
+            else:
+                thinking_stats = {
+                    "thinking_tokens": thinking_tokens_count,
+                    "regular_tokens": regular_tokens_count,
+                    "total_tokens": token_count,
+                    "thinking_ratio": thinking_tokens_count / token_count if token_count > 0 else 0
+                }
+            metrics["thinking_stats"] = thinking_stats
+            
             if DEBUG_BENCHMARK:
                 print(f"\n[DEBUG] Generation complete. Total tokens: {token_count}")
+                if thinking_tokens_count > 0:
+                    print(f"[DEBUG] Thinking tokens: {thinking_tokens_count}, Regular tokens: {regular_tokens_count}")
             tool_calls = None
 
         elif mode.name == "tool_submission":
@@ -341,6 +363,15 @@ class BenchmarkService:
             # Extract inter-token latencies from metrics if available
             if 'inter_token_latencies' in metrics:
                 inter_token_latencies = metrics['inter_token_latencies']
+            
+            # Add thinking stats if not present
+            if 'thinking_stats' not in metrics:
+                metrics['thinking_stats'] = {
+                    "thinking_tokens": 0,
+                    "regular_tokens": metrics.get('tokens', 0),
+                    "total_tokens": metrics.get('tokens', 0),
+                    "thinking_ratio": 0.0
+                }
 
         else:  # full_tool mode
             # Full tool mode: iterative tool usage
@@ -360,6 +391,15 @@ class BenchmarkService:
                 # Extract inter-token latencies from first response
                 if iteration == 0 and 'inter_token_latencies' in metrics:
                     inter_token_latencies = metrics['inter_token_latencies']
+                
+                # Add thinking stats if not present
+                if 'thinking_stats' not in metrics:
+                    metrics['thinking_stats'] = {
+                        "thinking_tokens": 0,
+                        "regular_tokens": metrics.get('tokens', 0),
+                        "total_tokens": metrics.get('tokens', 0),
+                        "thinking_ratio": 0.0
+                    }
 
                 print(f"[DEBUG] Response: {response}")
 

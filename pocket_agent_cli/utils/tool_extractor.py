@@ -3,6 +3,7 @@
 import json
 import re
 from typing import List, Dict, Any, Optional, Tuple
+from .thinking_filter import remove_thinking_blocks
 
 
 class ToolExtractor:
@@ -183,11 +184,11 @@ class ToolExtractor:
         return parsed_tools
     
     def _extract_qwen_thinking_json(self, response: str) -> List[Dict[str, Any]]:
-        """Extract JSON from Qwen's thinking patterns after </think> tags."""
+        """Extract JSON from Qwen's thinking patterns after thinking tags."""
         tools = []
         
-        # Remove thinking blocks first
-        cleaned = re.sub(r'<think>.*?</think>', '', response, flags=re.DOTALL)
+        # Remove thinking blocks using our comprehensive filter
+        cleaned, _ = remove_thinking_blocks(response)
         
         # Now look for JSON in the cleaned response
         json_pattern = r'\{[^{}]*"name"\s*:\s*"[^"]+"\s*,\s*"parameters"\s*:\s*\{[^{}]*\}[^{}]*\}'

@@ -9,6 +9,7 @@ from jinja2 import Template
 from ..config import InferenceConfig, Model
 from ..utils.chat_templates import get_chat_template
 from ..utils.tool_extractor import ToolExtractor
+from ..utils.thinking_filter import ThinkingFilter
 from ..monitoring.unified_monitor import UnifiedMonitor
 import os
 DEBUG_INFERENCE = os.environ.get("DEBUG_INFERENCE", "").lower() == "true"
@@ -30,6 +31,7 @@ class InferenceService:
         self.current_model: Optional[Model] = None
         self.config: Optional[InferenceConfig] = None
         self.tool_extractor = ToolExtractor()
+        self.thinking_filter = ThinkingFilter()
         self.unified_monitor = UnifiedMonitor(sample_interval=2.0)  # Optimized unified monitor
 
     def load_model(self, model: Model, config: InferenceConfig) -> None:
@@ -152,6 +154,9 @@ class InferenceService:
         start_time = time.time()
         first_token_time = None
         token_count = 0
+        
+        # Reset thinking filter for new generation
+        self.thinking_filter.reset()
 
         # Start unified monitoring
         if DEBUG_INFERENCE:
@@ -190,6 +195,10 @@ class InferenceService:
                     if DEBUG_INFERENCE:
                         print(f"[DEBUG InferenceService] First token received! TTFT: {(first_token_time - start_time) * 1000:.1f}ms")
 
+                # Filter thinking tokens
+                raw_token = chunk["choices"][0]["text"]
+                filtered_token, is_thinking = self.thinking_filter.filter_token(raw_token)
+                
                 token_count += 1
 
                 # Calculate metrics
@@ -204,8 +213,13 @@ class InferenceService:
                     current_power = current_metrics["power_watts"] if current_metrics else None
                     last_metrics_check = current_time
 
+                # Get current thinking stats
+                thinking_stats = self.thinking_filter.get_stats()
+                
                 yield {
-                    "token": chunk["choices"][0]["text"],
+                    "token": filtered_token,  # Use filtered token instead of raw
+                    "raw_token": raw_token,  # Include raw token for debugging
+                    "is_thinking": is_thinking,
                     "finish_reason": chunk["choices"][0].get("finish_reason"),
                     "metrics": {
                         "ttft": ttft,
@@ -213,11 +227,34 @@ class InferenceService:
                         "tokens": token_count,
                         "elapsed": elapsed,
                         "current_power_watts": current_power,
+                        "thinking_tokens": thinking_stats["thinking_tokens"],
+                        "regular_tokens": thinking_stats["regular_tokens"],
                     }
                 }
 
                 # Stop monitoring after completion
                 if chunk["choices"][0].get("finish_reason"):
+                    # Flush any remaining buffered content
+                    remaining, was_thinking = self.thinking_filter.flush()
+                    if remaining:
+                        yield {
+                            "token": remaining,
+                            "raw_token": remaining,
+                            "is_thinking": was_thinking,
+                            "finish_reason": None,
+                            "metrics": {
+                                "ttft": ttft,
+                                "tps": tps,
+                                "tokens": token_count,
+                                "elapsed": elapsed,
+                                "current_power_watts": current_power,
+                            }
+                        }
+                    
+                    # Get final thinking stats
+                    final_thinking_stats = self.thinking_filter.get_stats()
+                    thinking_content = self.thinking_filter.get_thinking_content()
+                    
                     energy_summary = self.unified_monitor.stop_monitoring()
                     yield {
                         "token": "",
@@ -225,6 +262,8 @@ class InferenceService:
                         "metrics": {
                             "energy_summary": energy_summary,
                             "energy_per_token_joules": energy_summary["total_energy_joules"] / token_count if token_count > 0 else 0,
+                            "thinking_stats": final_thinking_stats,
+                            "thinking_content": thinking_content if DEBUG_INFERENCE else None,
                         }
                     }
         else:
@@ -350,13 +389,24 @@ class InferenceService:
         metrics = {}
         inter_token_latencies = []
         last_token_time = None
+        thinking_tokens = 0
+        regular_tokens = 0
 
         for chunk in self.generate(messages, stream=True, **kwargs):
             current_time = time.time()
             if last_token_time is not None:
                 inter_token_latencies.append((current_time - last_token_time) * 1000)
             last_token_time = current_time
-            response_text += chunk["token"]
+            
+            # Only add non-thinking tokens to response
+            response_text += chunk["token"]  # Already filtered
+            
+            # Track thinking tokens
+            if chunk.get("is_thinking", False):
+                thinking_tokens += 1
+            else:
+                regular_tokens += 1
+                
             metrics = chunk["metrics"]
 
         # Parse tool calls from response
@@ -365,6 +415,15 @@ class InferenceService:
         # Add inter-token latencies to metrics
         if inter_token_latencies:
             metrics['inter_token_latencies'] = inter_token_latencies
+        
+        # Ensure thinking stats are in metrics
+        if 'thinking_stats' not in metrics:
+            metrics['thinking_stats'] = {
+                "thinking_tokens": thinking_tokens,
+                "regular_tokens": regular_tokens,
+                "total_tokens": thinking_tokens + regular_tokens,
+                "thinking_ratio": thinking_tokens / (thinking_tokens + regular_tokens) if (thinking_tokens + regular_tokens) > 0 else 0
+            }
 
         return response_text, tool_calls, metrics
 

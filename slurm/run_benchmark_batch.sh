@@ -38,7 +38,7 @@ export PROJECT=2013932
 PROJECT_DIR=/projappl/project_$PROJECT/$USER/pocket-agent-cli
 
 # Activate environment
-source $PROJECT_DIR/slurm/setup_environment.sh
+source $PROJECT_DIR/slurm/activate_env.sh
 
 # Set work directory
 cd $PROJECT_DIR

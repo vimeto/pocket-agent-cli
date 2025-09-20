@@ -360,10 +360,15 @@ class BenchmarkService:
                 messages=messages,
                 tools=tools,
             )
+
+            if DEBUG_BENCHMARK:
+                print(f"[DEBUG] Tool submission response: {response}")
+                print(f"[DEBUG] Tool calls: {tool_calls}")
+
             # Extract inter-token latencies from metrics if available
             if 'inter_token_latencies' in metrics:
                 inter_token_latencies = metrics['inter_token_latencies']
-            
+
             # Add thinking stats if not present
             if 'thinking_stats' not in metrics:
                 metrics['thinking_stats'] = {
@@ -540,11 +545,29 @@ class BenchmarkService:
         if tool_calls:
             # Look for submit_python_solution calls first
             for call in tool_calls:
-                if call.get("name") == "submit_python_solution":
-                    params = call.get("parameters", {})
-                    # Check for code parameter
+                # Handle both formats: old (parameters) and native tool calling (function.arguments)
+                tool_name = call.get("name")
+                params = call.get("parameters", {})
+
+                # Check for native tool call format
+                if not tool_name and "function" in call:
+                    func_info = call.get("function", {})
+                    tool_name = func_info.get("name")
+                    # Parse arguments if it's a JSON string
+                    args_str = func_info.get("arguments", "{}")
+                    if isinstance(args_str, str):
+                        import json
+                        try:
+                            params = json.loads(args_str)
+                        except json.JSONDecodeError:
+                            params = {}
+
+                if tool_name == "submit_python_solution":
+                    # Check for code parameter (standard) or solution parameter (what model is using)
                     if "code" in params:
                         return params["code"]
+                    elif "solution" in params:
+                        return params["solution"]
                     # Check for filename parameter
                     elif "filename" in params:
                         # Look for the corresponding upsert_file call
@@ -578,6 +601,10 @@ class BenchmarkService:
                             else:
                                 break
                         return '\n'.join(clean_lines).rstrip()
+
+        # Handle None response
+        if response is None:
+            return ""
 
         # Try to extract code blocks from response
         # Pattern 1: ```python ... ```

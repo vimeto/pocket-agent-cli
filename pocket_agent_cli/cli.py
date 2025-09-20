@@ -4,13 +4,16 @@ import os
 import click
 import asyncio
 import json
+import math
+import random
+from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 from rich.console import Console
 from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, MofNCompleteColumn, TimeElapsedColumn
 from rich.prompt import Prompt, Confirm
-from .config import InferenceConfig, BENCHMARK_MODES, AVAILABLE_TOOLS
+from .config import InferenceConfig, BENCHMARK_MODES, AVAILABLE_TOOLS, RESULTS_DIR
 from .models import ModelService
 from .services import InferenceService
 from .benchmarks import BenchmarkService
@@ -39,13 +42,13 @@ def list_models():
     """List all available models."""
     service = ModelService()
     models = service.list_models()
-    
+
     table = Table(title="Available Models")
     table.add_column("ID", style="cyan")
     table.add_column("Name", style="magenta")
     table.add_column("Versions", style="yellow")
     table.add_column("Downloaded", style="green")
-    
+
     for model in models:
         # Build versions string showing which are downloaded
         versions_info = []
@@ -55,20 +58,20 @@ def list_models():
                 versions_info.append(f"[green]✓ {v_name}[/green] ({size_gb:.1f}GB)")
             else:
                 versions_info.append(f"[dim]✗ {v_name}[/dim] ({size_gb:.1f}GB)")
-        
+
         versions_str = "\n".join(versions_info)
-        
+
         # Overall downloaded status (any version)
         any_downloaded = any(v.downloaded for v in model.versions.values())
         downloaded_str = "[green]Yes[/green]" if any_downloaded else "[red]No[/red]"
-        
+
         table.add_row(
             model.id,
             model.name,
             versions_str,
             downloaded_str
         )
-    
+
     console.print(table)
 
 
@@ -79,7 +82,7 @@ def list_models():
 def download_model(model_id: str, version: Optional[str], token: Optional[str]):
     """Download a model from Hugging Face."""
     service = ModelService()
-    
+
     async def download():
         with Progress(
             SpinnerColumn(),
@@ -90,11 +93,11 @@ def download_model(model_id: str, version: Optional[str], token: Optional[str]):
         ) as progress:
             version_str = f" ({version})" if version else ""
             task = progress.add_task(f"Downloading {model_id}{version_str}...", total=100)
-            
+
             def update_progress(downloaded, total):
                 if total > 0:
                     progress.update(task, completed=downloaded/total * 100)
-            
+
             try:
                 model = await service.download_model(
                     model_id,
@@ -105,7 +108,7 @@ def download_model(model_id: str, version: Optional[str], token: Optional[str]):
                 console.print(f"[green]✓[/green] Model {model.name}{version_str} downloaded successfully!")
             except Exception as e:
                 console.print(f"[red]✗[/red] Failed to download model: {e}")
-    
+
     asyncio.run(download())
 
 
@@ -114,7 +117,7 @@ def download_model(model_id: str, version: Optional[str], token: Optional[str]):
 def delete_model(model_id: str):
     """Delete a downloaded model."""
     service = ModelService()
-    
+
     if Confirm.ask(f"Are you sure you want to delete {model_id}?"):
         if service.delete_model(model_id):
             console.print(f"[green]✓[/green] Model {model_id} deleted.")
@@ -125,17 +128,224 @@ def delete_model(model_id: str):
 @model.command("refresh")
 def refresh_models():
     """Refresh model metadata from config defaults.
-    
+
     Updates the models.json file with any changes from DEFAULT_MODELS in config.py,
     while preserving download status and paths for existing versions.
     """
     service = ModelService()
-    
+
     # The service already does this on init, but we'll make it explicit
     service.refresh_from_defaults()
-    
+
     console.print("[green]✓[/green] Model metadata refreshed from defaults")
     console.print("This command syncs any changes from config.py to your models.json file.")
+
+
+@cli.command("test-prefill")
+@click.option("--model", "-m", required=True, help="Model ID to use")
+@click.option("--model-version", "-v", help="Model version (Q4_K_M, F16, etc)")
+@click.option("--iterations", default=30, show_default=True, help="Iterations per prompt length")
+@click.option("--min-tokens", default=50, show_default=True, help="Minimum prompt length in tokens")
+@click.option("--max-tokens", default=3000, show_default=True, help="Maximum prompt length in tokens")
+@click.option("--step", default=50, show_default=True, help="Token step between prompt lengths")
+@click.option("--output", "-o", help="Optional output path (file or directory)")
+def test_prefill(
+    model: str,
+    model_version: Optional[str],
+    iterations: int,
+    min_tokens: int,
+    max_tokens: int,
+    step: int,
+    output: Optional[str],
+):
+    """Measure prefill latency and system metrics across prompt lengths."""
+
+    def collect_space_tokens(llama, required: int = 50):
+        """Return decoded tokens with and without leading space that remain single tokens."""
+        candidates = []
+        vocab_size = getattr(llama, "n_vocab", None)
+        if callable(vocab_size):
+            vocab_size = vocab_size()
+        if vocab_size is None:
+            vocab_size = 32000  # fallback typical size
+
+        for token_id in range(vocab_size):
+            decoded = llama.detokenize([token_id]).decode("utf-8", errors="ignore")
+            if not decoded or not decoded.startswith(" "):
+                continue
+            stripped = decoded.strip()
+            if not stripped:
+                continue
+            # Must stay single token with and without leading space
+            if len(llama.tokenize(decoded.encode("utf-8"), add_bos=False)) != 1:
+                continue
+            if len(llama.tokenize(stripped.encode("utf-8"), add_bos=False)) != 1:
+                continue
+            candidates.append({
+                "with_space": decoded,
+                "without_space": stripped,
+            })
+            if len(candidates) >= required:
+                break
+
+        if len(candidates) < required:
+            raise RuntimeError(f"Only found {len(candidates)} space-prefixed tokens; need {required}.")
+        return candidates
+
+    def create_prompt(llama, candidates, target_tokens: int, max_attempts: int = 100) -> Tuple[str, int]:
+        """Generate random prompt targeting the desired token count."""
+        best_prompt = None
+        best_diff = math.inf
+        if target_tokens <= 0:
+            return "", 0
+
+        for _ in range(max_attempts):
+            chosen = [random.choice(candidates) for _ in range(target_tokens)]
+            parts = [chosen[0]["without_space"]]
+            parts.extend(tok["with_space"] for tok in chosen[1:])
+            prompt_text = "".join(parts)
+            actual_tokens = len(llama.tokenize(prompt_text.encode("utf-8"), add_bos=False))
+            diff = abs(actual_tokens - target_tokens)
+            if diff < best_diff:
+                best_prompt = (prompt_text, actual_tokens)
+                best_diff = diff
+                if diff == 0:
+                    break
+
+        return best_prompt
+
+    def run_generation(prompt_text: str):
+        messages = [{"role": "user", "content": prompt_text}]
+        first_ttft = None
+        first_tps = None
+        energy_summary = None
+
+        for chunk in inference_service.generate(messages, stream=True, max_tokens=1, temperature=0.0):
+            metrics = chunk.get("metrics", {})
+            if first_ttft is None and metrics.get("ttft") is not None:
+                first_ttft = metrics.get("ttft")
+                first_tps = metrics.get("tps")
+            if chunk.get("finish_reason") == "energy_summary":
+                energy_summary = metrics.get("energy_summary", {})
+
+        if energy_summary is None:
+            energy_summary = inference_service.unified_monitor.get_summary()
+
+        return first_ttft, first_tps, energy_summary
+
+    if iterations <= 0:
+        console.print("[red]Iterations must be positive.[/red]")
+        return
+    if min_tokens <= 0 or max_tokens <= 0 or step <= 0:
+        console.print("[red]Token lengths and step must be positive values.[/red]")
+        return
+    if min_tokens > max_tokens:
+        console.print("[red]min-tokens cannot exceed max-tokens.[/red]")
+        return
+
+    model_service = ModelService()
+    model_obj = model_service.get_model(model, version=model_version)
+    if not model_obj:
+        console.print(f"[red]Error:[/red] Model {model} not found.")
+        return
+    if model_version:
+        if not model_obj.is_downloaded(model_version):
+            console.print(f"[red]Error:[/red] Model {model} version {model_version} not downloaded.")
+            return
+    elif not model_obj.is_downloaded():
+        console.print(f"[red]Error:[/red] Model {model} not downloaded.")
+        return
+
+    inference_config = InferenceConfig(
+        temperature=0.0,
+        max_tokens=1,
+        top_p=1.0,
+        top_k=0,
+        repeat_penalty=1.0,
+        stop_tokens=[],
+    )
+
+    inference_service = InferenceService()
+    try:
+        console.print(f"[green]Loading model[/green] {model_obj.name}...")
+        inference_service.load_model(model_obj, inference_config)
+    except Exception as exc:
+        console.print(f"[red]Failed to load model:[/red] {exc}")
+        return
+
+    llama = inference_service.llama
+    try:
+        candidate_tokens = collect_space_tokens(llama, required=50)
+    except RuntimeError as exc:
+        console.print(f"[red]{exc}[/red]")
+        inference_service.unload_model()
+        return
+
+    console.print(f"Collected {len(candidate_tokens)} stable tokens for prompt synthesis.")
+
+    prompt_lengths = list(range(min_tokens, max_tokens + 1, step))
+
+    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    if output:
+        output_path = Path(output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+    else:
+        output_dir = RESULTS_DIR / "prefill_tests" / model_obj.id
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output_path = output_dir / f"prefill_{model_obj.id}_{timestamp}.json"
+
+    console.print(f"[bold]Prefill benchmark:[/bold] {len(prompt_lengths)} lengths × {iterations} iterations")
+
+    # Warmup runs to stabilize caches
+    WARMUP_RUNS = 5
+    warmup_length = max(prompt_lengths)
+    console.print(f"Performing {WARMUP_RUNS} warmup runs (length {warmup_length} tokens)...")
+    for _ in range(WARMUP_RUNS):
+        prompt_info = create_prompt(llama, candidate_tokens, warmup_length)
+        if prompt_info:
+            prompt_text, _ = prompt_info
+            run_generation(prompt_text)
+
+    results = []
+    try:
+        for length in prompt_lengths:
+            for iteration in range(iterations):
+                prompt_info = create_prompt(llama, candidate_tokens, length)
+                if not prompt_info:
+                    console.print(f"[red]Failed to generate prompt for length {length} tokens.[/red]")
+                    continue
+
+                prompt_text, actual_tokens = prompt_info
+                if actual_tokens != length and iteration == 0:
+                    console.print(f"[yellow]Warning:[/yellow] Requested {length} tokens, generated {actual_tokens} after tokenization.")
+                first_ttft, first_tps, energy_summary = run_generation(prompt_text)
+
+                results.append({
+                    "requested_tokens": length,
+                    "actual_tokens": actual_tokens,
+                    "iteration": iteration,
+                    "ttft_ms": first_ttft,
+                    "tps": first_tps,
+                    "energy_summary": energy_summary,
+                })
+    finally:
+        inference_service.unload_model()
+
+    output_payload = {
+        "model": model_obj.id,
+        "model_version": model_version or model_obj.default_version,
+        "iterations": iterations,
+        "min_tokens": min_tokens,
+        "max_tokens": max_tokens,
+        "step": step,
+        "token_candidates": [tok["without_space"] for tok in candidate_tokens],
+        "results": results,
+    }
+
+    with open(output_path, "w", encoding="utf-8") as f:
+        json.dump(output_payload, f, ensure_ascii=False, indent=2)
+
+    console.print(f"[green]✓[/green] Prefill benchmark complete. Results saved to {output_path}")
 
 
 @cli.command("chat")
@@ -150,19 +360,19 @@ def chat(model: str, tools: bool, temperature: float, max_tokens: int, message: 
     model_service = ModelService()
     inference_service = InferenceService()
     tool_executor = ToolExecutor(use_docker=True) if tools else None
-    
+
     # Load model
     model_obj = model_service.get_model(model)
     if not model_obj or not model_obj.downloaded:
         console.print(f"[red]Error:[/red] Model {model} not found or not downloaded.")
         console.print("Use 'pocket-agent model list' to see available models.")
         return
-    
+
     config = InferenceConfig(
         temperature=temperature,
         max_tokens=max_tokens,
     )
-    
+
     try:
         console.print(f"Loading model {model_obj.name}...")
         inference_service.load_model(model_obj, config)
@@ -170,10 +380,10 @@ def chat(model: str, tools: bool, temperature: float, max_tokens: int, message: 
     except Exception as e:
         console.print(f"[red]Failed to load model:[/red] {e}")
         return
-    
+
     # Chat loop
     messages = []
-    
+
     # Add system message for tools mode
     if tools:
         # Different system messages for different architectures
@@ -197,37 +407,37 @@ When you need to:
 Always use tools when appropriate instead of just showing code examples.
 When using run_python_code, make sure your code is complete and will produce output."""
         messages.append({"role": "system", "content": system_message})
-    
+
     # Handle single message mode
     if message:
         messages.append({"role": "user", "content": message})
     else:
         console.print("\n[bold]Chat mode[/bold] (type 'exit' to quit, 'clear' to reset)")
         console.print("─" * console.width)
-    
+
     while True:
         # Get user input
         if not message:
             user_input = Prompt.ask("\n[bold blue]You[/bold blue]")
-            
+
             if user_input.lower() == "exit":
                 break
             elif user_input.lower() == "clear":
                 messages = []
                 console.print("[dim]Conversation cleared[/dim]")
                 continue
-            
+
             # Add user message
             messages.append({"role": "user", "content": user_input})
-        
+
         # Generate response
         console.print("\n[bold green]Assistant[/bold green]", end="")
-        
+
         if tools:
             # With tools - agentic loop
             max_iterations = 5  # Maximum tool iterations
             iteration = 0
-            
+
             while iteration < max_iterations:
                 # Stream response with tool support
                 response = ""
@@ -235,7 +445,7 @@ When using run_python_code, make sure your code is complete and will produce out
                     console.print(": ", end="")
                 else:
                     console.print(f"\n[bold green]Assistant[/bold green]: ", end="")
-                
+
                 # Stream and collect response
                 metrics = {}
                 for chunk in inference_service.generate(messages, stream=True, tools=AVAILABLE_TOOLS):
@@ -243,33 +453,33 @@ When using run_python_code, make sure your code is complete and will produce out
                     response += token
                     console.print(token, end="")
                     metrics = chunk["metrics"]
-                
+
                 console.print()  # New line after response
-                
+
                 # Parse tool calls from the complete response
                 tool_calls = inference_service._parse_tool_calls(response)
-                
+
                 # Debug: Show what we tried to parse if no tools found
                 if not tool_calls and response.strip():
                     console.print(f"\n[dim yellow]No tool calls detected in response.[/dim yellow]")
-                
+
                 # Add assistant message
                 messages.append({"role": "assistant", "content": response})
-                
+
                 # If no tool calls, we're done
                 if not tool_calls:
                     break
-                
+
                 # Execute tools
                 console.print("\n[dim]Executing tools:[/dim]")
                 tool_results = asyncio.run(tool_executor.execute_tools(tool_calls))
-                
+
                 # Display tool results
                 for call, result in zip(tool_calls, tool_results):
                     console.print(f"\n[bold cyan]Tool: {call['name']}[/bold cyan]")
                     params_str = json.dumps(call.get('parameters', {}), indent=2)
                     console.print(f"[dim]Parameters:[/dim]\n{params_str}")
-                    
+
                     if result.get("success"):
                         output = result.get("output", "")
                         # Truncate very long outputs
@@ -278,7 +488,7 @@ When using run_python_code, make sure your code is complete and will produce out
                         console.print(f"[dim]Result:[/dim]\n{output}")
                     else:
                         console.print(f"[red]Error:[/red] {result.get('error', 'Unknown error')}")
-                
+
                 # Add tool results to messages for next iteration
                 tool_message = "Tool execution results:\n"
                 for call, result in zip(tool_calls, tool_results):
@@ -287,17 +497,17 @@ When using run_python_code, make sure your code is complete and will produce out
                         tool_message += result.get("output", "No output")
                     else:
                         tool_message += f"Error: {result.get('error', 'Unknown error')}"
-                
+
                 messages.append({"role": "user", "content": tool_message})
                 iteration += 1
-            
+
             # Don't double-add the response, it's already added in the loop
             response = messages[-2]["content"] if messages[-2]["role"] == "assistant" else response
         else:
             # Without tools
             response = ""
             console.print(": ", end="")
-            
+
             # Stream response
             metrics = {}
             for chunk in inference_service.generate(messages, stream=True):
@@ -305,20 +515,20 @@ When using run_python_code, make sure your code is complete and will produce out
                 response += token
                 console.print(token, end="")
                 metrics = chunk["metrics"]
-            
+
             console.print()  # New line after response
-            
+
             # Show metrics
             if metrics.get("ttft"):
                 console.print(f"\n[dim]TTFT: {metrics['ttft']:.0f}ms, TPS: {metrics['tps']:.1f}[/dim]")
-            
+
             # Add assistant message (only for non-tools mode, tools mode adds it in the loop)
             messages.append({"role": "assistant", "content": response})
-        
+
         # Exit if single message mode
         if message:
             break
-    
+
     # Cleanup
     inference_service.unload_model()
     if tool_executor:
@@ -335,19 +545,21 @@ When using run_python_code, make sure your code is complete and will produce out
 @click.option("--problems-limit", "-l", type=int, help="Number of problems to run")
 @click.option("--num-samples", "-n", type=int, default=10, help="Number of samples per problem for pass@k")
 @click.option("--temperature", "-t", type=float, default=0.7, help="Temperature for sampling")
+@click.option("--context-length", "-c", type=int, default=4096, help="Context length for model (default: 4096)")
 @click.option("--output-dir", "-o", help="Output directory for results")
 @click.option("--no-monitoring", is_flag=True, help="Disable system monitoring")
 @click.option("--parallel", type=int, default=1, help="Number of parallel runs")
 @click.option("--line-profiler", is_flag=True, help="Enable line profiling")
 @click.option("--exhaustive-passes", is_flag=True, help="Run all samples even if problem already passes")
 def benchmark(
-    model: str, 
+    model: str,
     model_version: Optional[str],
-    mode: str, 
-    problems: Optional[str], 
+    mode: str,
+    problems: Optional[str],
     problems_limit: Optional[int],
     num_samples: int,
     temperature: float,
+    context_length: int,
     output_dir: Optional[str],
     no_monitoring: bool,
     parallel: int,
@@ -357,16 +569,16 @@ def benchmark(
     """Run enhanced benchmark evaluation with pass@k support."""
     from .benchmarks.benchmark_coordinator import BenchmarkCoordinator
     from .config import BenchmarkConfig, RESULTS_DIR
-    
+
     # Check if we need to restart with profiler
     if line_profiler and '__wrapped_by_profiler__' not in os.environ:
         # Re-run the command with kernprof
         import sys
         from .utils.profiling import run_with_profiler
-        
+
         # Mark that we're wrapped to avoid infinite recursion
         os.environ['__wrapped_by_profiler__'] = '1'
-        
+
         # Build args without --line-profiler flag
         args = ['benchmark']
         args.extend(['--model', model])
@@ -377,15 +589,16 @@ def benchmark(
             args.extend(['--problems-limit', str(problems_limit)])
         args.extend(['--num-samples', str(num_samples)])
         args.extend(['--temperature', str(temperature)])
+        args.extend(['--context-length', str(context_length)])
         if output_dir:
             args.extend(['--output-dir', output_dir])
         if no_monitoring:
             args.append('--no-monitoring')
         args.extend(['--parallel', str(parallel)])
-        
+
         # Run with profiler
         sys.exit(run_with_profiler(args))
-    
+
     # Parse problem IDs
     problem_ids = None
     if problems:
@@ -394,10 +607,10 @@ def benchmark(
         except ValueError:
             console.print("[red]Error:[/red] Invalid problem IDs format")
             return
-    
+
     # Create benchmark configuration
     output_path = Path(output_dir) if output_dir else RESULTS_DIR / "benchmarks"
-    
+
     benchmark_config = BenchmarkConfig(
         model_name=model,
         model_version=model_version,
@@ -406,6 +619,7 @@ def benchmark(
         problems_limit=problems_limit,
         num_samples=num_samples,
         temperature=temperature,
+        context_length=context_length,
         enable_tools=True,
         system_monitoring=not no_monitoring,
         output_dir=output_path,
@@ -414,7 +628,7 @@ def benchmark(
         parallel_runs=parallel,
         exhaustive_passes=exhaustive_passes
     )
-    
+
     # Validate models if not "all"
     if model != "all":
         model_service = ModelService()
@@ -428,16 +642,16 @@ def benchmark(
         elif not model_version and not model_obj.is_downloaded():
             console.print(f"[red]Error:[/red] Model {model} not downloaded.")
             return
-    
+
     # Validate mode if not "all"
     if mode != "all" and mode not in BENCHMARK_MODES:
         console.print(f"[red]Error:[/red] Invalid mode: {mode}")
         console.print(f"Available modes: {', '.join(BENCHMARK_MODES.keys())}")
         return
-    
+
     # Create benchmark coordinator
     coordinator = BenchmarkCoordinator(benchmark_config)
-    
+
     async def run():
         with Progress(
             SpinnerColumn(),
@@ -448,18 +662,18 @@ def benchmark(
             console=console,
         ) as progress:
             overall_task = progress.add_task("Running benchmarks...", total=None)
-            
+
             def update_progress(desc):
                 progress.update(overall_task, description=desc)
-            
+
             sessions = await coordinator.run_all_benchmarks(
                 progress_callback=update_progress
             )
-            
+
             progress.update(overall_task, description="Benchmarks complete!")
-        
+
         return sessions
-    
+
     # Display configuration
     console.print(f"\n[bold]Benchmark Configuration[/bold]")
     console.print("─" * console.width)
@@ -469,20 +683,20 @@ def benchmark(
     console.print(f"  Temperature: {temperature}")
     console.print(f"  Output directory: {output_path}")
     console.print(f"  System monitoring: {'Enabled' if not no_monitoring else 'Disabled'}")
-    
+
     # Run benchmarks
     sessions = asyncio.run(run())
-    
+
     # Display summary results
     console.print(f"\n[bold]Summary Results[/bold]")
     console.print("─" * console.width)
-    
+
     for session in sessions:
         console.print(f"\n[bold]{session.model_id} - {session.mode}[/bold]")
         if session.aggregate_stats:
             stats = session.aggregate_stats
             console.print(f"  Problems: {stats['total_problems']}")
-            
+
             # Display pass@k if available
             if 'pass_at_k' in stats:
                 pass_k = stats['pass_at_k']
@@ -496,13 +710,13 @@ def benchmark(
             else:
                 # Fallback to simple pass rate
                 console.print(f"  Pass rate: {stats.get('pass_rate', 0):.1%}")
-            
+
             # Performance metrics
             if 'ttft' in stats and stats['ttft']:
                 console.print(f"  Avg TTFT: {stats['ttft']['avg_ms']:.0f}ms")
             if 'tps' in stats and stats['tps']:
                 console.print(f"  Avg TPS: {stats['tps']['avg']:.1f}")
-            
+
             # System metrics if available
             if 'system_metrics' in stats:
                 sys_metrics = stats['system_metrics']
@@ -510,7 +724,7 @@ def benchmark(
                     console.print(f"  Avg CPU Temp: {sys_metrics['cpu_temperature_avg']:.1f}°C")
                 if sys_metrics.get('gpu_temperature_avg') is not None:
                     console.print(f"  Avg GPU Temp: {sys_metrics['gpu_temperature_avg']:.1f}°C")
-    
+
     console.print(f"\n[green]✓[/green] Results saved to {output_path}")
 
 
@@ -519,15 +733,15 @@ def info():
     """Show system information."""
     monitor = SystemMonitor()
     metrics = monitor.get_current_metrics()
-    
+
     console.print("[bold]System Information[/bold]")
     console.print("─" * console.width)
     console.print(f"CPU Usage: {metrics.cpu_percent:.1f}%")
     console.print(f"Memory: {metrics.memory_used_mb:.0f}MB / {metrics.memory_used_mb + metrics.memory_available_mb:.0f}MB ({metrics.memory_percent:.1f}%)")
-    
+
     if metrics.temperature:
         console.print(f"Temperature: {metrics.temperature:.1f}°C")
-    
+
     if metrics.power_consumption_ma:
         console.print(f"Power: {metrics.power_consumption_ma:.0f}mA")
 

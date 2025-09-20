@@ -18,6 +18,7 @@ TOTAL_PROBLEMS=${4:-509}
 BATCH_SIZE=${5:-10}
 NUM_SAMPLES=${6:-10}
 MODEL_VERSION=${7:-"Q4_K_M"}  # Q4_K_M, F16, BF16, etc.
+CONTEXT_LENGTH=${8:-8192}  # Context length for model (default: 8192)
 
 echo "================================="
 echo "Pocket Agent Benchmark Job"
@@ -28,6 +29,7 @@ echo "Start time: $(date)"
 echo "Model: $MODEL_NAME"
 echo "Model Version: $MODEL_VERSION"
 echo "Mode: $MODE"
+echo "Context Length: $CONTEXT_LENGTH"
 echo "Problems: $START_INDEX to $((START_INDEX + TOTAL_PROBLEMS - 1))"
 echo "Batch size: $BATCH_SIZE"
 echo "Samples per problem: $NUM_SAMPLES"
@@ -110,6 +112,7 @@ run_benchmark_batch() {
         --model "$MODEL_NAME" \
         --model-version "$MODEL_VERSION" \
         --mode "$mode" \
+        --context-length "$CONTEXT_LENGTH" \
         --problems "$problem_ids" \
         --num-samples "$NUM_SAMPLES" \
         --output-dir "$output_dir"; then

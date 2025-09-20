@@ -70,7 +70,7 @@ class InferenceService:
             "model_path": str(model.path),
             "use_mmap": True,
             "verbose": False,
-            "n_ctx": 4096,  # Increased from 2048 to handle full_tool mode
+            "n_ctx": config.context_length if config else 4096,  # Use configurable context length
             "n_gpu_layers": -1 if cuda_available or platform.system() == "Darwin" else 0,
             "flash_attn": True,
             "n_threads": n_threads,

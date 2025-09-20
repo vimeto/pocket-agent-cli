@@ -117,6 +117,7 @@ class BenchmarkCoordinator:
             num_samples=self.config.num_samples,
             temperature=self.config.temperature,
             max_tokens=self.config.max_tokens,
+            context_length=self.config.context_length,
             enable_tools=self.config.enable_tools,
             system_monitoring=self.config.system_monitoring,
             output_dir=self.config.output_dir,
@@ -129,6 +130,7 @@ class BenchmarkCoordinator:
         inference_config = InferenceConfig(
             temperature=run_config.temperature,
             max_tokens=run_config.max_tokens,
+            context_length=run_config.context_length,
         )
         inference_service.load_model(model, inference_config)
 

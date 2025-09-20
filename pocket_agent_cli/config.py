@@ -220,6 +220,7 @@ class BenchmarkConfig(BaseModel):
     num_samples: int = Field(default=10, description="Number of samples per problem for pass@k")
     temperature: float = Field(default=0.7, ge=0.0, le=2.0)
     max_tokens: int = Field(default=2048, ge=1, le=8192)
+    context_length: int = Field(default=4096, ge=512, le=131072, description="Context length for model")
     enable_tools: bool = Field(default=True)
     system_monitoring: bool = Field(default=True)
     output_dir: Path = Field(default=RESULTS_DIR / "benchmarks")

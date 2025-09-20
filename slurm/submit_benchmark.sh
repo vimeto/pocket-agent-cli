@@ -9,6 +9,7 @@ TOTAL=509
 BATCH=10
 SAMPLES=10
 VERSION="Q4_K_M"
+CONTEXT=8192
 TIME="24:00:00"
 PARTITION="gpusmall"
 
@@ -43,6 +44,10 @@ while [[ $# -gt 0 ]]; do
             VERSION="$2"
             shift 2
             ;;
+        --context)
+            CONTEXT="$2"
+            shift 2
+            ;;
         --time)
             TIME="$2"
             shift 2
@@ -62,6 +67,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --batch SIZE        Batch size (default: 10)"
             echo "  --samples NUM       Number of samples per problem (default: 10)"
             echo "  --version VERSION   Model version: Q4_K_M, F16, BF16, etc. (default: Q4_K_M)"
+            echo "  --context LENGTH    Context length for model (default: 8192)"
             echo "  --time TIME         Wall time limit (default: 24:00:00)"
             echo "  --partition PART    SLURM partition (default: gpusmall)"
             echo ""
@@ -110,6 +116,7 @@ echo "================================="
 echo "Model: $MODEL"
 echo "Version: $VERSION"
 echo "Mode: $MODE"
+echo "Context Length: $CONTEXT"
 echo "Problems: $START to $((START + TOTAL - 1))"
 echo "Batch size: $BATCH"
 echo "Samples: $SAMPLES"
@@ -132,8 +139,8 @@ cat > "$TEMP_SCRIPT" << EOF
 #SBATCH --output=$LOGS_DIR/benchmark_%j.out
 #SBATCH --error=$LOGS_DIR/benchmark_%j.err
 
-# Run the benchmark script with parameters (including version)
-bash /projappl/project_2013932/\$USER/pocket-agent-cli/slurm/run_benchmark_batch.sh "$MODEL" "$MODE" "$START" "$TOTAL" "$BATCH" "$SAMPLES" "$VERSION"
+# Run the benchmark script with parameters (including version and context)
+bash /projappl/project_2013932/\$USER/pocket-agent-cli/slurm/run_benchmark_batch.sh "$MODEL" "$MODE" "$START" "$TOTAL" "$BATCH" "$SAMPLES" "$VERSION" "$CONTEXT"
 EOF
 
 # Submit the job

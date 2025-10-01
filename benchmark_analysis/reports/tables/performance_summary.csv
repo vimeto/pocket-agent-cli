@@ -1,0 +1,6 @@
+model,success_count,success_mean,duration_seconds_mean,duration_seconds_median,duration_seconds_std,test_pass_rate_mean,total_tokens_mean
+deepseek-r1-distill-qwen-1.5b,4490,0.103,17.876,18.054,3.314,0.121,
+gemma-3n-e2b-it,21652,0.147,4.15,4.053,7.006,0.283,
+llama-3.2-3b-instruct,11458,0.137,3.641,2.055,6.288,0.244,
+qwen-3-0.6b,8470,0.096,20.556,16.055,20.134,0.118,
+qwen-3-4b,9536,0.172,30.458,22.056,27.813,0.184,

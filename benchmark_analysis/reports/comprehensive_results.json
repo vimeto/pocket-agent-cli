@@ -1,0 +1,71 @@
+{
+  "quantization": {},
+  "thinking": {},
+  "token_latency": {},
+  "environmental": {
+    "energy_rankings": [
+      {
+        "model": "llama-3.2-3b-instruct",
+        "energy_per_success": 52.217895408163265,
+        "total_energy_kwh": 0.022743794444444444,
+        "co2_kg": 0.01080330236111111,
+        "success_rate": 14.000000000000002
+      },
+      {
+        "model": "gemma-3n-e2b-it",
+        "energy_per_success": 124.07751889168766,
+        "total_energy_kwh": 0.10946394444444445,
+        "co2_kg": 0.05199537361111111,
+        "success_rate": 15.0
+      },
+      {
+        "model": "qwen-3-0.6b",
+        "energy_per_success": 1219.0448645320198,
+        "total_energy_kwh": 0.27496234166666667,
+        "co2_kg": 0.13060711229166666,
+        "success_rate": 10.0
+      },
+      {
+        "model": "qwen-3-4b",
+        "energy_per_success": 1253.5926338199513,
+        "total_energy_kwh": 0.5724739694444445,
+        "co2_kg": 0.27192513548611114,
+        "success_rate": 17.0
+      },
+      {
+        "model": "deepseek-r1-distill-qwen-1.5b",
+        "energy_per_success": 1656.5915584415586,
+        "total_energy_kwh": 0.2125959166666667,
+        "co2_kg": 0.10098306041666667,
+        "success_rate": 10.0
+      }
+    ],
+    "co2_emissions": {
+      "total_kg": 0.5663139841666667,
+      "by_model": [
+        {
+          "model": "llama-3.2-3b-instruct",
+          "co2_kg": 0.01080330236111111
+        },
+        {
+          "model": "gemma-3n-e2b-it",
+          "co2_kg": 0.05199537361111111
+        },
+        {
+          "model": "qwen-3-0.6b",
+          "co2_kg": 0.13060711229166666
+        },
+        {
+          "model": "qwen-3-4b",
+          "co2_kg": 0.27192513548611114
+        },
+        {
+          "model": "deepseek-r1-distill-qwen-1.5b",
+          "co2_kg": 0.10098306041666667
+        }
+      ]
+    },
+    "optimal_configs": {
+      "Minimum Energy": {
+        "energy_joules": {
+          

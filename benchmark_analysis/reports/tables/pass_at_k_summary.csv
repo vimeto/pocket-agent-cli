@@ -1,0 +1,5 @@
+k,overall_pass_rate,gemma-3n-e2b-it_all_pass_rate,gemma-3n-e2b-it_base_pass_rate,gemma-3n-e2b-it_full_tool_pass_rate,gemma-3n-e2b-it_tool_submission_pass_rate,deepseek-r1-distill-qwen-1.5b_all_pass_rate,deepseek-r1-distill-qwen-1.5b_base_pass_rate,llama-3.2-3b-instruct_all_pass_rate,llama-3.2-3b-instruct_base_pass_rate,llama-3.2-3b-instruct_full_tool_pass_rate,llama-3.2-3b-instruct_tool_submission_pass_rate,qwen-3-0.6b_all_pass_rate,qwen-3-0.6b_base_pass_rate,qwen-3-0.6b_full_tool_pass_rate,qwen-3-0.6b_tool_submission_pass_rate,qwen-3-4b_all_pass_rate,qwen-3-4b_base_pass_rate,qwen-3-4b_full_tool_pass_rate,qwen-3-4b_tool_submission_pass_rate
+1,47.8%,58.1%,56.9%,48.0%,53.0%,42.7%,33.3%,52.3%,48.0%,34.7%,48.7%,38.7%,29.3%,39.3%,24.7%,62.5%,35.6%,73.1%,50.0%
+3,56.5%,64.1%,63.2%,53.7%,62.6%,52.7%,43.7%,59.3%,57.0%,51.3%,58.7%,44.0%,38.7%,49.3%,34.0%,67.5%,50.0%,78.5%,61.3%
+5,59.1%,64.9%,64.9%,56.8%,63.7%,55.0%,50.3%,60.3%,59.0%,56.0%,61.3%,47.3%,43.3%,53.6%,38.7%,68.8%,50.6%,82.3%,65.6%
+10,62.1%,65.9%,67.3%,59.5%,66.9%,57.0%,57.0%,62.0%,63.0%,60.0%,65.7%,47.3%,44.7%,59.3%,45.3%,70.6%,55.6%,84.6%,67.5%

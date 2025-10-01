@@ -746,16 +746,141 @@ def info():
         console.print(f"Power: {metrics.power_consumption_ma:.0f}mA")
 
 
+@cli.group()
+def dataset():
+    """Dataset management commands."""
+    pass
+
+
+@dataset.command("list")
+def list_datasets():
+    """List all available benchmark datasets."""
+    from .datasets import DatasetRegistry
+    from .config import DATA_DIR
+
+    table = Table(title="Available Datasets")
+    table.add_column("Name", style="cyan")
+    table.add_column("Description", style="white")
+    table.add_column("Problems", style="yellow")
+    table.add_column("Downloaded", style="green")
+
+    # Check package data dir first
+    pkg_data = Path(__file__).parent / "data"
+    data_dir = pkg_data if pkg_data.exists() else DATA_DIR
+
+    for name, description in DatasetRegistry.list_datasets().items():
+        try:
+            ds = DatasetRegistry.create(name, data_dir)
+            downloaded = ds.is_downloaded()
+            problem_count = str(ds.problem_count)
+            downloaded_str = "[green]Yes[/green]" if downloaded else "[red]No[/red]"
+        except Exception:
+            problem_count = "?"
+            downloaded_str = "[red]No[/red]"
+
+        table.add_row(name, description, problem_count, downloaded_str)
+
+    console.print(table)
+    console.print(f"\n[dim]Data directory: {data_dir}[/dim]")
+
+
+@dataset.command("download")
+@click.argument("dataset_name")
+def download_dataset_cmd(dataset_name: str):
+    """Download a benchmark dataset."""
+    from .datasets import DatasetRegistry
+    from .config import DATA_DIR
+
+    # Check package data dir first
+    pkg_data = Path(__file__).parent / "data"
+    data_dir = pkg_data if pkg_data.exists() else DATA_DIR
+
+    if not DatasetRegistry.is_registered(dataset_name):
+        console.print(f"[red]Error:[/red] Unknown dataset: {dataset_name}")
+        console.print(f"Available datasets: {', '.join(DatasetRegistry.list_names())}")
+        return
+
+    try:
+        ds = DatasetRegistry.create(dataset_name, data_dir)
+        console.print(f"[bold]Downloading {ds.name} dataset...[/bold]")
+        console.print(f"Description: {ds.description}")
+        console.print(f"URL: {ds.url}")
+
+        if ds.download():
+            console.print(f"[green]✓[/green] Downloaded {ds.problem_count} problems to {data_dir}")
+        else:
+            console.print("[red]✗[/red] Download failed")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+
+
+@dataset.command("info")
+@click.argument("dataset_name")
+def dataset_info(dataset_name: str):
+    """Show detailed information about a dataset."""
+    from .datasets import DatasetRegistry
+    from .config import DATA_DIR
+
+    # Check package data dir first
+    pkg_data = Path(__file__).parent / "data"
+    data_dir = pkg_data if pkg_data.exists() else DATA_DIR
+
+    if not DatasetRegistry.is_registered(dataset_name):
+        console.print(f"[red]Error:[/red] Unknown dataset: {dataset_name}")
+        console.print(f"Available datasets: {', '.join(DatasetRegistry.list_names())}")
+        return
+
+    try:
+        ds = DatasetRegistry.create(dataset_name, data_dir)
+
+        console.print(f"\n[bold]{ds.name}[/bold]")
+        console.print("─" * console.width)
+        console.print(f"Description: {ds.description}")
+        console.print(f"URL: {ds.url}")
+        console.print(f"Total problems: {ds.problem_count}")
+        console.print(f"Available splits: {', '.join(ds.available_splits)}")
+        console.print(f"Downloaded: {'Yes' if ds.is_downloaded() else 'No'}")
+        console.print(f"Data directory: {data_dir}")
+
+        if ds.is_downloaded():
+            # Show sample problems
+            console.print(f"\n[bold]Sample Problems:[/bold]")
+            try:
+                sample = ds.get_sample(n=3)
+                for i, problem in enumerate(sample[:3], 1):
+                    prompt_preview = problem.prompt[:80] + "..." if len(problem.prompt) > 80 else problem.prompt
+                    console.print(f"  {i}. [{problem.task_id}] {prompt_preview}")
+            except Exception as e:
+                console.print(f"  [dim]Could not load sample: {e}[/dim]")
+
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+
+
+# Keep legacy command for backward compatibility
 @cli.command("download-dataset")
-@click.option("--dataset", type=click.Choice(["mbpp"]), default="mbpp", help="Dataset to download")
-def download_dataset(dataset: str):
-    """Download benchmark datasets."""
-    if dataset == "mbpp":
-        from .data.download_mbpp import main as download_mbpp
-        console.print("[bold]Downloading MBPP dataset...[/bold]")
-        download_mbpp()
-    else:
-        console.print(f"[red]Unknown dataset: {dataset}[/red]")
+@click.option("--dataset", type=click.Choice(["mbpp", "humaneval"]), default="mbpp", help="Dataset to download")
+def download_dataset_legacy(dataset: str):
+    """Download benchmark datasets (legacy command - use 'dataset download' instead)."""
+    from .datasets import DatasetRegistry
+    from .config import DATA_DIR
+
+    # Check package data dir first
+    pkg_data = Path(__file__).parent / "data"
+    data_dir = pkg_data if pkg_data.exists() else DATA_DIR
+
+    console.print("[dim]Note: This command is deprecated. Use 'pocket-agent dataset download' instead.[/dim]\n")
+
+    try:
+        ds = DatasetRegistry.create(dataset, data_dir)
+        console.print(f"[bold]Downloading {ds.name} dataset...[/bold]")
+
+        if ds.download():
+            console.print(f"[green]✓[/green] Downloaded successfully!")
+        else:
+            console.print("[red]✗[/red] Download failed")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
 
 
 def main():

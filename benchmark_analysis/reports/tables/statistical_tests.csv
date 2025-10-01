@@ -1,0 +1,20 @@
+comparison,metric,test,p_value,significant
+gemma-3n-e2b-it vs qwen-3-4b,success_rate,chi-square,2.248150795439144e-06,True
+gemma-3n-e2b-it vs llama-3.2-3b-instruct,success_rate,chi-square,5.610543365808837e-05,True
+gemma-3n-e2b-it vs deepseek-r1-distill-qwen-1.5b,success_rate,chi-square,0.649666612970144,False
+gemma-3n-e2b-it vs qwen-3-0.6b,success_rate,chi-square,0.8111612804965904,False
+qwen-3-4b vs llama-3.2-3b-instruct,success_rate,chi-square,1.0,False
+qwen-3-4b vs deepseek-r1-distill-qwen-1.5b,success_rate,chi-square,1.0,False
+qwen-3-4b vs qwen-3-0.6b,success_rate,chi-square,1.0,False
+llama-3.2-3b-instruct vs deepseek-r1-distill-qwen-1.5b,success_rate,chi-square,1.0,False
+llama-3.2-3b-instruct vs qwen-3-0.6b,success_rate,chi-square,1.0,False
+gemma-3n-e2b-it vs qwen-3-4b,duration,mann-whitney-u,0.0,True
+gemma-3n-e2b-it vs llama-3.2-3b-instruct,duration,mann-whitney-u,0.0,True
+gemma-3n-e2b-it vs deepseek-r1-distill-qwen-1.5b,duration,mann-whitney-u,0.0,True
+gemma-3n-e2b-it vs qwen-3-0.6b,duration,mann-whitney-u,0.0,True
+qwen-3-4b vs llama-3.2-3b-instruct,duration,mann-whitney-u,0.0,True
+qwen-3-4b vs deepseek-r1-distill-qwen-1.5b,duration,mann-whitney-u,0.0,True
+qwen-3-4b vs qwen-3-0.6b,duration,mann-whitney-u,0.0,True
+llama-3.2-3b-instruct vs deepseek-r1-distill-qwen-1.5b,duration,mann-whitney-u,0.0,True
+llama-3.2-3b-instruct vs qwen-3-0.6b,duration,mann-whitney-u,0.0,True
+deepseek-r1-distill-qwen-1.5b vs qwen-3-0.6b,duration,mann-whitney-u,0.0,True

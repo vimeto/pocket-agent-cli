@@ -1,0 +1,42 @@
+{
+  "deepseek-r1-distill-qwen-1.5b": {
+    "name": "DeepSeek R1 (1.5B)",
+    "avg_tokens": 1963.916258351893,
+    "avg_duration": 17.875928269933183,
+    "avg_tps": 236.44085976308546,
+    "success_rate": 10.289532293986637,
+    "is_thinking": true
+  },
+  "qwen-3-4b": {
+    "name": "Qwen 4B",
+    "avg_tokens": 1868.5532718120805,
+    "avg_duration": 30.458159150167784,
+    "avg_tps": 91.54566019239257,
+    "success_rate": 17.23993288590604,
+    "is_thinking": true
+  },
+  "qwen-3-0.6b": {
+    "name": "Qwen 0.6B",
+    "avg_tokens": 1671.1386068476977,
+    "avg_duration": 20.555894332467535,
+    "avg_tps": 136.8873655572764,
+    "success_rate": 9.586776859504132,
+    "is_thinking": true
+  },
+  "gemma-3n-e2b-it": {
+    "name": "Gemma 3n (2.7B)",
+    "avg_tokens": 150.98032514317384,
+    "avg_duration": 4.14971559264733,
+    "avg_tps": 60.240219200917,
+    "success_rate": 14.668390910770368,
+    "is_thinking": false
+  },
+  "llama-3.2-3b-instruct": {
+    "name": "Llama 3.2 (3B)",
+    "avg_tokens": 133.63658579158667,
+    "avg_duration": 3.6405670281026357,
+    "avg_tps": 136.98182037932946,
+    "success_rate": 13.684761738523301,
+    "is_thinking": false
+  }
+}

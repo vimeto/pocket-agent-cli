@@ -1,0 +1,133 @@
+# Deep Benchmark Analysis Report
+
+
+============================================================
+TPS (Tokens Per Second) Analysis
+============================================================
+
+### Overall TPS Statistics
+Mean TPS: 97.9 tokens/sec
+Median TPS: 95.1 tokens/sec
+P95 TPS: 150.8 tokens/sec
+
+### TPS by Model (median values)
+  llama-3.2-3b-instruct                   :  145.3 (± 16.7) tokens/sec
+  qwen-3-0.6b                             :  134.4 (±  9.7) tokens/sec
+  deepseek-r1-distill-qwen-1.5b           :  123.3 (±  9.4) tokens/sec
+  qwen-3-4b                               :   94.8 (±  9.5) tokens/sec
+  gemma-3n-e2b-it                         :   59.8 (±  1.8) tokens/sec
+
+### TPS by Quantization Level
+
+============================================================
+TTFT (Time To First Token) Analysis
+============================================================
+
+### TTFT Statistics (excluding zeros)
+Responses with TTFT > 0: 55606 out of 55606 (100.0%)
+Mean TTFT: 0.30 ms
+Median TTFT: 0.01 ms
+P95 TTFT: 0.02 ms
+
+### TTFT by Model (median, excluding zeros)
+  deepseek-r1-distill-qwen-1.5b           :     0.01 ms (n=4490)
+  gemma-3n-e2b-it                         :     0.01 ms (n=21652)
+  llama-3.2-3b-instruct                   :     0.01 ms (n=11458)
+  qwen-3-0.6b                             :     0.01 ms (n=8470)
+  qwen-3-4b                               :     0.01 ms (n=9536)
+
+============================================================
+Tool Call Analysis
+============================================================
+
+### Tool Call Usage
+Problems with tool calls: 39068 out of 55606 (70.3%)
+Average tool calls when used: 1.0
+Max tool calls in a single problem: 2
+
+### Tool Call Timing
+Average tool call duration: 1278.6 ms
+Median tool call duration: 1332.8 ms
+Total tool time per problem: 1278.7 ms
+
+### Success Rate Impact
+Success rate WITH tool calls: 14.7%
+Success rate WITHOUT tool calls: 11.6%
+
+### Tool Usage by Mode
+  tool_submission     : 69.5% of problems use tools
+  all                 : 70.3% of problems use tools
+  base                : 70.0% of problems use tools
+  full_tool           : 71.7% of problems use tools
+
+============================================================
+Energy Consumption Analysis
+============================================================
+
+### Energy per Problem Solve
+  llama-3.2-3b-instruct                   :     7.15 J (median: 3.31 J)
+  gemma-3n-e2b-it                         :    18.20 J (median: 23.30 J)
+  qwen-3-0.6b                             :   116.87 J (median: 145.01 J)
+  deepseek-r1-distill-qwen-1.5b           :   170.46 J (median: 175.14 J)
+  qwen-3-4b                               :   216.12 J (median: 214.42 J)
+
+### Energy Efficiency (Joules per Token)
+  llama-3.2-3b-instruct                   :   0.0652 J/token
+  qwen-3-0.6b                             :   0.0709 J/token
+  deepseek-r1-distill-qwen-1.5b           :   0.0870 J/token
+  gemma-3n-e2b-it                         :   0.1011 J/token
+  qwen-3-4b                               :   0.1164 J/token
+
+### Energy Comparison: Q4 vs F16
+
+============================================================
+CPU and GPU Usage Analysis
+============================================================
+
+### Average Resource Usage (from problem data)
+
+Cpu Avg Percent:
+  llama-3.2-3b-instruct                   :   9.3%
+  qwen-3-4b                               :   2.2%
+  gemma-3n-e2b-it                         :   1.4%
+  qwen-3-0.6b                             :   1.4%
+  deepseek-r1-distill-qwen-1.5b           :   1.3%
+
+Gpu Avg Percent:
+
+Memory Avg Percent:
+  llama-3.2-3b-instruct                   :  17.6%
+  gemma-3n-e2b-it                         :   5.3%
+  qwen-3-4b                               :   5.2%
+  qwen-3-0.6b                             :   4.9%
+  deepseek-r1-distill-qwen-1.5b           :   4.4%
+
+### System-Level Monitoring
+
+CPU Utilization (system level):
+  deepseek-r1-distill-qwen-1.5b           :   4.8%
+  gemma-3n-e2b-it                         :   1.3%
+  llama-3.2-3b-instruct                   :   1.7%
+  qwen-3-0.6b                             :   1.8%
+  qwen-3-4b                               :   1.1%
+
+Memory Utilization (system level):
+  deepseek-r1-distill-qwen-1.5b           :   2.4%
+  gemma-3n-e2b-it                         :   4.1%
+  llama-3.2-3b-instruct                   :   3.6%
+  qwen-3-0.6b                             :   4.7%
+  qwen-3-4b                               :   2.9%
+
+============================================================
+Comprehensive Model Comparison Table
+============================================================
+
+
+Model                                    Success  TPS      TTFT     Energy     Tools    Problems  
+                                         (%)      (t/s)    (ms)     (J/prob)   (avg)    (count)   
+------------------------------------------------------------------------------------------------------------------------
+qwen-3-4b                                17.0     94.8     0.0      216.1      0.33     160       
+gemma-3n-e2b-it                          15.0     59.8     0.0      18.2       0.72     513       
+llama-3.2-3b-instruct                    14.0     145.3    0.0      7.2        0.87     300       
+deepseek-r1-distill-qwen-1.5b            10.0     123.3    0.0      170.5      0.83     300       
+qwen-3-0.6b                              10.0     134.4    0.0      116.9      0.78     150       

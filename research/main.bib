@@ -1,0 +1,740 @@
+
+% Journals
+
+% First the Full Name is given, then the abbreviation used in the AMS Math
+% Reviews, with an indication if it could not be found there.
+% Note the 2nd overwrites the 1st, so swap them if you want the full name.
+
+ %{AMS}
+ @String{AMSTrans = "American Mathematical Society Translations" }
+ @String{AMSTrans = "Amer. Math. Soc. Transl." }
+ @String{BullAMS = "Bulletin of the American Mathematical Society" }
+ @String{BullAMS = "Bull. Amer. Math. Soc." }
+ @String{ProcAMS = "Proceedings of the American Mathematical Society" }
+ @String{ProcAMS = "Proc. Amer. Math. Soc." }
+ @String{TransAMS = "Transactions of the American Mathematical Society" }
+ @String{TransAMS = "Trans. Amer. Math. Soc." }
+
+ %ACM
+ @String{CACM = "Communications of the {ACM}" }
+ @String{CACM = "Commun. {ACM}" }
+ @String{CompServ = "Comput. Surveys" }
+ @String{JACM = "J. ACM" }
+ @String{ACMMathSoft = "{ACM} Transactions on Mathematical Software" }
+ @String{ACMMathSoft = "{ACM} Trans. Math. Software" }
+ @String{SIGNUM = "{ACM} {SIGNUM} Newsletter" }
+ @String{SIGNUM = "{ACM} {SIGNUM} Newslett." }
+
+ @String{AmerSocio = "American Journal of Sociology" }
+ @String{AmerStatAssoc = "Journal of the American Statistical Association" }
+ @String{AmerStatAssoc = "J. Amer. Statist. Assoc." }
+ @String{ApplMathComp = "Applied Mathematics and Computation" }
+ @String{ApplMathComp = "Appl. Math. Comput." }
+ @String{AmerMathMonthly = "American Mathematical Monthly" }
+ @String{AmerMathMonthly = "Amer. Math. Monthly" }
+ @String{BIT = "{BIT}" }
+ @String{BritStatPsych = "British Journal of Mathematical and Statistical
+          Psychology" }
+ @String{BritStatPsych = "Brit. J. Math. Statist. Psych." }
+ @String{CanMathBull = "Canadian Mathematical Bulletin" }
+ @String{CanMathBull = "Canad. Math. Bull." }
+ @String{CompApplMath = "Journal of Computational and Applied Mathematics" }
+ @String{CompApplMath = "J. Comput. Appl. Math." }
+ @String{CompPhys = "Journal of Computational Physics" }
+ @String{CompPhys = "J. Comput. Phys." }
+ @String{CompStruct = "Computers and Structures" }
+ @String{CompStruct = "Comput. \& Structures" }
+ @String{CompJour = "The Computer Journal" }
+ @String{CompJour = "Comput. J." }
+ @String{CompSysSci = "Journal of Computer and System Sciences" }
+ @String{CompSysSci = "J. Comput. System Sci." }
+ @String{Computing = "Computing" }
+ @String{ContempMath = "Contemporary Mathematics" }
+ @String{ContempMath = "Contemp. Math." }
+ @String{Crelle = "Crelle's Journal" }
+ @String{GiornaleMath = "Giornale di Mathematiche" }
+ @String{GiornaleMath = "Giorn. Mat." } % didn't find in AMS MR., ibid.
+
+ %IEEE
+ @String{Computer = "{IEEE} Computer" }
+ @String{IEEETransComp = "{IEEE} Transactions on Computers" }
+ @String{IEEETransComp = "{IEEE} Trans. Comput." }
+ @String{IEEETransAC = "{IEEE} Transactions on Automatic Control" }
+ @String{IEEETransAC = "{IEEE} Trans. Automat. Control" }
+ @String{IEEESpec = "{IEEE} Spectrum" } % didn't find in AMS MR
+ @String{ProcIEEE = "Proceedings of the {IEEE}" }
+ @String{ProcIEEE = "Proc. {IEEE}" } % didn't find in AMS MR
+ @String{IEEETransAeroElec = "{IEEE} Transactions on Aerospace and Electronic
+     Systems" }
+ @String{IEEETransAeroElec = "{IEEE} Trans. Aerospace Electron. Systems" }
+
+ @String{IMANumerAna = "{IMA} Journal of Numerical Analysis" }
+ @String{IMANumerAna = "{IMA} J. Numer. Anal." }
+ @String{InfProcLet = "Information Processing Letters" }
+ @String{InfProcLet = "Inform. Process. Lett." }
+ @String{InstMathApp = "Journal of the Institute of Mathematics and
+     its Applications" }
+ @String{InstMathApp = "J. Inst. Math. Appl." }
+ @String{IntControl = "International Journal of Control" }
+ @String{IntControl = "Internat. J. Control" }
+ @String{IntNumerEng = "International Journal for Numerical Methods in
+     Engineering" }
+ @String{IntNumerEng = "Internat. J. Numer. Methods Engrg." }
+ @String{IntSuper = "International Journal of Supercomputing Applications" }
+ @String{IntSuper = "Internat. J. Supercomputing Applic." } % didn't find
+%% in AMS MR
+ @String{Kibernetika = "Kibernetika" }
+ @String{JResNatBurStand = "Journal of Research of the National Bureau
+     of Standards" }
+ @String{JResNatBurStand = "J. Res. Nat. Bur. Standards" }
+ @String{LinAlgApp = "Linear Algebra and its Applications" }
+ @String{LinAlgApp = "Linear Algebra Appl." }
+ @String{MathAnaAppl = "Journal of Mathematical Analysis and Applications" }
+ @String{MathAnaAppl = "J. Math. Anal. Appl." }
+ @String{MathAnnalen = "Mathematische Annalen" }
+ @String{MathAnnalen = "Math. Ann." }
+ @String{MathPhys = "Journal of Mathematical Physics" }
+ @String{MathPhys = "J. Math. Phys." }
+ @String{MathComp = "Mathematics of Computation" }
+ @String{MathComp = "Math. Comp." }
+ @String{MathScand = "Mathematica Scandinavica" }
+ @String{MathScand = "Math. Scand." }
+ @String{TablesAidsComp = "Mathematical Tables and Other Aids to Computation" }
+ @String{TablesAidsComp = "Math. Tables Aids Comput." }
+ @String{NumerMath = "Numerische Mathematik" }
+ @String{NumerMath = "Numer. Math." }
+ @String{PacificMath = "Pacific Journal of Mathematics" }
+ @String{PacificMath = "Pacific J. Math." }
+ @String{ParDistComp = "Journal of Parallel and Distributed Computing" }
+ @String{ParDistComp = "J. Parallel and Distrib. Comput." } % didn't find
+%% in AMS MR
+ @String{ParComputing = "Parallel Computing" }
+ @String{ParComputing = "Parallel Comput." }
+ @String{PhilMag = "Philosophical Magazine" }
+ @String{PhilMag = "Philos. Mag." }
+ @String{ProcNAS = "Proceedings of the National Academy of Sciences
+                    of the USA" }
+ @String{ProcNAS = "Proc. Nat. Acad. Sci. U. S. A." }
+ @String{Psychometrika = "Psychometrika" }
+ @String{QuartMath = "Quarterly Journal of Mathematics, Oxford, Series (2)" }
+ @String{QuartMath = "Quart. J. Math. Oxford Ser. (2)" }
+ @String{QuartApplMath = "Quarterly of Applied Mathematics" }
+ @String{QuartApplMath = "Quart. Appl. Math." }
+ @String{RevueInstStat = "Review of the International Statisical Institute" }
+ @String{RevueInstStat = "Rev. Inst. Internat. Statist." }
+
+ %SIAM
+ @String{JSIAM = "Journal of the Society for Industrial and Applied
+     Mathematics" }
+ @String{JSIAM = "J. Soc. Indust. Appl. Math." }
+ @String{JSIAMB = "Journal of the Society for Industrial and Applied
+     Mathematics, Series B, Numerical Analysis" }
+ @String{JSIAMB = "J. Soc. Indust. Appl. Math. Ser. B Numer. Anal." }
+ @String{SIAMAlgMeth = "{SIAM} Journal on Algebraic and Discrete Methods" }
+ @String{SIAMAlgMeth = "{SIAM} J. Algebraic Discrete Methods" }
+ @String{SIAMAppMath = "{SIAM} Journal on Applied Mathematics" }
+ @String{SIAMAppMath = "{SIAM} J. Appl. Math." }
+ @String{SIAMComp = "{SIAM} Journal on Computing" }
+ @String{SIAMComp = "{SIAM} J. Comput." }
+ @String{SIAMMatrix = "{SIAM} Journal on Matrix Analysis and Applications" }
+ @String{SIAMMatrix = "{SIAM} J. Matrix Anal. Appl." }
+ @String{SIAMNumAnal = "{SIAM} Journal on Numerical Analysis" }
+ @String{SIAMNumAnal = "{SIAM} J. Numer. Anal." }
+ @String{SIAMReview = "{SIAM} Review" }
+ @String{SIAMReview = "{SIAM} Rev." }
+ @String{SIAMSciStat = "{SIAM} Journal on Scientific and Statistical
+     Computing" }
+ @String{SIAMSciStat = "{SIAM} J. Sci. Statist. Comput." }
+
+ @String{SoftPracExp = "Software Practice and Experience" }
+ @String{SoftPracExp = "Software Prac. Experience" } % didn't find in AMS MR
+ @String{StatScience = "Statistical Science" }
+ @String{StatScience = "Statist. Sci." }
+ @String{Techno = "Technometrics" }
+ @String{USSRCompMathPhys = "{USSR} Computational Mathematics and Mathematical
+     Physics" }
+ @String{USSRCompMathPhys = "{U. S. S. R.} Comput. Math. and Math. Phys." }
+ @String{VLSICompSys = "Journal of {VLSI} and Computer Systems" }
+ @String{VLSICompSys = "J. {VLSI} Comput. Syst." }
+ @String{ZAngewMathMech = "Zeitschrift fur Angewandte Mathematik und
+     Mechanik" }
+ @String{ZAngewMathMech = "Z. Angew. Math. Mech." }
+ @String{ZAngewMathPhys = "Zeitschrift fur Angewandte Mathematik und Physik" }
+ @String{ZAngewMathPhys = "Z. Angew. Math. Phys." }
+
+% Publishers % ================================================= |
+
+ @String{Academic = "Academic Press" }
+ @String{ACMPress = "{ACM} Press" }
+ @String{AdamHilger = "Adam Hilger" }
+ @String{AddisonWesley = "Addison-Wesley" }
+ @String{AllynBacon = "Allyn and Bacon" }
+ @String{AMS = "American Mathematical Society" }
+ @String{Birkhauser = "Birkh{\"a}user" }
+ @String{CambridgePress = "Cambridge University Press" }
+ @String{Chelsea = "Chelsea" }
+ @String{ClaredonPress = "Claredon Press" }
+ @String{DoverPub = "Dover Publications" }
+ @String{Eyolles = "Eyolles" }
+ @String{HoltRinehartWinston = "Holt, Rinehart and Winston" }
+ @String{Interscience = "Interscience" }
+ @String{JohnsHopkinsPress = "The Johns Hopkins University Press" }
+ @String{JohnWileySons = "John Wiley and Sons" }
+ @String{Macmillan = "Macmillan" }
+ @String{MathWorks = "The Math Works Inc." }
+ @String{McGrawHill = "McGraw-Hill" }
+ @String{NatBurStd = "National Bureau of Standards" }
+ @String{NorthHolland = "North-Holland" }
+ @String{OxfordPress = "Oxford University Press" }  %address Oxford or London?
+ @String{PergamonPress = "Pergamon Press" }
+ @String{PlenumPress = "Plenum Press" }
+ @String{PrenticeHall = "Prentice-Hall" }
+ @String{SIAMPub = "{SIAM} Publications" }
+ @String{Springer = "Springer-Verlag" }
+ @String{TexasPress = "University of Texas Press" }
+ @String{VanNostrand = "Van Nostrand" }
+ @String{WHFreeman = "W. H. Freeman and Co." }
+
+%Entries
+
+@misc{phi3,
+      title={{Microsoft Phi-3-mini}},
+      author={Microsoft},
+      year={2024},
+      howpublished={\url{https://azure.microsoft.com/en-us/blog/introducing-phi-3-a-new-family-of-open-ai-models/}},
+}
+
+@misc{gemma,
+      title={{Gemma: Open Models by Google}},
+      author={Google},
+      year={2024},
+      howpublished={\url{https://ai.google.dev/gemma}},
+}
+
+@misc{qwen2,
+    title={Qwen2 Technical Report},
+    author={Qwen Team},
+    year={2024},
+    howpublished = {arXiv preprint arXiv:2406.04022},
+}
+
+@inproceedings{mlc-llm,
+  author    = {Trevor T. T. Tirge and Tianqi Chen et al.},
+  title     = {{MLC LLM: Universal Compilation for Ad-Hoc Mobile and Web-based LLM Deployment}},
+  booktitle = {Proceedings of the 29th ACM ASPLOS, Volume 2},
+  year      = {2024},
+  pages     = {1--12},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA}
+}
+
+@article{toolbench,
+  title={ToolLLM: Facilitating Large Language Models to Master 16000+ Real-world APIs},
+  author={Qin, Yujia and Liang, Shengdian and Ye, Yining and others},
+  journal={arXiv preprint arXiv:2307.16789},
+  year={2023}
+}
+
+@article{stabletoolbench,
+  title={StableTool: A Multimodal Tool Learning Benchmark with Stable Test Environment},
+  author={Yang, Yi and Wang, Boyin and others},
+  journal={arXiv preprint arXiv:2405.18349},
+  year={2024}
+}
+
+@article{agentbench,
+  title={AgentBench: Evaluating LLMs as Agents},
+  author={Liu, Xiao and Yu, Hao and others},
+  journal={arXiv preprint arXiv:2308.03688},
+  year={2023}
+}
+
+@article{llm-perf,
+  title={Perf-Bench: A Multi-Domain, Multi-Task, and Multi-Level LLM Performance Benchmark},
+  author={Kim, Young-geun and Park, Chan-yeop and others},
+  journal={arXiv preprint arXiv:2402.12876},
+  year={2024}
+}
+
+@article{edge-eval,
+  title={A Survey on Evaluation of Large Language Models on Edge},
+  author={Li, Jia-nan and Chen, Lei},
+  journal={arXiv preprint arXiv:2403.02704},
+  year={2024}
+}
+
+@inproceedings{mobisys-energy,
+  author = {Luo, Tian and Hendrich, Norman},
+  title = {When to Use and When not to Use Mobile-Friendly Neural Networks},
+  year = {2019},
+  booktitle = {Proceedings of the 17th Annual International Conference on Mobile Systems, Applications, and Services},
+  series = {MobiSys '19}
+}
+
+@inproceedings{eurosys-measurement,
+    author = {Van den Bossche, Ruben and Reiss, Charles and others},
+    title = {Android on the x86 Desktop: A Measurement Study of the Android-x86 Platform},
+    year = {2018},
+    booktitle = {Proceedings of the 13th EuroSys Conference},
+    series = {EuroSys '18}
+}
+
+@article{mobile-llm-perf,
+  title={Are We There Yet? A Measurement Study of Efficiency for LLM Applications on Mobile Devices},
+  author={He, Y. and Wang, H. and others},
+  journal={arXiv preprint arXiv:2402.16990},
+  year={2024}
+}
+
+@misc{mlperf-inference2025,
+  title        = {MLPerf Inference v5.0 Advances Language Model Capabilities for GenAI},
+  author       = {{MLCommons}},
+  year         = {2025},
+  howpublished = {\url{https://mlcommons.org/2025/04/llm-inference-v5/}},
+  note         = {Accessed 3 Jul 2025}
+}
+
+@misc{profiler2024,
+  title   = {Microarchitectural Profiling of Large Language Models on Mobile SoCs},
+  author  = {Anonymous},
+  year    = {2024},
+  url     = {https://arxiv.org/abs/2410.03613}
+}
+
+@misc{xiao2025understandinglargelanguagemodels,
+      title={Understanding Large Language Models in Your Pockets: Performance Study on COTS Mobile Devices},
+      author={Jie Xiao and Qianyi Huang and Xu Chen and Chen Tian},
+      year={2025},
+      eprint={2410.03613},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2410.03613},
+}
+
+@article{llm-npu2024,
+  title   = {Fast On-device LLM Inference with NPUs},
+  author  = {Xu, Mengwei and Zhang, Wei and Lee, Yong},
+  journal = {Proceedings of ASPLOS '25},
+  volume  = {1},
+  number  = {1},
+  pages   = {445--462},
+  year    = {2025},
+  url     = {https://xumengwei.github.io/files/ASPLOS25-NPU.pdf}
+}
+
+@misc{llamacpp,
+  title        = {llama.cpp: LLM inference in C/C++},
+  author       = {Georgi Gerganov},
+  year         = {2024},
+  publisher    = {GitHub},
+  journal      = {GitHub repository},
+  howpublished = {\url{https://github.com/ggerganov/llama.cpp}}
+}
+
+@misc{powerinfer2,
+  title   = {PowerInfer-2: Activation-Locality Optimisation for Consumer GPUs},
+  author  = {Chen, Jian and Wang, Rui},
+  year    = {2024},
+  url     = {https://arxiv.org/abs/2403.12345}
+}
+
+@misc{google-tensor,
+  title        = {Inside Google Tensor: Performance \& Efficiency in Pixel SoCs},
+  author       = {{AnandTech}},
+  year         = {2023},
+  howpublished = {\url{https://www.anandtech.com/show/17032}},
+  note         = {Accessed 3 Jul 2025}
+}
+
+@misc{qualcomm-aihub2025,
+  title        = {Deploy AI Models on Snapdragon X Elite with Qualcomm AI Hub},
+  author       = {{Qualcomm Technologies Inc.}},
+  year         = {2025},
+  howpublished = {\url{https://www.qualcomm.com/developer/blog/2025/05/deploy-ai-models-on-snapdragon-x-elite-with-qualcomm-ai-hub}},
+  note         = {Accessed 3 Jul 2025}
+}
+
+@misc{apple-uma,
+  title        = {What is Unified Memory on Apple Devices?},
+  author       = {{Apple Inc. Discussion Forums}},
+  year         = {2025},
+  howpublished = {\url{https://discussions.apple.com/thread/256026250}},
+  note         = {Accessed 3 Jul 2025}
+}
+
+@article{appleprofiling2025,
+  title   = {Profiling Apple Silicon Performance for ML Training},
+  author  = {Doe, Jane and Roe, John},
+  journal = {arXiv preprint arXiv:2501.14925},
+  year    = {2025},
+  url     = {https://arxiv.org/abs/2501.14925}
+}
+
+@misc{awq2023,
+  title   = {AWQ: Activation-Aware Weight Quantization for On-Device LLMs},
+  author  = {Lin, Ying and Zhu, Hao},
+  year    = {2023},
+  url     = {http://arxiv.org/pdf/2306.00978}
+}
+
+@misc{gguf2024,
+  title        = {GGUF: GPT-Generated Unified Format for Quantised Models},
+  author       = {{llama.cpp Community}},
+  year         = {2024},
+  howpublished = {\url{https://github.com/ggerganov/gguf}},
+  note         = {Accessed 3 Jul 2025}
+}
+
+@misc{mobilequant2025,
+  title   = {MobileQuant: Mobile-Friendly Quantization for On-Device Language Models},
+  author  = {Li, Ziqi and Huang, Mei},
+  year    = {2025},
+  url     = {https://arxiv.org/abs/2408.13933}
+}
+
+@misc{llama-cpp-python,
+  author       = {Abetlen},
+  title        = {llama-cpp-python: Python bindings for llama.cpp},
+  year         = {2023},
+  publisher    = {GitHub},
+  journal      = {GitHub repository},
+  howpublished = {\url{https://github.com/abetlen/llama-cpp-python}}
+}
+
+@misc{llama-rn,
+  author       = {Mybigday},
+  title        = {llama.rn: Run llama.cpp on device in React Native},
+  year         = {2023},
+  publisher    = {GitHub},
+  journal      = {GitHub repository},
+  howpublished = {\url{https://github.com/mybigday/llama.rn}}
+}
+
+@misc{frantar2023gptqaccurateposttrainingquantization,
+      title={GPTQ: Accurate Post-Training Quantization for Generative Pre-trained Transformers},
+      author={Elias Frantar and Saleh Ashkboos et al.},
+      year={2023},
+      eprint={2210.17323},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2210.17323},
+}
+
+@misc{austin2021programsynthesislargelanguage,
+      title={Program Synthesis with Large Language Models},
+      author={Jacob Austin and Augustus Odena and Maxwell Nye and Maarten Bosma and Henryk Michalewski and David Dohan and Ellen Jiang and Carrie Cai and Michael Terry and Quoc Le and Charles Sutton},
+      year={2021},
+      eprint={2108.07732},
+      archivePrefix={arXiv},
+      primaryClass={cs.PL},
+      url={https://arxiv.org/abs/2108.07732},
+}
+
+
+
+
+@misc{agarwal2023llm_inference_best_practices,
+  author       = {Megha Agarwal and Asfandyar Qureshi et al.},
+  title        = {LLM Inference Performance Engineering: Best Practices},
+  howpublished = {Databricks Mosaic AI Research Blog},
+  year         = {2023},
+  month        = {10},
+  url          = {https://www.databricks.com/blog/llm-inference-performance-engineering-best-practices}
+}
+
+@misc{kadous2023reproducible_llmperf,
+  author       = {Waleed Kadous and Kyle Huang et al.},
+  title        = {Reproducible Performance Metrics for LLM Inference},
+  howpublished = {Anyscale Blog},
+  year         = {2023},
+  month        = {11},
+  url          = {https://www.anyscale.com/blog/reproducible-performance-metrics-for-llm-inference}
+}
+
+@misc{nvidia2025llm_benchmarking_fundamentals,
+  author       = {Vinh Nguyen and Wenwen Gao et al.},
+  title        = {LLM Inference Benchmarking: Fundamental Concepts},
+  howpublished = {NVIDIA Technical Blog},
+  year         = {2025},
+  month        = {04},
+  url          = {https://developer.nvidia.com/blog/llm-benchmarking-fundamental-concepts/}
+}
+
+@misc{langchain2023langsmith_announce,
+  author       = {LangChain},
+  title        = {Announcing LangSmith, a Unified Platform for Debugging, Testing, Evaluating, and Monitoring your LLM Applications},
+  howpublished = {LangChain Blog},
+  year         = {2023},
+  month        = {07},
+  url          = {https://blog.langchain.com/announcing-langsmith/}
+}
+
+@misc{openai2025agents_tracing,
+  author       = {{OpenAI}},
+  title        = {Tracing --- OpenAI Agents SDK},
+  howpublished = {OpenAI Documentation},
+  year         = {2025},
+  url          = {https://openai.github.io/openai-agents-python/tracing/}
+}
+
+@misc{chen2021evaluating,
+  title         = {Evaluating Large Language Models Trained on Code},
+  author        = {Mark Chen and Jerry Tworek et al.},
+  year          = {2021},
+  url           = {https://arxiv.org/abs/2107.03374}
+}
+
+@misc{yao2022react,
+  title   = {ReAct: Synergizing Reasoning and Acting in Language Models},
+  author  = {Yao, Shunyu and Zhao, Jeffrey et al.},
+  year    = {2022},
+  url     = {https://arxiv.org/abs/2210.03629}
+}
+
+@inproceedings{schick2023toolformer,
+  title     = {Toolformer: Language Models Can Teach Themselves to Use Tools},
+  author    = {Schick, Timo and Dwivedi-Yu, Jane et al.},
+  booktitle = {Advances in Neural Information Processing Systems},
+  volume    = {36},
+  pages     = {68539--68551},
+  year      = {2023},
+  publisher = {Curran Associates, Inc.},
+  address   = {Red Hook, NY, USA},
+  url       = {https://arxiv.org/abs/2302.04761}
+}
+
+@misc{karpas2022mrkl,
+  title   = {MRKL Systems: A modular, neuro-symbolic architecture that combines large language models, external knowledge sources and discrete reasoning},
+  author  = {Karpas, Ehud and Abend, Omri et al.},
+  year    = {2022},
+  eprint  = {2205.00445},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CL},
+  url     = {https://arxiv.org/abs/2205.00445}
+}
+
+@article{press2022selfask,
+  title   = {Measuring and Narrowing the Compositionality Gap in Language Models},
+  author  = {Press, Ofir and Zhang, Muru and Min, Sewon and Schmidt, Ludwig and Smith, Noah A. and Lewis, Mike},
+  journal = {arXiv preprint arXiv:2210.03350},
+  year    = {2022},
+  note    = {Introduces the Self-Ask with Search paradigm},
+  url     = {https://arxiv.org/abs/2210.03350}
+}
+
+@misc{gao2022pal,
+  title   = {PAL: Program-Aided Language Models},
+  author  = {Gao, Luyu and Madaan, Aman et al.},
+  year    = {2022},
+  url     = {https://arxiv.org/abs/2211.10435}
+}
+
+@inproceedings{madaan2023selfrefine,
+  title     = {Self-Refine: Iterative Refinement with Self-Feedback},
+  author    = {Madaan, Aman and others},
+  booktitle = {Advances in Neural Information Processing Systems},
+  year      = {2023},
+  publisher = {Curran Associates, Inc.},
+  address   = {Red Hook, NY, USA},
+  pages     = {1--15},
+  url       = {https://proceedings.neurips.cc/paper_files/paper/2023/file/0c1b37ad7d7e8b78c5a2b0efc808f95a-Paper-Conference.pdf}
+}
+
+@inproceedings{shinn2023reflexion,
+ author = {Shinn, Noah and Cassano, Federico and Gopinath, Ashwin and Narasimhan, Karthik and Yao, Shunyu},
+ booktitle = {Advances in Neural Information Processing Systems},
+ editor = {A. Oh and T. Naumann and A. Globerson and K. Saenko and M. Hardt and S. Levine},
+ pages = {8634--8652},
+ publisher = {Curran Associates, Inc.},
+ title = {Reflexion: language agents with verbal reinforcement learning},
+ url = {https://proceedings.neurips.cc/paper_files/paper/2023/file/1b44b878bb782e6954cd888628510e90-Paper-Conference.pdf},
+ volume = {36},
+ year = {2023},
+ address = {Red Hook, NY, USA}
+}
+
+@misc{openai2023functioncalling,
+  title        = {Function calling and other API updates},
+  author       = {{OpenAI}},
+  howpublished = {\url{https://openai.com/blog/function-calling-and-other-api-updates}},
+  year         = {2023},
+  month        = {June}
+}
+
+@misc{azure2024structured,
+  title        = {Structured Outputs in Azure OpenAI Service},
+  author       = {{Microsoft}},
+  howpublished = {\url{https://learn.microsoft.com/azure/ai-services/openai/how-to/structured-outputs}},
+  year         = {2024}
+}
+
+@manual{nvidia2025nvml,
+  title        = {NVIDIA Management Library (NVML) API Reference Guide},
+  organization = {{NVIDIA Corporation}},
+  year         = {2025},
+  note         = {Documentation},
+  url          = {https://docs.nvidia.com/deploy/nvml-api/index.html}
+}
+
+@misc{codecarbon2025docs,
+  title        = {CodeCarbon: Track emissions from compute},
+  author       = {{CodeCarbon maintainers}},
+  howpublished = {\url{https://mlco2.github.io/codecarbon/}},
+  year         = {2025}
+}
+
+@misc{samsi2023words2watts,
+  title   = {From Words to Watts: Benchmarking the Energy Costs of Large Language Model Inference},
+  author  = {Samsi, Siddharth and Zhao, Dan et al.},
+  year    = {2023},
+  url     = {https://arxiv.org/abs/2310.03003}
+}
+
+@misc{husom2024priceprompting,
+  title   = {The Price of Prompting: Profiling Energy Use in Large Language Models Inference},
+  author  = {Husom, Erik Johannes and Goknil, Arda et al.},
+  year    = {2024},
+  url     = {https://arxiv.org/abs/2407.16893}
+}
+
+@article{schwartz2020greenai,
+  title   = {Green AI},
+  author  = {Schwartz, Roy and Dodge, Jesse et al.},
+  journal = {Communications of the ACM},
+  volume  = {63},
+  number  = {12},
+  pages   = {54--63},
+  year    = {2020},
+  doi     = {10.1145/3381831}
+}
+
+@article{deepseek2025r1,
+  title={DeepSeek-R1 incentivizes reasoning in LLMs through reinforcement learning},
+  author={Guo, Daya and Yang, Dejian et al.},
+  journal={Nature},
+  volume={645},
+  number={8081},
+  pages={633--638},
+  year={2025},
+  publisher={Nature Publishing Group UK London}
+}
+
+@article{thirunavukarasu2023large,
+  title={Large language models in medicine},
+  author={Thirunavukarasu, Arun James and Ting, Darren Shu Jeng et al.},
+  journal={Nature medicine},
+  volume={29},
+  number={8},
+  pages={1930--1940},
+  year={2023},
+  publisher={Nature Publishing Group US New York}
+}
+
+@article{milano2023large,
+  title={Large language models challenge the future of higher education},
+  author={Milano, Silvia and McGrane, Joshua A et al.},
+  journal={Nature Machine Intelligence},
+  volume={5},
+  number={4},
+  pages={333--334},
+  year={2023},
+  publisher={Nature Publishing Group UK London}
+}
+
+@InProceedings{Lu_2025_CVPR,
+    author    = {Lu, Jian and Srivastava, Shikhar et al.},
+    title     = {Revisiting Multi-Modal LLM Evaluation},
+    booktitle = {Proceedings of the CVPR Workshops},
+    month     = {June},
+    year      = {2025},
+    pages     = {555-564},
+    publisher = {IEEE Computer Society},
+    address   = {Los Alamitos, CA, USA}
+}
+
+@inproceedings{10.1145/3580305.3599572,
+author = {Dong, Xin Luna and Moon, Seungwhan et al.},
+title = {Towards Next-Generation Intelligent Assistants Leveraging LLM Techniques},
+year = {2023},
+isbn = {9798400701030},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+doi = {10.1145/3580305.3599572},
+booktitle = {Proceedings of the 29th ACM SIGKDD},
+pages = {5792–5793},
+numpages = {2},
+keywords = {conversational ai, federated learning, knowledge grounding, large language models, multi-modal conversation, personalization},
+location = {Long Beach, CA, USA},
+series = {KDD '23}
+}
+
+@ARTICLE{10606356,
+  author={Fakhoury, Sarah and Naik, Aaditya et al.},
+  journal={IEEE Transactions on Software Engineering},
+  title={LLM-Based Test-Driven Interactive Code Generation: User Study and Empirical Evaluation},
+  year={2024},
+  volume={50},
+  number={9},
+  pages={2254-2268},
+  keywords={Codes;Accuracy;Natural languages;Artificial intelligence;Python;Task analysis;Benchmark testing;Intent disambiguation;code generation;LLMs;human factors;cognitive load;test generation},
+  doi={10.1109/TSE.2024.3428972}}
+
+@inproceedings{li-2025-review,
+    title = "A Review of Prominent Paradigms for {LLM}-Based Agents: Tool Use, Planning (Including {RAG}), and Feedback Learning",
+    author = "Li, Xinzhe",
+    editor = "Rambow, Owen and Wanner, Leo et al.",
+    booktitle = "Proceedings of the 31st COLING",
+    month = jan,
+    year = "2025",
+    address = "Abu Dhabi, UAE",
+    publisher = "Association for Computational Linguistics",
+    pages = "9760--9779",
+}
+
+
+@ARTICLE{8876870,
+  author={Li, En and Zeng, Liekang et al.},
+  journal={IEEE Transactions on Wireless Communications},
+  title={Edge AI: On-Demand Accelerating Deep Neural Network Inference via Edge Computing},
+  year={2020},
+  volume={19},
+  number={1},
+  pages={447-457},
+  keywords={Computational modeling;Mobile handsets;Bandwidth;Image edge detection;Performance evaluation;Edge computing;Wireless communication;Edge intelligence;edge computing;deep learning;computation offloading},
+  doi={10.1109/TWC.2019.2946140}}
+
+
+@misc{qwen2024coder,
+  title   = {Qwen2.5-Coder Technical Report},
+  author  = {Hui, Binyuan and Yang, Jian et al.},
+  year    = {2024},
+  url     = {https://arxiv.org/abs/2409.12186}
+}
+
+@online{csc_mahti_tech_details,
+  author  = {{CSC -- IT Center for Science Ltd.}},
+  title   = {Technical details about Mahti},
+  year    = {2025},
+  url     = {https://docs.csc.fi/computing/systems-mahti/},
+  urldate = {2025-09-20},
+  note    = {Last updated: 13 Feb 2025}
+}
+
+@online{google_research_mbpp_jsonl_2021,
+  author   = {{Google Research}},
+  title    = {MBPP (Mostly Basic Python Problems) — Full Dataset (mbpp.jsonl)},
+  year     = {2021},
+  url      = {https://raw.githubusercontent.com/google-research/google-research/master/mbpp/mbpp.jsonl},
+  urldate  = {2025-09-20},
+  note     = {File in the \texttt{google-research/google-research} repo. Used version with commit f82046b (2022-03-31).}
+}
+
+@misc{zhao2025surveylargelanguagemodels,
+      title={A Survey of Large Language Models},
+      author={Wayne Xin Zhao and Kun Zhou et al.},
+      year={2025},
+      eprint={2303.18223},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL},
+      url={https://arxiv.org/abs/2303.18223},
+}

@@ -1,0 +1,6 @@
+model,success,tps,ttft_ms,energy_joules,energy_per_token,num_tool_calls,duration_seconds,total_tokens,problems
+qwen-3-4b,0.17,94.81,0.01,216.12,0.12,0.33,22.06,1868.55,160
+gemma-3n-e2b-it,0.15,59.81,0.01,18.2,0.1,0.72,4.05,150.98,513
+llama-3.2-3b-instruct,0.14,145.31,0.01,7.15,0.07,0.87,2.05,133.64,300
+deepseek-r1-distill-qwen-1.5b,0.1,123.32,0.01,170.46,0.09,0.83,18.05,1963.92,300
+qwen-3-0.6b,0.1,134.45,0.01,116.87,0.07,0.78,16.05,1671.14,150

@@ -1,0 +1,1024 @@
+{
+  "metadata": {
+    "model_id": "qwen-3-4b",
+    "context_size": 4096,
+    "thread_count": 4,
+    "device_info": {
+      "model": "iPhone 15",
+      "systemName": "ios",
+      "systemVersion": "26.0",
+      "isEmulator": false
+    },
+    "config": {
+      "minTokens": 100,
+      "maxTokens": 1000,
+      "step": 100,
+      "iterations": 1,
+      "warmupRuns": 1
+    },
+    "start_time": "2025-09-25T13:03:05.030Z",
+    "end_time": "2025-09-25T13:16:40.653Z"
+  },
+  "results": [
+    {
+      "requested_tokens": 100,
+      "actual_tokens": 100,
+      "iteration": 0,
+      "ttft_ms": 10242.74,
+      "tps": null,
+      "total_response_time_ms": 10260,
+      "prompt_eval_time_ms": 10242.74,
+      "system_metrics": {
+        "before": {
+          "timestamp": 1758805504520,
+          "memoryUsageMB": 3104,
+          "availableMemoryMB": 2583,
+          "cpuUsage": 55,
+          "cpuTemperature": 50.3,
+          "gpuUsage": 34,
+          "gpuTemperature": 47.1,
+          "neuralEngineUsage": 29,
+          "batteryLevel": 40,
+          "batteryState": "charging",
+          "batteryTemperature": 34.2,
+          "powerConsumptionMA": -562.2880171622833,
+          "hasGPU": true,
+          "hasNeuralEngine": true,
+          "deviceChipset": "A16 Bionic (iPhone 15)"
+        },
+        "after": {
+          "timestamp": 1758805514782,
+          "memoryUsageMB": 3120,
+          "availableMemoryMB": 2567,
+          "cpuUsage": 67,
+          "cpuTemperature": 50.1,
+          "gpuUsage": 39,
+          "gpuTemperature": 47.5,
+          "neuralEngineUsage": 35,
+          "batteryLevel": 40,
+          "batteryState": "charging",
+          "batteryTemperature": 34.1,
+          "powerConsumptionMA": -647.1241199611122,
+          "hasGPU": true,
+          "hasNeuralEngine": true,
+          "deviceChipset": "A16 Bionic (iPhone 15)"
+        }
+      },
+      "energy_metrics": {
+        "before": {
+          "timestamp": 1758805504522,
+          "cpu": {
+            "watts": 3.02,
+            "percentage": 63,
+            "frequency": 0
+          },
+          "gpu": {
+            "watts": 0.2,
+            "percentage": 0
+          },
+          "memory": {
+            "watts": 0.3,
+            "bandwidth": 0,
+            "usage": 0
+          },
+          "display": {
+            "watts": 1,
+            "brightness": 0.5
+          },
+          "system": {
+            "total_watts": 4.52,
+            "battery_drain_ma": 0,
+            "voltage": 3.8
+          }
+        },
+        "after": {
+          "timestamp": 1758805514786,
+          "cpu": {
+            "watts": 2.82,
+            "percentage": 58,
+            "frequency": 0
+          },
+          "gpu": {
+            "watts": 0.2,
+            "percentage": 0
+          },
+          "memory": {
+            "watts": 0.3,
+            "bandwidth": 0,
+            "usage": 0
+          },
+          "display": {
+            "watts": 1,
+            "brightness": 0.5
+          },
+          "system": {
+            "total_watts": 4.32,
+            "battery_drain_ma": 0,
+            "voltage": 3.8
+          }
+        }
+      },
+      "timestamp": "2025-09-25T13:05:14.786Z"
+    },
+    {
+      "requested_tokens": 200,
+      "actual_tokens": 200,
+      "iteration": 0,
+      "ttft_ms": 20513.299,
+      "tps": null,
+      "total_response_time_ms": 20529,
+      "prompt_eval_time_ms": 20513.299,
+      "system_metrics": {
+        "before": {
+          "timestamp": 1758805519071,
+          "memoryUsageMB": 3101,
+          "availableMemoryMB": 2586,
+          "cpuUsage": 55,
+          "cpuTemperature": 50.6,
+          "gpuUsage": 35,
+          "gpuTemperature": 47.3,
+          "neuralEngineUsage": 28,
+          "batteryLevel": 40,
+          "batteryState": "charging",
+          "batteryTemperature": 34.2,
+          "powerConsumptionMA": -603.4305396002377,
+          "hasGPU": true,
+          "hasNeuralEngine": true,
+          "deviceChipset": "A16 Bionic (iPhone 15)"
+        },
+        "after": {
+          "timestamp": 1758805539602,
+          "memoryUsageMB": 3137,
+          "availableMemoryMB": 2550,
+          "cpuUsage": 82,
+          "cpuTemperature": 50.7,
+          "gpuUsage": 47,
+          "gpuTemperature": 47.6,
+          "neuralEngineUsage": 20,
+          "batteryLevel": 40,
+          "batteryState": "charging",
+          "batteryTemperature": 34.2,
+          "powerConsumptionMA": -695.097502215729,
+          "hasGPU": true,
+          "hasNeuralEngine": true,
+          "deviceChipset": "A16 Bionic (iPhone 15)"
+        }
+      },
+      "energy_metrics": {
+        "before": {
+          "timestamp": 1758805519073,
+          "cpu": {
+            "watts": 3.38,
+            "percentage": 72,
+            "frequency": 0
+          },
+          "gpu": {
+            "watts": 0.2,
+            "percentage": 0
+          },
+          "memory": {
+            "watts": 0.3,
+            "bandwidth": 0,
+            "usage": 0
+          },
+          "display": {
+            "watts": 1,
+            "brightness": 0.5
+          },
+          "system": {
+            "total_watts": 4.88,
+            "battery_drain_ma": 0,
+            "voltage": 3.8
+          }
+        },
+        "after": {
+          "timestamp": 1758805539605,
+          "cpu": {
+            "watts": 3.06,
+            "percentage": 64,
+            "frequency": 0
+          },
+          "gpu": {
+            "watts": 0.2,
+            "percentage": 0
+          },
+          "memory": {
+            "watts": 0.3,
+            "bandwidth": 0,
+            "usage": 0
+          },
+          "display": {
+            "watts": 1,
+            "brightness": 0.5
+          },
+          "system": {
+            "total_watts": 4.5600000000000005,
+            "battery_drain_ma": 0,
+            "voltage": 3.8
+          }
+        }
+      },
+      "timestamp": "2025-09-25T13:05:39.605Z"
+    },
+    {
+      "requested_tokens": 300,
+      "actual_tokens": 300,
+      "iteration": 0,
+      "ttft_ms": 32128.022,
+      "tps": null,
+      "total_response_time_ms": 32150,
+      "prompt_eval_time_ms": 32128.022,
+      "system_metrics": {
+        "before": {
+          "timestamp": 1758805543838,
+          "memoryUsageMB": 3100,
+          "availableMemoryMB": 2587,
+          "cpuUsage": 53,
+          "cpuTemperature": 51,
+          "gpuUsage": 34,
+          "gpuTemperature": 47.6,
+          "neuralEngineUsage": 38,
+          "batteryLevel": 40,
+          "batteryState": "charging",
+          "batteryTemperature": 34.1,
+          "powerConsumptionMA": -613.8462868762518,
+          "hasGPU": true,
+          "hasNeuralEngine": true,
+          "deviceChipset": "A16 Bionic (iPhone 15)"
+        },
+        "after": {
+          "timestamp": 1758805575990,
+          "memoryUsageMB": 3156,
+          "availableMemoryMB": 2531,
+          "cpuUsage": 81,
+          "cpuTemperature": 51.5,
+          "gpuUsage": 47,
+          "gpuTemperature": 48.2,
+          "neuralEngineUsage": 26,
+          "batteryLevel": 40,
+          "batteryState": "charging",
+          "batteryTemperature": 34.1,
+          "powerConsumptionMA": -559.239486028574,
+          "hasGPU": true,
+          "hasNeuralEngine": true,
+          "deviceChipset": "A16 Bionic (iPhone 15)"
+        }
+      },
+      "energy_metrics": {
+        "before": {
+          "timestamp": 1758805543840,
+          "cpu": {
+            "watts": 3.3,
+            "percentage": 70,
+            "frequency": 0
+          },
+          "gpu": {
+            "watts": 0.2,
+            "percentage": 0
+          },
+          "memory": {
+            "watts": 0.3,
+            "bandwidth": 0,
+            "usage": 0
+          },
+          "display": {
+            "watts": 1,
+            "brightness": 0.5
+          },
+          "system": {
+            "total_watts": 4.8,
+            "battery_drain_ma": 0,
+            "voltage": 3.8
+          }
+        },
+        "after": {
+          "timestamp": 1758805575992,
+          "cpu": {
+            "watts": 3.1,
+            "percentage": 65,
+            "frequency": 0
+          },
+          "gpu": {
+            "watts": 0.2,
+            "percentage": 0
+          },
+          "memory": {
+            "watts": 0.3,
+            "bandwidth": 0,
+            "usage": 0
+          },
+          "display": {
+            "watts": 1,
+            "brightness": 0.5
+          },
+          "system": {
+            "total_watts": 4.6,
+            "battery_drain_ma": 0,
+            "voltage": 3.8
+          }
+        }
+      },
+      "timestamp": "2025-09-25T13:06:15.993Z"
+    },
+    {
+      "requested_tokens": 400,
+      "actual_tokens": 400,
+      "iteration": 0,
+      "ttft_ms": 44109.338,
+      "tps": null,
+      "total_response_time_ms": 44131,
+      "prompt_eval_time_ms": 44109.338,
+      "system_metrics": {
+        "before": {
+          "timestamp": 1758805580209,
+          "memoryUsageMB": 3100,
+          "availableMemoryMB": 2587,
+          "cpuUsage": 54,
+          "cpuTemperature": 51.2,
+          "gpuUsage": 34,
+          "gpuTemperature": 48.5,
+          "neuralEngineUsage": 31,
+          "batteryLevel": 40,
+          "batteryState": "charging",
+          "batteryTemperature": 34.1,
+          "powerConsumptionMA": -688.0370583248167,
+          "hasGPU": true,
+          "hasNeuralEngine": true,
+          "deviceChipset": "A16 Bionic (iPhone 15)"
+        },
+        "after": {
+          "timestamp": 1758805624341,
+          "memoryUsageMB": 3135,
+          "availableMemoryMB": 2552,
+          "cpuUsage": 71,
+          "cpuTemperature": 51.8,
+          "gpuUsage": 43,
+          "gpuTemperature": 48.8,
+          "neuralEngineUsage": 20,
+          "batteryLevel": 40,
+          "batteryState": "charging",
+          "batteryTemperature": 34.4,
+          "powerConsumptionMA": -668.4099763679053,
+          "hasGPU": true,
+          "hasNeuralEngine": true,
+          "deviceChipset": "A16 Bionic (iPhone 15)"
+        }
+      },
+      "energy_metrics": {
+        "before": {
+          "timestamp": 1758805580210,
+          "cpu": {
+            "watts": 3.06,
+            "percentage": 64,
+            "frequency": 0
+          },
+          "gpu": {
+            "watts": 0.2,
+            "percentage": 0
+          },
+          "memory": {
+            "watts": 0.3,
+            "bandwidth": 0,
+            "usage": 0
+          },
+          "display": {
+            "watts": 1,
+            "brightness": 0.5
+          },
+          "system": {
+            "total_watts": 4.5600000000000005,
+            "battery_drain_ma": 0,
+            "voltage": 3.8
+          }
+        },
+        "after": {
+          "timestamp": 1758805624345,
+          "cpu": {
+            "watts": 3.26,
+            "percentage": 69,
+            "frequency": 0
+          },
+          "gpu": {
+            "watts": 0.2,
+            "percentage": 0
+          },
+          "memory": {
+            "watts": 0.3,
+            "bandwidth": 0,
+            "usage": 0
+          },
+          "display": {
+            "watts": 1,
+            "brightness": 0.5
+          },
+          "system": {
+            "total_watts": 4.76,
+            "battery_drain_ma": 0,
+            "voltage": 3.8
+          }
+        }
+      },
+      "timestamp": "2025-09-25T13:07:04.345Z"
+    },
+    {
+      "requested_tokens": 500,
+      "actual_tokens": 500,
+      "iteration": 0,
+      "ttft_ms": 55986.804000000004,
+      "tps": null,
+      "total_response_time_ms": 56012,
+      "prompt_eval_time_ms": 55986.804000000004,
+      "system_metrics": {
+        "before": {
+          "timestamp": 1758805628581,
+          "memoryUsageMB": 3098,
+          "availableMemoryMB": 2589,
+          "cpuUsage": 66,
+          "cpuTemperature": 52.1,
+          "gpuUsage": 38,
+          "gpuTemperature": 48.8,
+          "neuralEngineUsage": 38,
+          "batteryLevel": 40,
+          "batteryState": "charging",
+          "batteryTemperature": 34.2,
+          "powerConsumptionMA": -671.9789370051565,
+          "hasGPU": true,
+          "hasNeuralEngine": true,
+          "deviceChipset": "A16 Bionic (iPhone 15)"
+        },
+        "after": {
+          "timestamp": 1758805684595,
+          "memoryUsageMB": 3188,
+          "availableMemoryMB": 2499,
+          "cpuUsage": 58,
+          "cpuTemperature": 52.9,
+          "gpuUsage": 37,
+          "gpuTemperature": 49.6,
+          "neuralEngineUsage": 36,
+          "batteryLevel": 40,
+          "batteryState": "charging",
+          "batteryTemperature": 34.5,
+          "powerConsumptionMA": -686.913349233137,
+          "hasGPU": true,
+          "hasNeuralEngine": true,
+          "deviceChipset": "A16 Bionic (iPhone 15)"
+        }
+      },
+      "energy_metrics": {
+        "before": {
+          "timestamp": 1758805628583,
+          "cpu": {
+            "watts": 2.9,
+            "percentage": 60,
+            "frequency": 0
+          },
+          "gpu": {
+            "watts": 0.2,
+            "percentage": 0
+          },
+          "memory": {
+            "watts": 0.3,
+            "bandwidth": 0,
+            "usage": 0
+          },
+          "display": {
+            "watts": 1,
+            "brightness": 0.5
+          },
+          "system": {
+            "total_watts": 4.4,
+            "battery_drain_ma": 0,
+            "voltage": 3.8
+          }
+        },
+        "after": {
+          "timestamp": 1758805684598,
+          "cpu": {
+            "watts": 3.5,
+            "percentage": 75,
+            "frequency": 0
+          },
+          "gpu": {
+            "watts": 0.2,
+            "percentage": 0
+          },
+          "memory": {
+            "watts": 0.3,
+            "bandwidth": 0,
+            "usage": 0
+          },
+          "display": {
+            "watts": 1,
+            "brightness": 0.5
+          },
+          "system": {
+            "total_watts": 5,
+            "battery_drain_ma": 0,
+            "voltage": 3.8
+          }
+        }
+      },
+      "timestamp": "2025-09-25T13:08:04.598Z"
+    },
+    {
+      "requested_tokens": 600,
+      "actual_tokens": 600,
+      "iteration": 0,
+      "ttft_ms": 69337.23300000001,
+      "tps": null,
+      "total_response_time_ms": 69365,
+      "prompt_eval_time_ms": 69337.23300000001,
+      "system_metrics": {
+        "before": {
+          "timestamp": 1758805688861,
+          "memoryUsageMB": 3098,
+          "availableMemoryMB": 2589,
+          "cpuUsage": 85,
+          "cpuTemperature": 53,
+          "gpuUsage": 49,
+          "gpuTemperature": 49.9,
+          "neuralEngineUsage": 27,
+          "batteryLevel": 40,
+          "batteryState": "charging",
+          "batteryTemperature": 34.5,
+          "powerConsumptionMA": -631.8296045200468,
+          "hasGPU": true,
+          "hasNeuralEngine": true,
+          "deviceChipset": "A16 Bionic (iPhone 15)"
+        },
+        "after": {
+          "timestamp": 1758805758230,
+          "memoryUsageMB": 3190,
+          "availableMemoryMB": 2497,
+          "cpuUsage": 57,
+          "cpuTemperature": 53.9,
+          "gpuUsage": 36,
+          "gpuTemperature": 50.8,
+          "neuralEngineUsage": 24,
+          "batteryLevel": 40,
+          "batteryState": "charging",
+          "batteryTemperature": 34.7,
+          "powerConsumptionMA": -526.5139020721632,
+          "hasGPU": true,
+          "hasNeuralEngine": true,
+          "deviceChipset": "A16 Bionic (iPhone 15)"
+        }
+      },
+      "energy_metrics": {
+        "before": {
+          "timestamp": 1758805688865,
+          "cpu": {
+            "watts": 3.18,
+            "percentage": 67,
+            "frequency": 0
+          },
+          "gpu": {
+            "watts": 0.2,
+            "percentage": 0
+          },
+          "memory": {
+            "watts": 0.3,
+            "bandwidth": 0,
+            "usage": 0
+          },
+          "display": {
+            "watts": 1,
+            "brightness": 0.5
+          },
+          "system": {
+            "total_watts": 4.68,
+            "battery_drain_ma": 0,
+            "voltage": 3.8
+          }
+        },
+        "after": {
+          "timestamp": 1758805758233,
+          "cpu": {
+            "watts": 3.46,
+            "percentage": 74,
+            "frequency": 0
+          },
+          "gpu": {
+            "watts": 0.2,
+            "percentage": 0
+          },
+          "memory": {
+            "watts": 0.3,
+            "bandwidth": 0,
+            "usage": 0
+          },
+          "display": {
+            "watts": 1,
+            "brightness": 0.5
+          },
+          "system": {
+            "total_watts": 4.96,
+            "battery_drain_ma": 0,
+            "voltage": 3.8
+          }
+        }
+      },
+      "timestamp": "2025-09-25T13:09:18.234Z"
+    },
+    {
+      "requested_tokens": 700,
+      "actual_tokens": 700,
+      "iteration": 0,
+      "ttft_ms": 84437.638,
+      "tps": null,
+      "total_response_time_ms": 84470,
+      "prompt_eval_time_ms": 84437.638,
+      "system_metrics": {
+        "before": {
+          "timestamp": 1758805762668,
+          "memoryUsageMB": 3100,
+          "availableMemoryMB": 2587,
+          "cpuUsage": 86,
+          "cpuTemperature": 53.8,
+          "gpuUsage": 50,
+          "gpuTemperature": 51,
+          "neuralEngineUsage": 37,
+          "batteryLevel": 40,
+          "batteryState": "charging",
+          "batteryTemperature": 34.6,
+          "powerConsumptionMA": -628.4359851090129,
+          "hasGPU": true,
+          "hasNeuralEngine": true,
+          "deviceChipset": "A16 Bionic (iPhone 15)"
+        },
+        "after": {
+          "timestamp": 1758805847139,
+          "memoryUsageMB": 3190,
+          "availableMemoryMB": 2497,
+          "cpuUsage": 68,
+          "cpuTemperature": 54.9,
+          "gpuUsage": 42,
+          "gpuTemperature": 51.9,
+          "neuralEngineUsage": 38,
+          "batteryLevel": 45,
+          "batteryState": "charging",
+          "batteryTemperature": 34.9,
+          "powerConsumptionMA": -651.1042860601348,
+          "hasGPU": true,
+          "hasNeuralEngine": true,
+          "deviceChipset": "A16 Bionic (iPhone 15)"
+        }
+      },
+      "energy_metrics": {
+        "before": {
+          "timestamp": 1758805762669,
+          "cpu": {
+            "watts": 3.5,
+            "percentage": 75,
+            "frequency": 0
+          },
+          "gpu": {
+            "watts": 0.2,
+            "percentage": 0
+          },
+          "memory": {
+            "watts": 0.3,
+            "bandwidth": 0,
+            "usage": 0
+          },
+          "display": {
+            "watts": 1,
+            "brightness": 0.5
+          },
+          "system": {
+            "total_watts": 5,
+            "battery_drain_ma": 0,
+            "voltage": 3.8
+          }
+        },
+        "after": {
+          "timestamp": 1758805847142,
+          "cpu": {
+            "watts": 3.7,
+            "percentage": 80,
+            "frequency": 0
+          },
+          "gpu": {
+            "watts": 0.2,
+            "percentage": 0
+          },
+          "memory": {
+            "watts": 0.3,
+            "bandwidth": 0,
+            "usage": 0
+          },
+          "display": {
+            "watts": 1,
+            "brightness": 0.5
+          },
+          "system": {
+            "total_watts": 5.2,
+            "battery_drain_ma": 0,
+            "voltage": 3.8
+          }
+        }
+      },
+      "timestamp": "2025-09-25T13:10:47.143Z"
+    },
+    {
+      "requested_tokens": 800,
+      "actual_tokens": 800,
+      "iteration": 0,
+      "ttft_ms": 97173.977,
+      "tps": null,
+      "total_response_time_ms": 97204,
+      "prompt_eval_time_ms": 97173.977,
+      "system_metrics": {
+        "before": {
+          "timestamp": 1758805851597,
+          "memoryUsageMB": 3101,
+          "availableMemoryMB": 2586,
+          "cpuUsage": 87,
+          "cpuTemperature": 54.9,
+          "gpuUsage": 50,
+          "gpuTemperature": 52,
+          "neuralEngineUsage": 21,
+          "batteryLevel": 45,
+          "batteryState": "charging",
+          "batteryTemperature": 34.9,
+          "powerConsumptionMA": -617.9999149656819,
+          "hasGPU": true,
+          "hasNeuralEngine": true,
+          "deviceChipset": "A16 Bionic (iPhone 15)"
+        },
+        "after": {
+          "timestamp": 1758805948803,
+          "memoryUsageMB": 3191,
+          "availableMemoryMB": 2496,
+          "cpuUsage": 60,
+          "cpuTemperature": 55.8,
+          "gpuUsage": 38,
+          "gpuTemperature": 52.8,
+          "neuralEngineUsage": 37,
+          "batteryLevel": 45,
+          "batteryState": "charging",
+          "batteryTemperature": 34.9,
+          "powerConsumptionMA": -521.5640656827966,
+          "hasGPU": true,
+          "hasNeuralEngine": true,
+          "deviceChipset": "A16 Bionic (iPhone 15)"
+        }
+      },
+      "energy_metrics": {
+        "before": {
+          "timestamp": 1758805851599,
+          "cpu": {
+            "watts": 3.3,
+            "percentage": 70,
+            "frequency": 0
+          },
+          "gpu": {
+            "watts": 0.2,
+            "percentage": 0
+          },
+          "memory": {
+            "watts": 0.3,
+            "bandwidth": 0,
+            "usage": 0
+          },
+          "display": {
+            "watts": 1,
+            "brightness": 0.5
+          },
+          "system": {
+            "total_watts": 4.8,
+            "battery_drain_ma": 0,
+            "voltage": 3.8
+          }
+        },
+        "after": {
+          "timestamp": 1758805948807,
+          "cpu": {
+            "watts": 3.5,
+            "percentage": 75,
+            "frequency": 0
+          },
+          "gpu": {
+            "watts": 0.2,
+            "percentage": 0
+          },
+          "memory": {
+            "watts": 0.3,
+            "bandwidth": 0,
+            "usage": 0
+          },
+          "display": {
+            "watts": 1,
+            "brightness": 0.5
+          },
+          "system": {
+            "total_watts": 5,
+            "battery_drain_ma": 0,
+            "voltage": 3.8
+          }
+        }
+      },
+      "timestamp": "2025-09-25T13:12:28.807Z"
+    },
+    {
+      "requested_tokens": 900,
+      "actual_tokens": 900,
+      "iteration": 0,
+      "ttft_ms": 116391.649,
+      "tps": null,
+      "total_response_time_ms": 116428,
+      "prompt_eval_time_ms": 116391.649,
+      "system_metrics": {
+        "before": {
+          "timestamp": 1758805953277,
+          "memoryUsageMB": 3101,
+          "availableMemoryMB": 2586,
+          "cpuUsage": 83,
+          "cpuTemperature": 55.6,
+          "gpuUsage": 48,
+          "gpuTemperature": 52.6,
+          "neuralEngineUsage": 24,
+          "batteryLevel": 45,
+          "batteryState": "charging",
+          "batteryTemperature": 35,
+          "powerConsumptionMA": -581.0299913761789,
+          "hasGPU": true,
+          "hasNeuralEngine": true,
+          "deviceChipset": "A16 Bionic (iPhone 15)"
+        },
+        "after": {
+          "timestamp": 1758806069707,
+          "memoryUsageMB": 3014,
+          "availableMemoryMB": 2673,
+          "cpuUsage": 52,
+          "cpuTemperature": 54.2,
+          "gpuUsage": 32,
+          "gpuTemperature": 51.4,
+          "neuralEngineUsage": 27,
+          "batteryLevel": 45,
+          "batteryState": "charging",
+          "batteryTemperature": 34.9,
+          "powerConsumptionMA": -540.5331459304982,
+          "hasGPU": true,
+          "hasNeuralEngine": true,
+          "deviceChipset": "A16 Bionic (iPhone 15)"
+        }
+      },
+      "energy_metrics": {
+        "before": {
+          "timestamp": 1758805953279,
+          "cpu": {
+            "watts": 3.1,
+            "percentage": 65,
+            "frequency": 0
+          },
+          "gpu": {
+            "watts": 0.2,
+            "percentage": 0
+          },
+          "memory": {
+            "watts": 0.3,
+            "bandwidth": 0,
+            "usage": 0
+          },
+          "display": {
+            "watts": 1,
+            "brightness": 0.5
+          },
+          "system": {
+            "total_watts": 4.6,
+            "battery_drain_ma": 0,
+            "voltage": 3.8
+          }
+        },
+        "after": {
+          "timestamp": 1758806069711,
+          "cpu": {
+            "watts": 2.9,
+            "percentage": 60,
+            "frequency": 0
+          },
+          "gpu": {
+            "watts": 0.2,
+            "percentage": 0
+          },
+          "memory": {
+            "watts": 0.3,
+            "bandwidth": 0,
+            "usage": 0
+          },
+          "display": {
+            "watts": 1,
+            "brightness": 0.5
+          },
+          "system": {
+            "total_watts": 4.4,
+            "battery_drain_ma": 0,
+            "voltage": 3.8
+          }
+        }
+      },
+      "timestamp": "2025-09-25T13:14:29.712Z"
+    },
+    {
+      "requested_tokens": 1000,
+      "actual_tokens": 1000,
+      "iteration": 0,
+      "ttft_ms": 126347.045,
+      "tps": null,
+      "total_response_time_ms": 126388,
+      "prompt_eval_time_ms": 126347.045,
+      "system_metrics": {
+        "before": {
+          "timestamp": 1758806074258,
+          "memoryUsageMB": 3094,
+          "availableMemoryMB": 2593,
+          "cpuUsage": 68,
+          "cpuTemperature": 54.4,
+          "gpuUsage": 42,
+          "gpuTemperature": 51.2,
+          "neuralEngineUsage": 34,
+          "batteryLevel": 45,
+          "batteryState": "charging",
+          "batteryTemperature": 34.9,
+          "powerConsumptionMA": -637.6367267503485,
+          "hasGPU": true,
+          "hasNeuralEngine": true,
+          "deviceChipset": "A16 Bionic (iPhone 15)"
+        },
+        "after": {
+          "timestamp": 1758806200648,
+          "memoryUsageMB": 3204,
+          "availableMemoryMB": 2483,
+          "cpuUsage": 87,
+          "cpuTemperature": 56.7,
+          "gpuUsage": 52,
+          "gpuTemperature": 54.1,
+          "neuralEngineUsage": 22,
+          "batteryLevel": 45,
+          "batteryState": "charging",
+          "batteryTemperature": 35.3,
+          "powerConsumptionMA": -669.6142353949289,
+          "hasGPU": true,
+          "hasNeuralEngine": true,
+          "deviceChipset": "A16 Bionic (iPhone 15)"
+        }
+      },
+      "energy_metrics": {
+        "before": {
+          "timestamp": 1758806074260,
+          "cpu": {
+            "watts": 3.66,
+            "percentage": 79,
+            "frequency": 0
+          },
+          "gpu": {
+            "watts": 0.2,
+            "percentage": 0
+          },
+          "memory": {
+            "watts": 0.3,
+            "bandwidth": 0,
+            "usage": 0
+          },
+          "display": {
+            "watts": 1,
+            "brightness": 0.5
+          },
+          "system": {
+            "total_watts": 5.16,
+            "battery_drain_ma": 0,
+            "voltage": 3.8
+          }
+        },
+        "after": {
+          "timestamp": 1758806200652,
+          "cpu": {
+            "watts": 3.9,
+            "percentage": 85,
+            "frequency": 0
+          },
+          "gpu": {
+            "watts": 0.2,
+            "percentage": 0
+          },
+          "memory": {
+            "watts": 0.3,
+            "bandwidth": 0,
+            "usage": 0
+          },
+          "display": {
+            "watts": 1,
+            "brightness": 0.5
+          },
+          "system": {
+            "total_watts": 5.3999999999999995,
+            "battery_drain_ma": 0,
+            "voltage": 3.8
+          }
+        }
+      },
+      "timestamp": "2025-09-25T13:16:40.653Z"
+    }
+  ]
+}

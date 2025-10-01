@@ -1,9 +1,10 @@
 """Benchmark evaluation service."""
 
+import ast
 import json
 import re
 import asyncio
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional, Tuple, Union
 from pathlib import Path
 from datetime import datetime
 from dataclasses import dataclass, asdict
@@ -13,6 +14,7 @@ from ..services import InferenceService
 from ..tools import ToolExecutor
 from ..monitoring.unified_monitor import UnifiedMonitor
 from ..utils.model_prompts import get_model_prompt
+from ..datasets import DatasetRegistry, Problem, Dataset
 import os
 DEBUG_BENCHMARK = os.environ.get("DEBUG_BENCHMARK", "").lower() == "true"
 STREAM_OUTPUT = os.environ.get("STREAM_OUTPUT", "").lower() == "true"
@@ -107,44 +109,146 @@ class BenchmarkSession:
 class BenchmarkService:
     """Service for running and evaluating benchmarks."""
 
-    def __init__(self, inference_service: InferenceService, config: Optional[BenchmarkConfig] = None):
+    def __init__(
+        self,
+        inference_service: InferenceService,
+        config: Optional[BenchmarkConfig] = None,
+        dataset_name: str = "mbpp",
+        data_dir: Optional[Path] = None,
+    ):
+        """Initialize the benchmark service.
+
+        Args:
+            inference_service: The inference service to use for generation
+            config: Optional benchmark configuration
+            dataset_name: Name of the dataset to use (default: "mbpp")
+            data_dir: Directory containing dataset files (default: DATA_DIR or package data)
+        """
         self.inference_service = inference_service
         self.config = config
         self.tool_executor = ToolExecutor()
         self.system_monitor = UnifiedMonitor()  # Using unified monitor for performance
-        self.dataset_path = DATA_DIR / "mbpp_sample.json"
-        self.problems = self._load_dataset()
 
-    def _load_dataset(self) -> List[Dict[str, Any]]:
-        """Load MBPP dataset."""
-        # Try to load from the data directory first
-        if self.dataset_path.exists():
-            with open(self.dataset_path, "r") as f:
-                return json.load(f)
+        # Initialize dataset using the new abstraction
+        self.dataset_name = dataset_name
+        self._data_dir = data_dir or self._get_default_data_dir()
+        self.dataset: Optional[Dataset] = None
+        self._problems_cache: Optional[List[Problem]] = None
 
-        # Check for full dataset
-        full_dataset_path = Path(__file__).parent.parent / "data" / "mbpp_full.json"
-        if full_dataset_path.exists():
-            print(f"Loading full MBPP dataset ({full_dataset_path})")
-            with open(full_dataset_path, "r") as f:
-                return json.load(f)
+        # Load dataset
+        self._init_dataset()
 
-        # Check for test dataset
-        test_dataset_path = Path(__file__).parent.parent / "data" / "mbpp_test.json"
-        if test_dataset_path.exists():
-            print(f"Loading test MBPP dataset ({test_dataset_path})")
-            with open(test_dataset_path, "r") as f:
-                return json.load(f)
+    def _get_default_data_dir(self) -> Path:
+        """Get the default data directory, checking package data first."""
+        # Check package data directory first
+        pkg_data = Path(__file__).parent.parent / "data"
+        if pkg_data.exists():
+            return pkg_data
+        # Fall back to configured DATA_DIR
+        return DATA_DIR
 
-        # Fall back to sample dataset
-        sample_path = Path(__file__).parent.parent / "data" / "mbpp_sample.json"
-        if sample_path.exists():
-            print(f"Warning: Using sample dataset with only 3 problems. Run download_mbpp.py for full dataset.")
-            with open(sample_path, "r") as f:
-                return json.load(f)
+    def _init_dataset(self) -> None:
+        """Initialize the dataset using the registry."""
+        try:
+            self.dataset = DatasetRegistry.create(self.dataset_name, self._data_dir)
+            if DEBUG_BENCHMARK:
+                print(f"[DEBUG] Initialized {self.dataset_name} dataset from {self._data_dir}")
+        except ValueError as e:
+            print(f"Warning: Could not initialize dataset '{self.dataset_name}': {e}")
+            print(f"Available datasets: {DatasetRegistry.list_names()}")
+            self.dataset = None
 
-        print("Error: No MBPP dataset found!")
-        return []
+    def _load_dataset(self, split: str = "test", limit: Optional[int] = None) -> List[Problem]:
+        """Load problems from the dataset.
+
+        Args:
+            split: Dataset split to load ("test", "sample", "full", etc.)
+            limit: Maximum number of problems to load
+
+        Returns:
+            List of Problem objects
+        """
+        if self.dataset is None:
+            print("Error: No dataset initialized!")
+            return []
+
+        try:
+            problems = self.dataset.load(split=split, limit=limit)
+            if DEBUG_BENCHMARK:
+                print(f"[DEBUG] Loaded {len(problems)} problems from {self.dataset_name} ({split} split)")
+            return problems
+        except FileNotFoundError as e:
+            print(f"Error: Dataset files not found: {e}")
+            # Try to fall back to sample
+            try:
+                problems = self.dataset.load(split="sample")
+                print(f"Warning: Falling back to sample split ({len(problems)} problems)")
+                return problems
+            except FileNotFoundError:
+                print("Error: No dataset files found at all!")
+                return []
+
+    @property
+    def problems(self) -> List[Problem]:
+        """Get the loaded problems (lazy loading with cache)."""
+        if self._problems_cache is None:
+            # Determine split based on config
+            if self.config and self.config.problems_limit:
+                self._problems_cache = self._load_dataset(split="test", limit=self.config.problems_limit)
+            else:
+                # Try to load test split, fall back to sample
+                self._problems_cache = self._load_dataset(split="test")
+                if not self._problems_cache:
+                    self._problems_cache = self._load_dataset(split="sample")
+        return self._problems_cache
+
+    def reload_dataset(self, dataset_name: Optional[str] = None, split: str = "test", limit: Optional[int] = None) -> int:
+        """Reload the dataset, optionally switching to a different one.
+
+        Args:
+            dataset_name: Name of dataset to load (None to keep current)
+            split: Dataset split to load
+            limit: Maximum number of problems
+
+        Returns:
+            Number of problems loaded
+        """
+        if dataset_name and dataset_name != self.dataset_name:
+            self.dataset_name = dataset_name
+            self._init_dataset()
+
+        self._problems_cache = self._load_dataset(split=split, limit=limit)
+        return len(self._problems_cache)
+
+    def _problem_to_dict(self, problem: Problem) -> Dict[str, Any]:
+        """Convert a Problem object to the legacy dict format for backward compatibility.
+
+        Args:
+            problem: Problem object
+
+        Returns:
+            Dictionary in legacy format
+        """
+        return {
+            "task_id": int(problem.task_id) if problem.task_id.isdigit() else problem.task_id,
+            "text": problem.prompt,
+            "code": problem.canonical_solution,
+            "test_list": problem.test_cases,
+            "entry_point": problem.entry_point,
+        }
+
+    def _get_problem_dict(self, problem: Union[Problem, Dict[str, Any]]) -> Dict[str, Any]:
+        """Get problem as dictionary, handling both Problem objects and legacy dicts.
+
+        Args:
+            problem: Either a Problem object or legacy dict
+
+        Returns:
+            Problem as dictionary
+        """
+        if isinstance(problem, Problem):
+            return self._problem_to_dict(problem)
+        return problem
 
     async def run_benchmark(
         self,
@@ -185,16 +289,21 @@ class BenchmarkService:
         try:
             # Select problems to run
             if problem_ids:
-                problems = [p for p in self.problems if p["task_id"] in problem_ids]
+                # Filter by problem IDs (handle both int and string IDs)
+                problems = [
+                    p for p in self.problems
+                    if self._get_problem_id(p) in problem_ids or str(self._get_problem_id(p)) in [str(pid) for pid in problem_ids]
+                ]
             else:
                 problems = self.problems
 
             # Run each problem
             for i, problem in enumerate(problems):
+                problem_dict = self._get_problem_dict(problem)
                 if progress_callback:
-                    progress_callback(i, len(problems), f"Running problem {problem['task_id']}")
+                    progress_callback(i, len(problems), f"Running problem {problem_dict['task_id']}")
 
-                result = await self._evaluate_problem(problem, benchmark_mode)
+                result = await self._evaluate_problem(problem_dict, benchmark_mode)
                 session.problems.append(result)
 
             # Finalize session
@@ -206,6 +315,12 @@ class BenchmarkService:
             self.system_monitor.stop_monitoring()
 
         return session
+
+    def _get_problem_id(self, problem: Union[Problem, Dict[str, Any]]) -> Any:
+        """Get the problem ID from either a Problem object or dict."""
+        if isinstance(problem, Problem):
+            return problem.task_id
+        return problem.get("task_id")
 
     @profile
     async def _evaluate_problem(
@@ -301,7 +416,10 @@ class BenchmarkService:
         regular_tokens_count = 0
 
         # Generate response based on mode
+        code = ""
+
         if mode.name == "base":
+            self._log_messages(messages, tools)
             # Base mode: simple generation
             if DEBUG_BENCHMARK:
                 print(f"[DEBUG] Starting inference in base mode...")
@@ -355,7 +473,8 @@ class BenchmarkService:
             tool_calls = None
 
         elif mode.name == "tool_submission":
-            # Tool submission mode: single tool call expected
+            self._log_messages(messages, tools)
+            # Tool submission mode: single tool call expected; do not reprompt
             response, tool_calls, metrics = self.inference_service.generate_with_tools(
                 messages=messages,
                 tools=tools,
@@ -378,6 +497,11 @@ class BenchmarkService:
                     "thinking_ratio": 0.0
                 }
 
+            code = self._extract_code(response, tool_calls)
+
+            if DEBUG_BENCHMARK and not self._looks_like_python(code):
+                print("[DEBUG] Tool submission payload did not contain executable Python code.")
+
         else:  # full_tool mode
             # Full tool mode: iterative tool usage
             all_responses = []
@@ -389,6 +513,8 @@ class BenchmarkService:
 
             for iteration in range(mode.max_iterations):
                 iteration_count += 1
+                if iteration == 0:
+                    self._log_messages(messages, tools)
                 response, tool_calls, metrics = self.inference_service.generate_with_tools(
                     messages=messages,
                     tools=tools,
@@ -478,8 +604,9 @@ class BenchmarkService:
             response = "\n".join(all_responses)
             tool_calls = all_tool_calls
 
-        # Extract code from response
-        code = self._extract_code(response, tool_calls)
+        # Extract code from response if not already determined
+        if not code:
+            code = self._extract_code(response, tool_calls)
 
         # Run tests
         test_results = await self._run_tests(code, problem["test_list"])
@@ -541,6 +668,16 @@ class BenchmarkService:
         Returns:
             Extracted code
         """
+        if DEBUG_BENCHMARK:
+            print("[DEBUG] _extract_code invoked")
+            print(f"[DEBUG] Response type: {type(response)}")
+            if isinstance(response, str):
+                snippet = response[:500]
+                print(f"[DEBUG] Response snippet (first 500 chars):\n{snippet}")
+            else:
+                print(f"[DEBUG] Response repr: {response!r}")
+            print(f"[DEBUG] Tool calls provided: {json.dumps(tool_calls, indent=2, default=str) if tool_calls else 'None'}")
+
         # First check tool calls
         if tool_calls:
             # Look for submit_python_solution calls first
@@ -556,13 +693,18 @@ class BenchmarkService:
                     # Parse arguments if it's a JSON string
                     args_str = func_info.get("arguments", "{}")
                     if isinstance(args_str, str):
-                        import json
                         try:
                             params = json.loads(args_str)
                         except json.JSONDecodeError:
                             params = {}
 
                 if tool_name == "submit_python_solution":
+                    if DEBUG_BENCHMARK:
+                        print(f"[DEBUG] submit_python_solution params keys: {list(params.keys())}")
+                        for key, value in params.items():
+                            if isinstance(value, str):
+                                preview = value[:200].replace("\n", "\\n")
+                                print(f"[DEBUG] param {key} preview: {preview}")
                     # Check for code parameter (standard) or solution parameter (what model is using)
                     if "code" in params:
                         return params["code"]
@@ -636,6 +778,46 @@ class BenchmarkService:
 
         # Fallback: return entire response
         return response.strip()
+
+    def _looks_like_python(self, candidate: str) -> bool:
+        """Heuristically determine if a string contains runnable Python code."""
+        if not candidate or not candidate.strip():
+            return False
+
+        snippet = candidate.strip()
+
+        if "def " not in snippet and "class " not in snippet and "import " not in snippet:
+            return False
+
+        try:
+            ast.parse(snippet)
+            return True
+        except SyntaxError:
+            return False
+
+    def _log_messages(self, messages: List[Dict[str, Any]], tools: Optional[List[Dict[str, Any]]]) -> None:
+        """Emit the prompt messages when debug logging is enabled."""
+        if not DEBUG_BENCHMARK:
+            return
+
+        print("[DEBUG] --- Prompt messages ---")
+        for idx, message in enumerate(messages, start=1):
+            role = message.get("role", "unknown")
+            content = message.get("content", "")
+            preview = content if len(content) <= 800 else content[:800] + "…"
+            print(f"[DEBUG] Message {idx} ({role}):\n{preview}\n")
+
+        if tools:
+            tool_names = []
+            for tool in tools:
+                if isinstance(tool, dict):
+                    if "function" in tool and isinstance(tool["function"], dict):
+                        tool_names.append(tool["function"].get("name", "unknown"))
+                    else:
+                        tool_names.append(tool.get("name", "unknown"))
+                else:
+                    tool_names.append(str(tool))
+            print(f"[DEBUG] Tools available: {tool_names}")
 
     async def _run_tests(
         self,
@@ -893,13 +1075,15 @@ class BenchmarkService:
         Returns:
             List of problem summaries
         """
-        return [
-            {
-                "task_id": p["task_id"],
-                "text": p["text"][:100] + "..." if len(p["text"]) > 100 else p["text"],
-            }
-            for p in self.problems
-        ]
+        result = []
+        for p in self.problems:
+            p_dict = self._get_problem_dict(p)
+            text = p_dict.get("text", "")
+            result.append({
+                "task_id": p_dict["task_id"],
+                "text": text[:100] + "..." if len(text) > 100 else text,
+            })
+        return result
 
     def _calculate_pass_at_k(self, n: int, c: int, k: int) -> float:
         """Calculate pass@k metric.
@@ -955,7 +1139,11 @@ class BenchmarkService:
         try:
             # Select problems
             if config.problem_ids:
-                problems = [p for p in self.problems if p["task_id"] in config.problem_ids]
+                # Filter by problem IDs (handle both int and string IDs)
+                problems = [
+                    p for p in self.problems
+                    if self._get_problem_id(p) in config.problem_ids or str(self._get_problem_id(p)) in [str(pid) for pid in config.problem_ids]
+                ]
             elif config.problems_limit:
                 problems = self.problems[:config.problems_limit]
             else:
@@ -963,6 +1151,7 @@ class BenchmarkService:
 
             # Run each problem multiple times
             for i, problem in enumerate(problems):
+                problem_dict = self._get_problem_dict(problem)
                 problem_results = []
 
                 # Run num_samples times for pass@k
@@ -970,26 +1159,26 @@ class BenchmarkService:
                 for run_id in range(config.num_samples):
                     if progress_callback:
                         progress_callback(
-                            f"Problem {problem['task_id']} - Run {run_id + 1}/{config.num_samples}"
+                            f"Problem {problem_dict['task_id']} - Run {run_id + 1}/{config.num_samples}"
                         )
 
                     # Run with temperature sampling
                     result = await self._evaluate_problem_with_temperature(
-                        problem, benchmark_mode, config.temperature, run_id
+                        problem_dict, benchmark_mode, config.temperature, run_id
                     )
                     problem_results.append(result)
                     session.problems.append(result)
                     actual_runs += 1
-                    
+
                     # Early stopping: if problem passes and we're not in exhaustive mode, skip remaining samples
                     if result.success and not config.exhaustive_passes and run_id < config.num_samples - 1:
                         if DEBUG_BENCHMARK:
-                            print(f"✓ Problem {problem['task_id']} passed on run {run_id + 1}, skipping remaining {config.num_samples - run_id - 1} runs")
+                            print(f"✓ Problem {problem_dict['task_id']} passed on run {run_id + 1}, skipping remaining {config.num_samples - run_id - 1} runs")
                         break
 
                 # Calculate pass@k for this problem
                 successful_runs = sum(1 for r in problem_results if r.success)
-                
+
                 # When early stopping is enabled, use actual runs for Pass@k calculation
                 if actual_runs < config.num_samples and successful_runs > 0 and not config.exhaustive_passes:
                     # Early stopped after success - use actual runs for Pass@k
@@ -998,8 +1187,8 @@ class BenchmarkService:
                 else:
                     # Either exhaustive mode or all samples were run
                     n_for_passk = config.num_samples
-                
-                session.pass_at_k[problem["task_id"]] = {
+
+                session.pass_at_k[problem_dict["task_id"]] = {
                     "total_runs": config.num_samples,
                     "actual_runs": actual_runs,
                     "successful_runs": successful_runs,

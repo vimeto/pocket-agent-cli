@@ -1,0 +1,105 @@
+# Benchmark Analysis Configuration
+
+# Paths configuration
+paths:
+  # Raw data from Mahti (will be populated after scp)
+  raw_data_dir: "benchmark_analysis/raw_data"
+  
+  # Processed data directory
+  processed_dir: "benchmark_analysis/processed"
+  
+  # Output directory for reports and visualizations
+  output_dir: "benchmark_analysis"
+  
+  # Scripts directory
+  scripts_dir: "benchmark_analysis/scripts"
+
+# Mahti HPC configuration
+mahti:
+  # Project configuration on Mahti
+  project_id: 2013932
+  username: "${USER}"  # Will use environment variable
+  
+  # Remote paths on Mahti
+  remote_base: "/projappl/project_${project_id}/${username}/pocket-agent-cli"
+  remote_results: "${remote_base}/data/results"
+  remote_logs: "${remote_base}/data/logs"
+  remote_slurm_logs: "${remote_base}/logs"
+
+# Analysis configuration
+analysis:
+  # Statistical tests
+  significance_level: 0.05
+  
+  # Pass@k values to calculate
+  k_values: [1, 3, 5, 10]
+  
+  # Visualization settings
+  figure_dpi: 150
+  figure_format: "png"
+  
+  # Problem sampling for heatmaps (too many problems make it unreadable)
+  max_problems_heatmap: 50
+  
+  # Performance percentiles to calculate
+  percentiles: [50, 90, 95, 99]
+
+# Model configurations to analyze
+models:
+  - name: "llama-3.2-3b-instruct"
+    versions: ["Q4_K_M", "F16", "BF16"]
+    modes: ["base", "tool_submission", "full_tool"]
+  
+  - name: "gemma-2b-it"
+    versions: ["Q4_K_M", "F16"]
+    modes: ["base", "tool_submission", "full_tool"]
+
+# Report generation
+report:
+  # Markdown report settings
+  include_executive_summary: true
+  include_recommendations: true
+  include_statistical_tests: true
+  include_visualizations: true
+  
+  # LaTeX table settings
+  latex_float_precision: 2
+  latex_percentage_precision: 1
+  
+  # CSV export settings
+  export_raw_data: false  # Set to true to include all raw data in exports
+  export_aggregated: true
+
+# Benchmark metadata
+benchmark:
+  dataset: "MBPP (Mostly Basic Python Problems)"
+  total_problems: 509
+  samples_per_problem: 10
+  temperature: 0.7
+  
+  # Expected metrics
+  expected_metrics:
+    - "duration_seconds"
+    - "success"
+    - "test_pass_rate"
+    - "ttft_ms"
+    - "tps"
+    - "total_tokens"
+    - "energy_per_token"
+    - "gpu_utilization"
+    - "memory_usage"
+
+# Data validation
+validation:
+  # Minimum expected rows for valid dataset
+  min_problem_results: 100
+  
+  # Maximum reasonable values for sanity checks
+  max_duration_seconds: 300
+  max_tokens: 10000
+  max_energy_joules: 1000
+
+# Logging
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"

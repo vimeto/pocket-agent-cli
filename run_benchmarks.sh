@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Battery threshold percentage
-BATTERY_THRESHOLD=5
+BATTERY_THRESHOLD=75
 
 # Number of problems to run at once
 BATCH_SIZE=5
@@ -10,7 +10,7 @@ BATCH_SIZE=5
 TOTAL_PROBLEMS=509
 
 # Starting problem index
-START_INDEX=200
+START_INDEX=10
 
 # Check if resuming from a specific index
 if [ "$1" ]; then
@@ -76,7 +76,7 @@ while [ $current_index -lt $TOTAL_PROBLEMS ]; do
     # Run the benchmark command
     export DEBUG_BENCHMARK=true
     uv run python -m pocket_agent_cli.cli benchmark \
-        --model gemma-3n-e2b-it \
+        --model qwen-3-4b \
         --mode all \
         --problems "$problem_ids" \
         --num-samples 10

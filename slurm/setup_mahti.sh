@@ -43,7 +43,7 @@ mkdir -p data/{models,results,logs,datasets,cache,sandbox}
 echo ""
 echo "[2/4] Setting up Python environment..."
 module purge
-module load pytorch/2.5.1
+module load pytorch/2.5
 
 VENV_DIR="${PROJECT_DIR}/venv"
 if [ ! -d "${VENV_DIR}" ]; then
@@ -89,7 +89,7 @@ export DISABLE_DOCKER=1
 
 # Load module and activate venv
 module purge 2>/dev/null
-module load pytorch/2.5.1 2>/dev/null
+module load pytorch/2.5 2>/dev/null
 source "${PROJECT_DIR}/venv/bin/activate"
 
 echo "Environment ready: $(python --version)"

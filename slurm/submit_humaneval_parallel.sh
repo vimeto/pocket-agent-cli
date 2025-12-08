@@ -1,6 +1,8 @@
 #!/bin/bash
+# =============================================================================
 # Submit parallel HumanEval benchmark using SLURM job arrays
 # This is the fastest way to run HumanEval benchmarks on CSC Mahti
+# =============================================================================
 
 # Default values
 MODEL="llama-3.2-3b-instruct"
@@ -11,6 +13,7 @@ SAMPLES=10
 TIME="02:00:00"
 PARTITION="gpusmall"
 PROBLEMS_PER_JOB=20  # Each job processes 20 problems
+PROJECT=${PROJECT:-2013932}
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -92,9 +95,9 @@ TOTAL_PROBLEMS=164
 NUM_JOBS=$(( (TOTAL_PROBLEMS + PROBLEMS_PER_JOB - 1) / PROBLEMS_PER_JOB ))
 
 # Set up paths
-export PROJECT=2013932
-PROJECT_DIR="/projappl/project_$PROJECT/$USER/pocket-agent-cli"
-LOGS_DIR="$PROJECT_DIR/data/logs"
+export PROJECT=${PROJECT:-2013932}
+PROJECT_DIR="/projappl/project_${PROJECT}/${USER}/pocket-agent-cli"
+LOGS_DIR="${PROJECT_DIR}/data/logs"
 mkdir -p "$LOGS_DIR"
 
 # Generate unique run ID
@@ -167,22 +170,20 @@ echo "Problems: $START_INDEX to $END_INDEX ($TOTAL problems)"
 echo "================================="
 
 # Set up environment
-export PROJECT=2013932
-PROJECT_DIR="/projappl/project_$PROJECT/$USER/pocket-agent-cli"
+export PROJECT=PROJECT_NUMBER_PLACEHOLDER
+PROJECT_DIR="/projappl/project_${PROJECT}/${USER}/pocket-agent-cli"
 
 # Activate environment
-source $PROJECT_DIR/slurm/activate_env.sh
+source "${PROJECT_DIR}/slurm/activate.sh"
 
 # Set work directory
-cd $PROJECT_DIR
+cd "${PROJECT_DIR}"
 
-# Use LOCAL_SCRATCH if available
+# Use LOCAL_SCRATCH if available for faster I/O
 if [ -d "$LOCAL_SCRATCH" ]; then
     echo "Using LOCAL_SCRATCH: $LOCAL_SCRATCH"
     export TMPDIR=$LOCAL_SCRATCH
     export TEMP=$LOCAL_SCRATCH
-    cp -r pocket_agent_cli $LOCAL_SCRATCH/
-    cd $LOCAL_SCRATCH
 fi
 
 # Check GPU
@@ -245,6 +246,7 @@ sed -i "s/CONTEXT_PLACEHOLDER/$CONTEXT/g" "$TEMP_SCRIPT"
 sed -i "s/SAMPLES_PLACEHOLDER/$SAMPLES/g" "$TEMP_SCRIPT"
 sed -i "s/PROBLEMS_PER_JOB_PLACEHOLDER/$PROBLEMS_PER_JOB/g" "$TEMP_SCRIPT"
 sed -i "s/RUN_ID_PLACEHOLDER/$RUN_ID/g" "$TEMP_SCRIPT"
+sed -i "s/PROJECT_NUMBER_PLACEHOLDER/$PROJECT/g" "$TEMP_SCRIPT"
 
 # Submit the array job
 echo ""

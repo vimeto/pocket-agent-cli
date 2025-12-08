@@ -168,7 +168,9 @@ class BenchmarkCoordinator:
             runs_dir.mkdir(parents=True, exist_ok=True)
 
             for result in session.problems:
-                run_file = runs_dir / f"problem_{result.problem_id}_run_{result.run_id}.json"
+                # Sanitize problem_id for filename (HumanEval/0 -> HumanEval_0)
+                safe_problem_id = str(result.problem_id).replace("/", "_")
+                run_file = runs_dir / f"problem_{safe_problem_id}_run_{result.run_id}.json"
                 with open(run_file, "w") as f:
                     json.dump(result.to_dict(), f, indent=2)
 

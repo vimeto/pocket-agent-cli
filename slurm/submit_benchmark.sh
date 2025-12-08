@@ -12,6 +12,7 @@ VERSION="Q4_K_M"
 CONTEXT=8192
 TIME="24:00:00"
 PARTITION="gpusmall"
+DATASET="mbpp"
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -56,14 +57,19 @@ while [[ $# -gt 0 ]]; do
             PARTITION="$2"
             shift 2
             ;;
+        --dataset)
+            DATASET="$2"
+            shift 2
+            ;;
         --help)
             echo "Usage: $0 [options]"
             echo ""
             echo "Options:"
             echo "  --model MODEL       Model name (default: llama-3.2-3b-instruct)"
             echo "  --mode MODE         Benchmark mode: base, tool_submission, full_tool, all (default: all)"
+            echo "  --dataset DATASET   Dataset: mbpp (509 problems) or humaneval (164 problems) (default: mbpp)"
             echo "  --start INDEX       Starting problem index (default: 0)"
-            echo "  --total COUNT       Total number of problems (default: 509)"
+            echo "  --total COUNT       Total number of problems (default: 509 for mbpp, 164 for humaneval)"
             echo "  --batch SIZE        Batch size (default: 10)"
             echo "  --samples NUM       Number of samples per problem (default: 10)"
             echo "  --version VERSION   Model version: Q4_K_M, F16, BF16, etc. (default: Q4_K_M)"
@@ -72,8 +78,11 @@ while [[ $# -gt 0 ]]; do
             echo "  --partition PART    SLURM partition (default: gpusmall)"
             echo ""
             echo "Examples:"
-            echo "  # Run first 100 problems"
+            echo "  # Run first 100 MBPP problems"
             echo "  $0 --total 100"
+            echo ""
+            echo "  # Run all HumanEval problems (164 total)"
+            echo "  $0 --dataset humaneval --total 164"
             echo ""
             echo "  # Run problems 100-200 with batch size 5"
             echo "  $0 --start 100 --total 100 --batch 5"
@@ -81,8 +90,8 @@ while [[ $# -gt 0 ]]; do
             echo "  # Run with F16 model version"
             echo "  $0 --model gemma-3n-e2b-it --version F16 --total 100"
             echo ""
-            echo "  # Quick test run"
-            echo "  $0 --total 10 --samples 3 --time 1:00:00 --partition gputest"
+            echo "  # Quick test run on HumanEval"
+            echo "  $0 --dataset humaneval --total 10 --samples 3 --time 1:00:00 --partition gputest"
             exit 0
             ;;
         *)
@@ -106,8 +115,14 @@ fi
 LOGS_DIR="/projappl/project_$PROJECT/$USER/pocket-agent-cli/data/logs"
 mkdir -p "$LOGS_DIR"
 
-# Generate job name (include version)
-JOB_NAME="bench_${MODEL}_${VERSION}_${MODE}_s${START}_t${TOTAL}"
+# Auto-adjust total for humaneval if not explicitly set
+if [ "$DATASET" = "humaneval" ] && [ "$TOTAL" = "509" ]; then
+    TOTAL=164
+    echo "Note: Adjusted --total to 164 for HumanEval dataset"
+fi
+
+# Generate job name (include version and dataset)
+JOB_NAME="bench_${MODEL}_${VERSION}_${DATASET}_${MODE}_s${START}_t${TOTAL}"
 
 # Submit the job
 echo "================================="
@@ -115,6 +130,7 @@ echo "Submitting Benchmark Job"
 echo "================================="
 echo "Model: $MODEL"
 echo "Version: $VERSION"
+echo "Dataset: $DATASET"
 echo "Mode: $MODE"
 echo "Context Length: $CONTEXT"
 echo "Problems: $START to $((START + TOTAL - 1))"
@@ -139,8 +155,8 @@ cat > "$TEMP_SCRIPT" << EOF
 #SBATCH --output=$LOGS_DIR/benchmark_%j.out
 #SBATCH --error=$LOGS_DIR/benchmark_%j.err
 
-# Run the benchmark script with parameters (including version and context)
-bash /projappl/project_2013932/\$USER/pocket-agent-cli/slurm/run_benchmark_batch.sh "$MODEL" "$MODE" "$START" "$TOTAL" "$BATCH" "$SAMPLES" "$VERSION" "$CONTEXT"
+# Run the benchmark script with parameters (including version, context, and dataset)
+bash /projappl/project_2013932/\$USER/pocket-agent-cli/slurm/run_benchmark_batch.sh "$MODEL" "$MODE" "$START" "$TOTAL" "$BATCH" "$SAMPLES" "$VERSION" "$CONTEXT" "$DATASET"
 EOF
 
 # Submit the job

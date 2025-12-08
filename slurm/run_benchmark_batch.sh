@@ -19,6 +19,7 @@ BATCH_SIZE=${5:-10}
 NUM_SAMPLES=${6:-10}
 MODEL_VERSION=${7:-"Q4_K_M"}  # Q4_K_M, F16, BF16, etc.
 CONTEXT_LENGTH=${8:-8192}  # Context length for model (default: 8192)
+DATASET=${9:-"mbpp"}  # Dataset: mbpp (509 problems) or humaneval (164 problems)
 
 echo "================================="
 echo "Pocket Agent Benchmark Job"
@@ -28,6 +29,7 @@ echo "Node: $(hostname)"
 echo "Start time: $(date)"
 echo "Model: $MODEL_NAME"
 echo "Model Version: $MODEL_VERSION"
+echo "Dataset: $DATASET"
 echo "Mode: $MODE"
 echo "Context Length: $CONTEXT_LENGTH"
 echo "Problems: $START_INDEX to $((START_INDEX + TOTAL_PROBLEMS - 1))"
@@ -101,16 +103,17 @@ run_benchmark_batch() {
     done
 
     echo ""
-    echo "Running $mode benchmark for problems: $problem_ids"
+    echo "Running $mode benchmark for problems: $problem_ids (dataset: $DATASET)"
 
-    # Create output directory with timestamp (include version in name)
+    # Create output directory with timestamp (include version and dataset in name)
     local timestamp=$(date +%Y%m%d_%H%M%S)
-    local output_dir="$PROJECT_DIR/data/results/bench_${MODEL_NAME}_${MODEL_VERSION}_${mode}_${timestamp}_job${SLURM_JOB_ID}"
+    local output_dir="$PROJECT_DIR/data/results/bench_${MODEL_NAME}_${MODEL_VERSION}_${DATASET}_${mode}_${timestamp}_job${SLURM_JOB_ID}"
 
     # Run benchmark with error handling
     if timeout 3600 pocket-agent benchmark \
         --model "$MODEL_NAME" \
         --model-version "$MODEL_VERSION" \
+        --dataset "$DATASET" \
         --mode "$mode" \
         --context-length "$CONTEXT_LENGTH" \
         --problems "$problem_ids" \
@@ -120,7 +123,7 @@ run_benchmark_batch() {
     else
         echo "⚠ Batch failed or timed out"
         # Log the failure
-        echo "$(date),${mode},${problem_ids},FAILED" >> $PROJECT_DIR/data/logs/failures_${SLURM_JOB_ID}.log
+        echo "$(date),${DATASET},${mode},${problem_ids},FAILED" >> $PROJECT_DIR/data/logs/failures_${SLURM_JOB_ID}.log
     fi
 
     # No Docker cleanup needed on Mahti (Docker not available)

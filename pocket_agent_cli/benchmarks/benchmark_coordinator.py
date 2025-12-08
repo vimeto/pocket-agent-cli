@@ -112,6 +112,7 @@ class BenchmarkCoordinator:
             model_name=model_id,
             model_version=self.config.model_version,
             mode=mode,
+            dataset_name=self.config.dataset_name,
             problem_ids=self.config.problem_ids,
             problems_limit=self.config.problems_limit,
             num_samples=self.config.num_samples,
@@ -135,7 +136,11 @@ class BenchmarkCoordinator:
         inference_service.load_model(model, inference_config)
 
         # Create benchmark service
-        benchmark_service = BenchmarkService(inference_service, run_config)
+        benchmark_service = BenchmarkService(
+            inference_service,
+            run_config,
+            dataset_name=run_config.dataset_name
+        )
 
         # Run benchmark
         try:

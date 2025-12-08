@@ -215,6 +215,7 @@ class BenchmarkConfig(BaseModel):
     model_name: str = Field(description="Model ID or 'all' for all models")
     model_version: Optional[str] = Field(default=None, description="Model version (Q4_K_M, F16, etc)")
     mode: str = Field(default="base", description="Benchmark mode or 'all' for all modes")
+    dataset_name: str = Field(default="mbpp", description="Dataset to use: mbpp or humaneval")
     problems_limit: Optional[int] = Field(default=None, description="Number of problems to run")
     problem_ids: Optional[List[int]] = Field(default=None, description="Specific problem IDs to run")
     num_samples: int = Field(default=10, description="Number of samples per problem for pass@k")

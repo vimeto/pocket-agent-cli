@@ -322,6 +322,82 @@ class BenchmarkService:
             return problem.task_id
         return problem.get("task_id")
 
+    def _prepare_problem_prompt(self, problem: Dict[str, Any], mode: BenchmarkMode) -> str:
+        """Prepare the problem prompt with dataset-specific formatting.
+
+        MBPP problems have natural language descriptions - the model writes complete functions.
+        HumanEval problems have function signatures with docstrings - the model completes the body.
+
+        Args:
+            problem: Problem dictionary with task_id, text, test_list, etc.
+            mode: Benchmark mode configuration
+
+        Returns:
+            Formatted user prompt content
+        """
+        # Check if this is a HumanEval problem (has function signature in prompt)
+        problem_text = problem.get("text", "")
+        task_id = str(problem.get("task_id", ""))
+        is_humaneval = task_id.startswith("HumanEval/") or \
+                       ("def " in problem_text and '"""' in problem_text)
+
+        test_list = problem.get("test_list", [])
+
+        if is_humaneval:
+            # HumanEval: prompt already contains function signature + docstring
+            # Model needs to complete the function body
+            # Limit test examples for token efficiency
+            if mode.name == "full_tool":
+                test_examples = "\n".join(test_list[:2])
+            else:
+                test_examples = "\n".join(test_list[:3])
+
+            # The prompt IS the function signature - model should complete it
+            if test_examples:
+                problem_with_tests = f"{problem_text}\n\n# Example assertions (for reference):\n# {test_examples.replace(chr(10), chr(10) + '# ')}"
+            else:
+                problem_with_tests = problem_text
+
+            # Use mode template
+            user_content = mode.user_prompt_template.format(problem=problem_with_tests)
+
+            # Add HumanEval-specific instruction for completion
+            if mode.name == "base":
+                user_content += "\n\nComplete the function body. Output ONLY the function implementation (the indented code that goes inside the function)."
+            elif mode.name == "tool_submission":
+                user_content += "\n\nComplete the function and submit the FULL function (signature + implementation)."
+            elif mode.name == "full_tool":
+                user_content += "\n\nComplete and submit the FULL function including the signature."
+
+        else:
+            # MBPP: natural language description
+            # Model writes complete function from scratch
+            if mode.name == "full_tool":
+                test_examples = "\n".join(test_list[:2])
+            else:
+                test_examples = "\n".join(test_list[:3])
+
+            problem_with_tests = f"{problem_text}\n\nExample test cases:\n{test_examples}"
+            user_content = mode.user_prompt_template.format(problem=problem_with_tests)
+
+        return user_content
+
+    def _is_humaneval_problem(self, problem: Dict[str, Any]) -> bool:
+        """Check if a problem is from HumanEval dataset.
+
+        Args:
+            problem: Problem dictionary
+
+        Returns:
+            True if HumanEval problem
+        """
+        task_id = str(problem.get("task_id", ""))
+        if task_id.startswith("HumanEval/"):
+            return True
+        # Also check by prompt structure (function signature with docstring)
+        text = problem.get("text", "")
+        return "def " in text and '"""' in text
+
     @profile
     async def _evaluate_problem(
         self,
@@ -369,24 +445,13 @@ class BenchmarkService:
             system_prompt = mode.system_prompt
             user_suffix = ""
 
-        # Prepare messages with test cases included
-        # Format test cases to show expected function signatures
-        test_list = problem.get("test_list", [])
-        # Limit test examples shown to avoid token overflow
-        if mode.name == "full_tool":
-            # For full_tool mode, show only 1-2 examples to save tokens
-            test_examples = "\n".join(test_list[:2])
-        else:
-            # For other modes, show up to 3 examples
-            test_examples = "\n".join(test_list[:3])
-        problem_with_tests = f"{problem['text']}\n\nExample test cases:\n{test_examples}"
-        
-        user_content = mode.user_prompt_template.format(problem=problem_with_tests)
-        
+        # Prepare messages with dataset-specific formatting
+        user_content = self._prepare_problem_prompt(problem, mode)
+
         # Add model-specific user suffix if provided
         if user_suffix:
             user_content += user_suffix
-        
+
         # Add explicit instruction for Gemma models in full_tool mode (backward compatibility)
         elif mode.name == "full_tool" and self.inference_service.current_model and self.inference_service.current_model.architecture == "gemma":
             user_content += "\n\nREMEMBER: Output ONLY [submit_python_solution(code=\"...\")] - NO ```python blocks!"
@@ -439,7 +504,7 @@ class BenchmarkService:
                 response += token  # Only add non-thinking tokens to response
                 metrics = chunk["metrics"]
                 token_count += 1
-                
+
                 # Track thinking vs regular tokens
                 if chunk.get("is_thinking", False):
                     thinking_tokens_count += 1
@@ -465,7 +530,7 @@ class BenchmarkService:
                     "thinking_ratio": thinking_tokens_count / token_count if token_count > 0 else 0
                 }
             metrics["thinking_stats"] = thinking_stats
-            
+
             if DEBUG_BENCHMARK:
                 print(f"\n[DEBUG] Generation complete. Total tokens: {token_count}")
                 if thinking_tokens_count > 0:
@@ -522,7 +587,7 @@ class BenchmarkService:
                 # Extract inter-token latencies from first response
                 if iteration == 0 and 'inter_token_latencies' in metrics:
                     inter_token_latencies = metrics['inter_token_latencies']
-                
+
                 # Add thinking stats if not present
                 if 'thinking_stats' not in metrics:
                     metrics['thinking_stats'] = {
@@ -609,7 +674,7 @@ class BenchmarkService:
             code = self._extract_code(response, tool_calls)
 
         # Run tests
-        test_results = await self._run_tests(code, problem["test_list"])
+        test_results = await self._run_tests(code, problem["test_list"], problem)
 
         # Determine success
         success = all(tr.passed for tr in test_results)
@@ -638,7 +703,7 @@ class BenchmarkService:
         # Cleanup sandbox after evaluation
         if hasattr(self.tool_executor, '_cleanup_sandbox'):
             self.tool_executor._cleanup_sandbox()
-            
+
         return BenchmarkProblemResult(
             problem_id=problem["task_id"],
             start_time=start_time,
@@ -726,7 +791,7 @@ class BenchmarkService:
                                     else:
                                         break  # Stop at first assert
                                 return '\n'.join(clean_lines).rstrip()
-            
+
             # If no submit_python_solution, look for other code sources
             for call in tool_calls:
                 if call.get("name") == "run_python_code":
@@ -823,8 +888,140 @@ class BenchmarkService:
         self,
         code: str,
         test_cases: List[str],
+        problem: Optional[Dict[str, Any]] = None,
     ) -> List[TestResult]:
         """Run test cases against code.
+
+        Handles both MBPP-style (individual assertions) and HumanEval-style (check() function).
+
+        Args:
+            code: Code to test
+            test_cases: List of test assertions
+            problem: Optional problem dict for HumanEval check() handling
+
+        Returns:
+            List of test results
+        """
+        results = []
+
+        if DEBUG_BENCHMARK:
+            print(f"\n[DEBUG] Running {len(test_cases)} test cases")
+            print(f"[DEBUG] Code to test (first 200 chars): {code[:200]}...")
+
+        # Check if this is a HumanEval problem that needs check() function
+        is_humaneval = problem and self._is_humaneval_problem(problem)
+
+        if is_humaneval:
+            # HumanEval: Run using the original check() function
+            results = await self._run_humaneval_tests(code, problem)
+        else:
+            # MBPP: Run individual assertions
+            results = await self._run_mbpp_tests(code, test_cases)
+
+        if DEBUG_BENCHMARK:
+            passed_count = sum(1 for r in results if r.passed)
+            print(f"\n[DEBUG] Test summary: {passed_count}/{len(results)} tests passed")
+
+        return results
+
+    async def _run_humaneval_tests(
+        self,
+        code: str,
+        problem: Dict[str, Any],
+    ) -> List[TestResult]:
+        """Run HumanEval tests using the check() function.
+
+        HumanEval tests are structured as:
+            def check(candidate):
+                assert candidate(...) == ...
+
+        We need to run the check function with the generated code.
+
+        Args:
+            code: Generated code (should be complete function)
+            problem: Problem dictionary with original test code
+
+        Returns:
+            List of test results
+        """
+        results = []
+
+        # Get original test code from problem metadata or reconstruct
+        # The problem dict has 'test_list' with converted assertions
+        # But we stored 'original_test' in metadata during Problem creation
+        original_test = None
+
+        # Try to get original test from the Problem's metadata
+        # When converting to dict, we may have lost metadata, so check if we have it
+        task_id = problem.get("task_id", "")
+
+        # Load the original test code from the HumanEval dataset
+        try:
+            if self.dataset and hasattr(self.dataset, 'get_problem_by_id'):
+                original_problem = self.dataset.get_problem_by_id(task_id)
+                if original_problem and original_problem.metadata:
+                    original_test = original_problem.metadata.get('original_test')
+        except Exception as e:
+            if DEBUG_BENCHMARK:
+                print(f"[DEBUG] Could not get original test: {e}")
+
+        if original_test:
+            # Use the original check() function
+            test_code = f"""{code}
+
+{original_test}
+
+check({problem.get('entry_point', 'solution')})
+"""
+            if DEBUG_BENCHMARK:
+                print(f"[DEBUG] Running HumanEval check() function test")
+
+            try:
+                if not self.tool_executor.sandbox_dir:
+                    self.tool_executor._create_sandbox()
+
+                output = await self.tool_executor._run_python_code(test_code)
+
+                output_lower = output.lower()
+                has_error = any(err in output_lower for err in [
+                    "assertionerror", "error:", "traceback", "exception",
+                    "syntaxerror", "nameerror", "typeerror", "valueerror",
+                    "indexerror", "keyerror", "attributeerror", "zerodivisionerror"
+                ])
+
+                if has_error:
+                    results.append(TestResult(
+                        test_case="HumanEval check() function",
+                        passed=False,
+                        output=output,
+                    ))
+                else:
+                    results.append(TestResult(
+                        test_case="HumanEval check() function",
+                        passed=True,
+                        output=output or "All assertions passed",
+                    ))
+
+            except Exception as e:
+                results.append(TestResult(
+                    test_case="HumanEval check() function",
+                    passed=False,
+                    error=str(e),
+                ))
+        else:
+            # Fall back to running individual assertions
+            if DEBUG_BENCHMARK:
+                print(f"[DEBUG] No original test found, falling back to individual assertions")
+            results = await self._run_mbpp_tests(code, problem.get("test_list", []))
+
+        return results
+
+    async def _run_mbpp_tests(
+        self,
+        code: str,
+        test_cases: List[str],
+    ) -> List[TestResult]:
+        """Run MBPP-style individual assertion tests.
 
         Args:
             code: Code to test
@@ -834,63 +1031,50 @@ class BenchmarkService:
             List of test results
         """
         results = []
-        
-        if DEBUG_BENCHMARK:
-            print(f"\n[DEBUG] Running {len(test_cases)} test cases")
-            print(f"[DEBUG] Code to test (first 200 chars): {code[:200]}...")
-        
+
         # Extract expected function name from test cases
         expected_function = None
         if test_cases:
-            # Look for function calls in assert statements
             import re
             match = re.search(r'assert\s+(\w+)\(', test_cases[0])
             if match:
                 expected_function = match.group(1)
                 if DEBUG_BENCHMARK:
                     print(f"[DEBUG] Expected function name from tests: {expected_function}")
-        
+
         # Check if we need to add a function alias
         if expected_function and expected_function not in code:
-            # Look for function definitions in the code
             func_match = re.search(r'def\s+(\w+)\s*\([^)]*\):', code)
             if func_match:
                 actual_function = func_match.group(1)
                 if DEBUG_BENCHMARK:
                     print(f"[DEBUG] Found function: {actual_function}, adding alias for {expected_function}")
-                # Add alias at the end of code
                 code = code.rstrip() + f"\n\n# Alias for test compatibility\n{expected_function} = {actual_function}\n"
 
         for i, test_case in enumerate(test_cases, 1):
-            # Combine code and test
             test_code = f"{code}\n\n{test_case}"
-            
+
             if DEBUG_BENCHMARK:
                 print(f"\n[DEBUG] Test case {i}: {test_case[:100]}...")
 
-            # Execute test
             try:
-                # Ensure sandbox exists before running code
                 if not self.tool_executor.sandbox_dir:
                     self.tool_executor._create_sandbox()
-                    
-                output = await self.tool_executor._run_python_code(test_code)
-                
-                if DEBUG_BENCHMARK:
-                    print(f"[DEBUG] Test output: {repr(output[:200])}...")
 
-                # Check if test passed
-                # Empty output or no errors means success for assertion tests
-                output_lower = output.lower()
+                output = await self.tool_executor._run_python_code(test_code)
+
+                if DEBUG_BENCHMARK:
+                    print(f"[DEBUG] Test output: {repr(output[:200] if output else '')}...")
+
+                output_lower = output.lower() if output else ""
                 has_error = any(err in output_lower for err in [
                     "assertionerror", "error:", "traceback", "exception",
                     "syntaxerror", "nameerror", "typeerror", "valueerror",
                     "indexerror", "keyerror", "attributeerror", "zerodivisionerror"
                 ])
-                
-                # Also check for explicit failure indicators
+
                 has_failure = any(fail in output_lower for fail in ["failed", "fail"])
-                
+
                 if has_error or has_failure:
                     results.append(TestResult(
                         test_case=test_case,
@@ -898,13 +1082,12 @@ class BenchmarkService:
                         output=output,
                     ))
                 else:
-                    # No errors and no explicit failures = test passed
                     results.append(TestResult(
                         test_case=test_case,
                         passed=True,
                         output=output or "Test passed (no output)",
                     ))
-                    
+
                 if DEBUG_BENCHMARK:
                     print(f"[DEBUG] Test {i} result: {'PASSED' if results[-1].passed else 'FAILED'}")
 
@@ -916,7 +1099,7 @@ class BenchmarkService:
                     passed=False,
                     error=str(e),
                 ))
-        
+
         if DEBUG_BENCHMARK:
             passed_count = sum(1 for r in results if r.passed)
             print(f"\n[DEBUG] Test summary: {passed_count}/{len(results)} tests passed")

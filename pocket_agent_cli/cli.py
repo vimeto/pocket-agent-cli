@@ -541,6 +541,7 @@ When using run_python_code, make sure your code is complete and will produce out
 @click.option("--model", "-m", required=True, help="Model ID to use or 'all' for all models")
 @click.option("--model-version", "-v", help="Model version (Q4_K_M, F16, BF16, etc)")
 @click.option("--mode", default="base", help="Benchmark mode or 'all' for all modes")
+@click.option("--dataset", "-d", default="mbpp", type=click.Choice(["mbpp", "humaneval"]), help="Dataset to use (default: mbpp)")
 @click.option("--problems", "-p", help="Comma-separated problem IDs (e.g., 1,2,3)")
 @click.option("--problems-limit", "-l", type=int, help="Number of problems to run")
 @click.option("--num-samples", "-n", type=int, default=10, help="Number of samples per problem for pass@k")
@@ -555,6 +556,7 @@ def benchmark(
     model: str,
     model_version: Optional[str],
     mode: str,
+    dataset: str,
     problems: Optional[str],
     problems_limit: Optional[int],
     num_samples: int,
@@ -615,6 +617,7 @@ def benchmark(
         model_name=model,
         model_version=model_version,
         mode=mode,
+        dataset_name=dataset,
         problem_ids=problem_ids,
         problems_limit=problems_limit,
         num_samples=num_samples,
@@ -678,6 +681,7 @@ def benchmark(
     console.print(f"\n[bold]Benchmark Configuration[/bold]")
     console.print("─" * console.width)
     console.print(f"  Models: {model}")
+    console.print(f"  Dataset: {dataset}")
     console.print(f"  Modes: {mode}")
     console.print(f"  Samples per problem: {num_samples}")
     console.print(f"  Temperature: {temperature}")

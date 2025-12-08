@@ -53,7 +53,7 @@ done
 # 4. Datasets
 echo ""
 echo "[4/4] Datasets..."
-[ -f "${PROJECT_DIR}/pocket_agent_cli/data/mbpp.json" ] && pass "MBPP" || fail "MBPP dataset missing"
+[ -f "${PROJECT_DIR}/pocket_agent_cli/data/mbpp_full.json" ] && pass "MBPP" || fail "MBPP dataset missing"
 [ -f "${PROJECT_DIR}/pocket_agent_cli/data/humaneval.json" ] && pass "HumanEval" || fail "HumanEval dataset missing"
 
 # Summary

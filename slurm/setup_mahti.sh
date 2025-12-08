@@ -60,10 +60,17 @@ echo ""
 echo "[3/4] Installing packages..."
 pip install --upgrade pip --quiet
 
-# llama-cpp-python with CUDA (prebuilt wheel)
-pip install llama-cpp-python \
-    --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu124 \
-    --quiet 2>/dev/null || pip install llama-cpp-python --quiet
+# Load CUDA module for building llama-cpp-python (requires gcc/10.4.0)
+module load gcc/10.4.0
+module load cuda/12.6.1
+
+# llama-cpp-python with CUDA - build from source with CUDA support
+echo "  Building llama-cpp-python with CUDA support (this may take 5-10 minutes)..."
+CMAKE_ARGS="-DGGML_CUDA=on" \
+pip install llama-cpp-python --force-reinstall --no-cache-dir 2>&1 | tail -10
+
+# Verify CUDA support
+python -c "import llama_cpp.llama_cpp as llama; print('GPU offload:', llama.llama_supports_gpu_offload())"
 
 # Install project
 pip install -e "${PROJECT_DIR}" --quiet

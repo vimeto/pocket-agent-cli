@@ -83,9 +83,14 @@ class InferenceService:
         
         # Add CUDA-specific options if available
         if cuda_available:
-            kwargs["cuda_device"] = int(os.environ.get("CUDA_VISIBLE_DEVICES", "0"))
-            kwargs["tensor_split"] = None  # Let CUDA handle tensor splitting
-            print(f"[INFO] Loading model with CUDA support on device {kwargs['cuda_device']}")
+            cuda_device_str = os.environ.get("CUDA_VISIBLE_DEVICES", "0")
+            # Handle MIG (Multi-Instance GPU) UUIDs - use device 0 when MIG is active
+            if cuda_device_str.startswith("MIG-") or not cuda_device_str.isdigit():
+                kwargs["cuda_device"] = 0
+                print(f"[INFO] Loading model with CUDA/MIG support (UUID: {cuda_device_str[:20]}...)")
+            else:
+                kwargs["cuda_device"] = int(cuda_device_str)
+                print(f"[INFO] Loading model with CUDA support on device {kwargs['cuda_device']}")
         elif platform.system() == "Darwin":
             print("[INFO] Loading model with Metal acceleration on macOS")
         else:

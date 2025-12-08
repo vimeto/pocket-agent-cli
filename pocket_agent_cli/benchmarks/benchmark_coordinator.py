@@ -174,6 +174,9 @@ class BenchmarkCoordinator:
 
     def _save_summary(self, sessions: List[BenchmarkSession]):
         """Save summary of all sessions."""
+        # Ensure output directory exists
+        self.config.output_dir.mkdir(parents=True, exist_ok=True)
+
         # Convert config to dict and handle Path objects
         config_dict = self.config.model_dump()
         # Convert Path objects to strings

@@ -290,9 +290,11 @@ class BenchmarkService:
             # Select problems to run
             if problem_ids:
                 # Filter by problem IDs (handle both int and string IDs)
+                # For HumanEval: task_id is "HumanEval/0", "HumanEval/1", etc.
+                # For MBPP: task_id is integer like 1, 2, 3, etc.
                 problems = [
                     p for p in self.problems
-                    if self._get_problem_id(p) in problem_ids or str(self._get_problem_id(p)) in [str(pid) for pid in problem_ids]
+                    if self._matches_problem_id(p, problem_ids)
                 ]
             else:
                 problems = self.problems
@@ -321,6 +323,38 @@ class BenchmarkService:
         if isinstance(problem, Problem):
             return problem.task_id
         return problem.get("task_id")
+
+    def _matches_problem_id(self, problem: Union[Problem, Dict[str, Any]], problem_ids: List[int]) -> bool:
+        """Check if a problem matches any of the requested problem IDs.
+
+        Handles both:
+        - MBPP: integer task_ids (1, 2, 3, ...)
+        - HumanEval: string task_ids ("HumanEval/0", "HumanEval/1", ...)
+
+        When user passes --problems 0,1,2, we match:
+        - MBPP: task_id == 0, 1, or 2
+        - HumanEval: task_id == "HumanEval/0", "HumanEval/1", or "HumanEval/2"
+        """
+        task_id = self._get_problem_id(problem)
+
+        # Direct match (works for MBPP integer IDs)
+        if task_id in problem_ids:
+            return True
+
+        # String comparison
+        if str(task_id) in [str(pid) for pid in problem_ids]:
+            return True
+
+        # HumanEval format: extract number from "HumanEval/N" and compare
+        if isinstance(task_id, str) and "/" in task_id:
+            try:
+                num_part = int(task_id.split("/")[-1])
+                if num_part in problem_ids:
+                    return True
+            except ValueError:
+                pass
+
+        return False
 
     def _prepare_problem_prompt(self, problem: Dict[str, Any], mode: BenchmarkMode) -> str:
         """Prepare the problem prompt with dataset-specific formatting.
@@ -1322,10 +1356,10 @@ check({problem.get('entry_point', 'solution')})
         try:
             # Select problems
             if config.problem_ids:
-                # Filter by problem IDs (handle both int and string IDs)
+                # Filter by problem IDs (handles MBPP int IDs and HumanEval string IDs)
                 problems = [
                     p for p in self.problems
-                    if self._get_problem_id(p) in config.problem_ids or str(self._get_problem_id(p)) in [str(pid) for pid in config.problem_ids]
+                    if self._matches_problem_id(p, config.problem_ids)
                 ]
             elif config.problems_limit:
                 problems = self.problems[:config.problems_limit]

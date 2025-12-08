@@ -89,3 +89,10 @@ logs
 
 .matplotlib_cache
 .mpl_config
+
+# Large data files
+benchmark_data_full.tar.gz
+benchmark_data_new.tar.gz
+benchmark_data.tar.gz
+*.tar.gz
+*.zip

@@ -8,7 +8,7 @@
 MODEL="llama-3.2-3b-instruct"
 MODE="base"
 VERSION="Q4_K_M"
-CONTEXT=8192
+CONTEXT=16384
 SAMPLES=10
 TIME="02:00:00"
 PARTITION="gpusmall"

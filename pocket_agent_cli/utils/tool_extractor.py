@@ -26,6 +26,7 @@ class ToolExtractor:
         
         # Try multiple extraction strategies in order of preference
         strategies = [
+            self._extract_xml_tool_call_tags,  # <tool_call>...</tool_call> (Qwen3)
             self._extract_gemma_python_style,  # Gemma's official format
             self._extract_gemma_json_style,    # Gemma's JSON format
             self._extract_qwen_thinking_json,  # Qwen's thinking pattern
@@ -52,6 +53,36 @@ class ToolExtractor:
         
         return tool_calls, None
     
+    def _extract_xml_tool_call_tags(self, response: str) -> List[Dict[str, Any]]:
+        """Extract tool calls from <tool_call>...</tool_call> XML tags.
+
+        Qwen3 and other models use this format:
+            <tool_call>
+            {"name": "run_python_code", "arguments": {"code": "print(42)"}}
+            </tool_call>
+        """
+        pattern = r'<tool_call>\s*(.*?)\s*</tool_call>'
+        matches = re.findall(pattern, response, re.DOTALL)
+
+        tools = []
+        for match in matches:
+            try:
+                cleaned = match.strip()
+                cleaned = re.sub(r',\s*([}\]])', r'\1', cleaned)
+                cleaned = self._fix_json_newlines(cleaned)
+                tool = json.loads(cleaned)
+                # Normalize: Qwen3 uses "arguments", our format uses "parameters"
+                if "arguments" in tool and "parameters" not in tool:
+                    tool["parameters"] = tool.pop("arguments")
+                if self._validate_tool(tool):
+                    tools.append(tool)
+            except json.JSONDecodeError:
+                alt_tool = self._parse_malformed_json(match.strip())
+                if alt_tool and self._validate_tool(alt_tool):
+                    tools.append(alt_tool)
+
+        return tools
+
     def _extract_gemma_python_style(self, response: str) -> List[Dict[str, Any]]:
         """Extract Gemma's Python-style function calls: [func_name(param=value)]"""
         # We need to handle nested brackets and parentheses

@@ -30,6 +30,7 @@ from .registry import DatasetRegistry
 # Import dataset implementations to register them
 from . import mbpp
 from . import humaneval
+from . import gsm8k
 
 __all__ = [
     "Dataset",

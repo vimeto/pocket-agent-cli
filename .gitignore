@@ -1,98 +1,71 @@
-# Python
+
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-
-# Virtual environments
-venv/
-ENV/
-env/
-.venv
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# OS
 .DS_Store
-Thumbs.db
-
-# Project specific
-*.gguf
-.pocket-agent-cli/
-results/
-sandbox/
-
-# Logs
-*.log
-
-# Environment variables
+.eggs/
 .env
 .env.local
-
-# uv
+.idea/
+.installed.cfg
+.matplotlib_cache
+.mpl_config
+.pocket-agent-cli/
+.Python
 .uv/
-uv.lock
-
+.venv
+.vscode/
+*.egg
+*.egg-info/
+*.gguf
+*.gz
+*.log
+*.py[cod]
+*.so
+*.swo
+*.swp
+*.tar.gz
+*.zip
+*~
+*$py.class
 /analysis_data/data/logs/
 /analysis_data/logs/
 /analysis_data/m2max_runs/
 /benchmark_analysis/processed/
 /benchmark_analysis/raw_data/
-
-analysis_scripts/output_full/problem_metrics.csv
-
-benchmark_analysis/**/*.json
-benchmark_analysis/
-analysis_data
-
-data/logs
-logs
-
-*.gz
-
-
-.matplotlib_cache
-.mpl_config
-
-
-benchmark_analysis/**/*.json
-benchmark_analysis/
-analysis_data
-
-data/logs
-logs
-
-*.gz
-
-
-.matplotlib_cache
-.mpl_config
-
+/tmp
+# Environment variables
+# IDE
 # Large data files
+# Logs
+# OS
+# Project specific
+# Python
+# uv
+# Virtual environments
+analysis_data
+analysis_scripts/output_full/problem_metrics.csv
+benchmark_analysis/
+benchmark_analysis/**/*.json
 benchmark_data_full.tar.gz
 benchmark_data_new.tar.gz
 benchmark_data.tar.gz
-*.tar.gz
-*.zip
+build/
+data/logs
+develop-eggs/
+dist/
+downloads/
+eggs/
+env/
+ENV/
+lib/
+lib64/
+logs
+MANIFEST
+parts/
+results/
+sandbox/
+sdist/
+Thumbs.db
+uv.lock
+var/
+venv/
+wheels/

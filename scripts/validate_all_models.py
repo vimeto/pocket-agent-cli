@@ -34,13 +34,22 @@ TOOL_PROMPT = [
     {
         "role": "system",
         "content": (
-            "You are a helpful assistant. You MUST use the run_python_code tool to answer. "
-            "Do not answer directly — always call the tool first."
+            "You are a code execution assistant. You have access to tools. "
+            "IMPORTANT RULES:\n"
+            "1. You MUST call the run_python_code tool for ANY computation.\n"
+            "2. NEVER compute answers in your head or reasoning.\n"
+            "3. ALWAYS write Python code and execute it via the tool.\n"
+            "4. Do NOT provide any answer without first running code.\n"
+            "5. Call the tool using the <tool_call> format shown in your instructions.\n\n"
+            "When you want to use a tool, output EXACTLY:\n"
+            "<tool_call>\n"
+            '{"name": "run_python_code", "arguments": {"code": "<your python code>"}}\n'
+            "</tool_call>"
         ),
     },
     {
         "role": "user",
-        "content": "Use the run_python_code tool to calculate 16 - 3 - 4 and then multiply by 2.",
+        "content": "Calculate 16 - 3 - 4 and then multiply by 2. You MUST use the run_python_code tool.",
     },
 ]
 
@@ -96,11 +105,11 @@ def validate_variant(model_def, version):
     )
     config = InferenceConfig(
         temperature=0.7,
-        max_tokens=1024,  # High enough for thinking models
+        max_tokens=4096,  # High for thinking models (DeepSeek R1 needs ~2k reasoning)
         top_p=0.9,
         top_k=40,
         repeat_penalty=1.1,
-        context_length=4096,
+        context_length=8192,
         jinja=True,
     )
 

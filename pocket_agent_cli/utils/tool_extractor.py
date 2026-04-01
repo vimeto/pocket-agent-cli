@@ -365,38 +365,42 @@ class ToolExtractor:
         return tools
     
     def _extract_direct_json(self, response: str) -> List[Dict[str, Any]]:
-        """Extract direct JSON objects."""
-        # Look for JSON objects that start with { and contain "name"
-        pattern = r'\{[^{}]*"name"\s*:\s*"[^"]+"\s*,\s*"parameters"\s*:\s*\{[^{}]*\}[^{}]*\}'
-        
+        """Extract direct JSON objects with 'name' and 'parameters' or 'arguments'."""
+        # Match JSON objects containing "name" and either "parameters" or "arguments"
+        pattern = r'\{[^{}]*"name"\s*:\s*"[^"]+"\s*,\s*"(?:parameters|arguments)"\s*:\s*\{[^{}]*\}[^{}]*\}'
+
         tools = []
         for match in re.finditer(pattern, response):
             try:
                 tool = json.loads(match.group())
+                # Normalize "arguments" -> "parameters"
+                if "arguments" in tool and "parameters" not in tool:
+                    tool["parameters"] = tool.pop("arguments")
                 if self._validate_tool(tool):
                     tools.append(tool)
             except json.JSONDecodeError:
                 continue
-        
+
         return tools
     
     def _extract_python_submission(self, response: str) -> List[Dict[str, Any]]:
-        """Extract Python code blocks as submit_python_solution calls."""
-        # Pattern for ```python blocks
+        """Extract Python code blocks as run_python_code or submit_python_solution calls."""
         pattern = r'```python\s*(.*?)```'
         matches = re.findall(pattern, response, re.DOTALL)
-        
+
         tools = []
         for match in matches:
-            # Only treat as submission if it contains function definition
-            if 'def ' in match:
-                tools.append({
-                    "name": "submit_python_solution",
-                    "parameters": {
-                        "code": match.strip()
-                    }
-                })
-        
+            code = match.strip()
+            if not code:
+                continue
+            # Use submit_python_solution for function definitions,
+            # run_python_code for everything else
+            name = "submit_python_solution" if "def " in code else "run_python_code"
+            tools.append({
+                "name": name,
+                "parameters": {"code": code},
+            })
+
         return tools
     
     def _validate_tool(self, tool: Dict[str, Any]) -> bool:

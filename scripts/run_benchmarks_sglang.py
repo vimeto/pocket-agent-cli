@@ -380,9 +380,33 @@ def run_problem_single_turn(problem, model_def: Dict, mode: str,
     }
 
 
+def _parse_tool_calls_from_text(content: str) -> List[Dict]:
+    """Parse tool calls from response text (for prompt-based tool calling).
+
+    Handles:
+    - <tool_call>{"name":...,"arguments":{...}}</tool_call>  (Qwen)
+    - ```tool_call\n{"name":...,"parameters":{...}}\n```     (Llama/paper format)
+    - Raw JSON {"name":...,"arguments":{...}}
+    """
+    cleaned = strip_thinking(content) or content
+    te = ToolExtractor()
+    tool_calls_parsed, _ = te.extract_tools(cleaned)
+
+    # Convert to API-like format
+    result = []
+    for tc in (tool_calls_parsed or []):
+        name = tc.get("name", "")
+        params = tc.get("parameters", tc.get("arguments", {}))
+        result.append({
+            "function": {"name": name, "arguments": json.dumps(params)},
+            "id": f"parsed_{len(result)}",
+        })
+    return result
+
+
 def run_problem_agentic(problem, model_def: Dict, dataset_name: str,
                         base_url: str, max_iterations: int = 5,
-                        timeout_s: int = 180) -> Dict:
+                        timeout_s: int = 300) -> Dict:
     """Run a problem with multi-turn agentic loop (full_tool mode).
 
     Loop: generate → parse tool call → execute locally → feed observation → repeat.
@@ -390,6 +414,7 @@ def run_problem_agentic(problem, model_def: Dict, dataset_name: str,
     """
     prompt_config = get_optimized_prompt(model_def["id"], "full_tool")
     messages = format_problem(problem, prompt_config)
+    use_prompt_tools = prompt_config.get("no_api_tools", False)
 
     is_thinking = model_def["arch"] == "qwen"
     max_tokens = 8192 if is_thinking else 2048
@@ -398,14 +423,14 @@ def run_problem_agentic(problem, model_def: Dict, dataset_name: str,
     submitted_code = None
     iterations = 0
     total_tokens = 0
+    total_tool_calls = 0
 
     for iteration in range(max_iterations):
         if time.time() - t0 > timeout_s:
             break
 
         iterations += 1
-        # Some models use prompt-based tool calling
-        api_tools = None if prompt_config.get("no_api_tools") else TOOL_DEFS
+        api_tools = None if use_prompt_tools else TOOL_DEFS
         resp = sglang_chat(base_url, model_def["hf_id"], messages,
                            tools=api_tools, max_tokens=max_tokens)
 
@@ -415,59 +440,72 @@ def run_problem_agentic(problem, model_def: Dict, dataset_name: str,
         choice = resp["choices"][0]
         msg = choice["message"]
         content = msg.get("content", "") or ""
-        tool_calls = msg.get("tool_calls")
         usage = resp.get("usage", {})
         total_tokens += usage.get("completion_tokens", 0)
 
+        # Get tool calls — from API response or by parsing text
+        tool_calls = msg.get("tool_calls")
+        if not tool_calls and content:
+            tool_calls = _parse_tool_calls_from_text(content)
+
         # Add assistant message to conversation
-        assistant_msg = {"role": "assistant", "content": content}
-        if tool_calls:
-            assistant_msg["tool_calls"] = tool_calls
-        messages.append(assistant_msg)
+        messages.append({"role": "assistant", "content": content})
 
-        # Process tool calls
-        if tool_calls:
-            for tc in tool_calls:
-                fn = tc.get("function", {})
-                tc_id = tc.get("id", f"call_{iteration}")
+        if not tool_calls:
+            # No tool calls found at all — model is done (or stuck)
+            break
 
-                # Execute tool locally
-                observation = execute_tool_locally(tc)
+        # Process each tool call
+        any_submitted = False
+        for tc in tool_calls:
+            fn = tc.get("function", {})
+            tc_name = fn.get("name", "")
+            tc_id = tc.get("id", f"call_{iteration}")
+            total_tool_calls += 1
 
-                # Check for submission
-                if fn.get("name") == "submit_python_solution":
-                    args_raw = fn.get("arguments", "{}")
-                    if isinstance(args_raw, str):
-                        try:
-                            args = json.loads(args_raw)
-                        except json.JSONDecodeError:
-                            args = {}
-                    else:
-                        args = args_raw
-                    submitted_code = args.get("code", "")
+            # Execute tool locally
+            observation = execute_tool_locally(tc)
 
-                # Add tool result to conversation
+            # Check for submission
+            if tc_name == "submit_python_solution":
+                args_raw = fn.get("arguments", "{}")
+                if isinstance(args_raw, str):
+                    try:
+                        args = json.loads(args_raw)
+                    except json.JSONDecodeError:
+                        args = {}
+                else:
+                    args = args_raw
+                submitted_code = args.get("code", "")
+                any_submitted = True
+
+            # Feed observation back as user message (for prompt-based tools)
+            # or as tool message (for API tools)
+            if use_prompt_tools:
+                messages.append({
+                    "role": "user",
+                    "content": f"Tool result ({tc_name}):\n{observation}",
+                })
+            else:
                 messages.append({
                     "role": "tool",
                     "tool_call_id": tc_id,
                     "content": observation,
                 })
 
-            if submitted_code:
-                break
-        else:
-            # No tool calls — try to extract code from response
-            code = extract_code(content)
-            if code:
-                submitted_code = code
-            break  # No tool calls means model is done
+        if any_submitted:
+            break
 
     elapsed = time.time() - t0
 
-    # If no explicit submission, try to extract from last response
+    # If no explicit submission, try to extract from conversation
     if not submitted_code:
-        last_content = messages[-1].get("content", "") if messages else ""
-        submitted_code = extract_code(last_content)
+        for msg in reversed(messages):
+            c = msg.get("content", "")
+            if c:
+                submitted_code = extract_code(c)
+                if submitted_code:
+                    break
 
     # Evaluate
     if dataset_name == "gsm8k":
@@ -484,6 +522,7 @@ def run_problem_agentic(problem, model_def: Dict, dataset_name: str,
         "tokens": total_tokens,
         "elapsed_s": round(elapsed, 1),
         "iterations": iterations,
+        "tool_calls": total_tool_calls,
     }
 
 

@@ -35,15 +35,14 @@ _QWEN_PROMPTS = {
     },
     "full_tool": {
         "system": (
+            "You are a Python developer with a code execution environment.\n\n"
             "Available tools:\n"
-            "1. run_python_code - Execute code\n"
-            "2. upsert_file - Create/update files\n"
-            "3. read_file - Read files\n"
-            "4. run_submission_tests - Test solution\n"
-            "5. submit_python_solution - Submit final solution (REQUIRED)\n\n"
-            "Use <tool_call> format. MUST call submit_python_solution."
+            "1. run_python_code(code) - Execute Python code and see output/errors\n"
+            "2. submit_python_solution(code) - Submit your final solution\n\n"
+            "Recommended workflow: write function → test with run_python_code → "
+            "fix if needed → submit with submit_python_solution."
         ),
-        "user_suffix": "\n\nYour output:",
+        "user_suffix": "",
     },
 }
 
@@ -77,7 +76,8 @@ _LLAMA_PROMPTS = {
             "```tool_call\n"
             '{"name": "tool_name", "parameters": {"code": "..."}}\n'
             "```\n\n"
-            "You MUST use submit_python_solution to submit your final solution."
+            "Recommended workflow: write function → test with run_python_code → "
+            "fix if needed → submit with submit_python_solution."
         ),
         "user_suffix": "",
         "no_api_tools": True,
@@ -104,9 +104,10 @@ _DEEPSEEK_PROMPTS = {
     "full_tool": {
         "system": (
             "Available tools:\n"
-            "1. run_python_code - Execute code\n"
-            "2. submit_python_solution - Submit final solution (REQUIRED)\n\n"
-            "Use <tool_call> format. MUST call submit_python_solution."
+            "1. run_python_code(code) - Execute Python code and see output/errors\n"
+            "2. submit_python_solution(code) - Submit your final solution\n\n"
+            "Use <tool_call> format. Recommended workflow: write function → "
+            "test with run_python_code → fix if needed → submit."
         ),
         "user_suffix": "\n\nSolve and submit:",
     },

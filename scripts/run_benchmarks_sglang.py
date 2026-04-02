@@ -43,6 +43,9 @@ MODELS = [
      "hf_id": "meta-llama/Llama-3.2-3B-Instruct", "parser": "llama3", "local_port": 30003},
     {"id": "deepseek-r1-distill-qwen-1.5b", "name": "DeepSeek R1 1.5B", "arch": "qwen",
      "hf_id": "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B", "parser": "qwen", "local_port": 30004},
+    {"id": "gemma-3n-e2b-it", "name": "Gemma 3n E2B", "arch": "gemma",
+     "hf_id": "google/gemma-3n-E2B-it", "parser": None, "local_port": 30005,
+     "no_api_tools": True},  # vLLM, prompt-based tools
 ]
 
 TOOL_DEFS = [
@@ -341,7 +344,8 @@ def run_problem_single_turn(problem, model_def: Dict, mode: str,
     is_thinking = model_def["arch"] == "qwen"
     max_tokens = 8192 if is_thinking else 2048
     # Some models use prompt-based tool calling (no API tools)
-    use_api_tools = mode == "tool_submission" and not prompt_config.get("no_api_tools")
+    no_api = prompt_config.get("no_api_tools") or model_def.get("no_api_tools")
+    use_api_tools = mode == "tool_submission" and not no_api
     tools = TOOL_DEFS if use_api_tools else None
 
     t0 = time.time()
@@ -414,7 +418,7 @@ def run_problem_agentic(problem, model_def: Dict, dataset_name: str,
     """
     prompt_config = get_optimized_prompt(model_def["id"], "full_tool")
     messages = format_problem(problem, prompt_config)
-    use_prompt_tools = prompt_config.get("no_api_tools", False)
+    use_prompt_tools = prompt_config.get("no_api_tools", False) or model_def.get("no_api_tools", False)
 
     is_thinking = model_def["arch"] == "qwen"
     max_tokens = 8192 if is_thinking else 2048

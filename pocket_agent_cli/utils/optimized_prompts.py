@@ -58,21 +58,29 @@ _LLAMA_PROMPTS = {
     },
     "tool_submission": {
         "system": (
-            "Write the Python function, then submit your SOURCE CODE using "
-            "submit_python_solution.\n"
-            "The code parameter must contain the complete function definition."
+            "You have a Python development environment.\n"
+            "Use tools in ```tool_call blocks with JSON format:\n"
+            "```tool_call\n"
+            '{"name": "submit_python_solution", "parameters": {"code": "your function code"}}\n'
+            "```\n\n"
+            "You MUST use submit_python_solution to submit your final solution."
         ),
         "user_suffix": "",
+        "no_api_tools": True,  # Don't send tools via API, use prompt-based only
     },
     "full_tool": {
         "system": (
-            "You have these tools:\n"
+            "You have a Python development environment with these tools:\n\n"
             "1. run_python_code(code) - Execute Python code\n"
             "2. submit_python_solution(code) - Submit final solution (REQUIRED)\n\n"
-            "Write the function, test it with run_python_code, then submit "
-            "the complete function SOURCE CODE with submit_python_solution."
+            "Use tools in ```tool_call blocks:\n"
+            "```tool_call\n"
+            '{"name": "tool_name", "parameters": {"code": "..."}}\n'
+            "```\n\n"
+            "You MUST use submit_python_solution to submit your final solution."
         ),
         "user_suffix": "",
+        "no_api_tools": True,
     },
 }
 

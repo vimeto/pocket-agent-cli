@@ -340,7 +340,9 @@ def run_problem_single_turn(problem, model_def: Dict, mode: str,
 
     is_thinking = model_def["arch"] == "qwen"
     max_tokens = 8192 if is_thinking else 2048
-    tools = TOOL_DEFS if mode == "tool_submission" else None
+    # Some models use prompt-based tool calling (no API tools)
+    use_api_tools = mode == "tool_submission" and not prompt_config.get("no_api_tools")
+    tools = TOOL_DEFS if use_api_tools else None
 
     t0 = time.time()
     resp = sglang_chat(base_url, model_def["hf_id"], messages,
@@ -402,8 +404,10 @@ def run_problem_agentic(problem, model_def: Dict, dataset_name: str,
             break
 
         iterations += 1
+        # Some models use prompt-based tool calling
+        api_tools = None if prompt_config.get("no_api_tools") else TOOL_DEFS
         resp = sglang_chat(base_url, model_def["hf_id"], messages,
-                           tools=TOOL_DEFS, max_tokens=max_tokens)
+                           tools=api_tools, max_tokens=max_tokens)
 
         if "error" in resp:
             break

@@ -215,9 +215,13 @@ def strip_thinking(text: str) -> str:
 def extract_code(response: str, tool_calls: Optional[List] = None) -> Optional[str]:
     """Extract Python code from response or tool calls."""
     if tool_calls:
-        for tc in tool_calls:
-            fn = tc.get("function", {})
-            if fn.get("name") in ("submit_python_solution", "run_python_code"):
+        # First pass: look for submit_python_solution / run_python_code
+        # Second pass: any tool call with a "code" parameter
+        for priority_names in [("submit_python_solution", "run_python_code"), None]:
+            for tc in tool_calls:
+                fn = tc.get("function", {})
+                if priority_names and fn.get("name") not in priority_names:
+                    continue
                 args = fn.get("arguments", "")
                 if isinstance(args, str):
                     try:

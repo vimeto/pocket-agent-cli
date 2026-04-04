@@ -337,6 +337,7 @@ class MLXInferenceService:
 
         # Unlimited budget -> delegate to normal generate
         if thinking_budget is None:
+            kwargs.pop("stream", None)  # avoid duplicate kwarg
             for chunk in self.generate(messages, stream=True, **kwargs):
                 chunk["thinking_budget"] = None
                 chunk["thinking_was_truncated"] = False
@@ -902,6 +903,33 @@ class MLXInferenceService:
 
         return results
 
+    @staticmethod
+    def _build_tool_instruction(tools: List[Dict[str, Any]]) -> str:
+        """Build a tool-calling instruction block for models without native tool support.
+
+        This injects a standardized instruction telling the model to emit
+        <tool_call> XML tags, which our ToolExtractor can parse. Used when the
+        tokenizer's apply_chat_template doesn't natively support tool definitions.
+        """
+        import json as _json
+        tool_descriptions = []
+        for tool in tools:
+            fn = tool.get("function", tool)
+            tool_descriptions.append(
+                f"- {fn['name']}: {fn.get('description', '')}\n"
+                f"  Parameters: {_json.dumps(fn.get('parameters', {}))}"
+            )
+        tools_text = "\n".join(tool_descriptions)
+        return (
+            f"\n\nYou have access to the following tools:\n{tools_text}\n\n"
+            "When you want to use a tool, output EXACTLY this format:\n"
+            "<tool_call>\n"
+            '{"name": "<tool_name>", "arguments": {<args>}}\n'
+            "</tool_call>\n\n"
+            "You may call tools multiple times. After receiving tool results, "
+            "continue reasoning and call more tools or provide your final answer."
+        )
+
     @profile
     def _format_prompt(
         self,
@@ -914,6 +942,11 @@ class MLXInferenceService:
         chat template, so we prefer that over our manual Jinja templates.
         Falls back to the pocket-agent templates if apply_chat_template fails.
 
+        For models that don't natively support tool calling in their chat
+        template (DeepSeek R1, Gemma), we inject a standardized <tool_call>
+        instruction into the system message so the model knows the expected
+        output format.
+
         Args:
             messages: List of chat messages
             config: Inference configuration
@@ -924,29 +957,74 @@ class MLXInferenceService:
         if DEBUG_INFERENCE:
             print(f"[DEBUG _format_prompt] Starting MLX prompt formatting...")
 
-        # Try using the tokenizer's built-in chat template first
+        # Try using the tokenizer's built-in chat template with native tool support
         try:
-            # Build kwargs for apply_chat_template
             template_kwargs = {
                 "tokenize": False,
                 "add_generation_prompt": True,
             }
 
-            # Some tokenizers support tools in apply_chat_template
             if config.tools:
                 template_kwargs["tools"] = config.tools
 
             prompt = self.tokenizer.apply_chat_template(
                 messages, **template_kwargs
             )
+
+            # Verify tools were actually included as definitions in the prompt
+            # (some tokenizers silently ignore the tools kwarg). We check for
+            # tool-definition markers rather than just the tool name, since the
+            # name may appear in the user's message text.
+            if config.tools:
+                # Look for signs of structured tool definitions in the prompt
+                has_tool_def = any(marker in prompt for marker in [
+                    '"type": "function"',  # OpenAI-style tool def
+                    '"function"',          # function definition block
+                    "tool_call",           # tool_call token/instruction
+                    "tools:",              # tools section header
+                    "<tool>",              # XML tool definition
+                ])
+                if has_tool_def:
+                    if DEBUG_INFERENCE:
+                        print(f"[DEBUG _format_prompt] Used tokenizer's native tool template")
+                    return prompt
+                else:
+                    if DEBUG_INFERENCE:
+                        print(f"[DEBUG _format_prompt] Tokenizer ignored tool definitions, injecting instruction")
+                    raise ValueError("Tokenizer did not include tool definitions")
+
             if DEBUG_INFERENCE:
                 print(f"[DEBUG _format_prompt] Used tokenizer's built-in chat template")
             return prompt
         except Exception as e:
             if DEBUG_INFERENCE:
-                print(f"[DEBUG _format_prompt] Tokenizer chat template failed: {e}, falling back")
+                print(f"[DEBUG _format_prompt] Native tool template failed: {e}")
 
-        # Fallback to pocket-agent templates
+        # Fallback: inject tool instruction into messages, then use tokenizer
+        # without the tools kwarg (which it doesn't support)
+        if config.tools:
+            tool_instruction = self._build_tool_instruction(config.tools)
+            messages = [dict(m) for m in messages]  # shallow copy
+            # Inject into system message, or create one
+            sys_idx = next((i for i, m in enumerate(messages) if m["role"] == "system"), None)
+            if sys_idx is not None:
+                messages[sys_idx]["content"] += tool_instruction
+            else:
+                messages.insert(0, {"role": "system", "content": tool_instruction.strip()})
+
+            # Re-try apply_chat_template WITHOUT the tools kwarg
+            try:
+                prompt = self.tokenizer.apply_chat_template(
+                    messages, tokenize=False, add_generation_prompt=True
+                )
+                if DEBUG_INFERENCE:
+                    print(f"[DEBUG _format_prompt] Used tokenizer template with injected tool instruction")
+                return prompt
+            except Exception as e2:
+                if DEBUG_INFERENCE:
+                    print(f"[DEBUG _format_prompt] Tokenizer fallback also failed: {e2}")
+
+        # Final fallback to pocket-agent manual templates
         if not self.current_model:
             raise RuntimeError("No model loaded")
 

@@ -308,6 +308,381 @@ class MLXInferenceService:
                     },
                 }
 
+    def generate_with_thinking_budget(
+        self,
+        messages: List[Dict[str, str]],
+        thinking_budget: Optional[int] = None,
+        **kwargs,
+    ) -> Generator[Dict[str, Any], None, None]:
+        """Generate with a cap on thinking tokens (two-phase approach).
+
+        When ``thinking_budget`` is set, generation proceeds normally until
+        the model has produced that many thinking tokens.  At that point
+        generation is stopped, ``</think>\\n`` is appended to the accumulated
+        output, and a *second* generation pass is started so the model sees
+        its thinking as complete and produces the answer directly.
+
+        Special case: ``thinking_budget=0`` pre-fills the prompt with
+        ``<think>\\n</think>\\n`` so the model skips thinking entirely.
+
+        When ``thinking_budget is None`` the call is equivalent to the normal
+        ``generate()`` (no budget enforced).
+
+        Yields the same dict format as ``generate()`` with extra metadata:
+            - ``thinking_budget``: the budget that was set
+            - ``thinking_was_truncated``: whether the budget was hit
+        """
+        if self.model is None or self.config is None:
+            raise RuntimeError("No model loaded")
+
+        # Unlimited budget -> delegate to normal generate
+        if thinking_budget is None:
+            for chunk in self.generate(messages, stream=True, **kwargs):
+                chunk["thinking_budget"] = None
+                chunk["thinking_was_truncated"] = False
+                yield chunk
+            return
+
+        from mlx_lm import stream_generate
+        from mlx_lm.sample_utils import make_sampler, make_logits_processors
+
+        # Merge kwargs with config
+        config = self.config.model_copy()
+        for key, value in kwargs.items():
+            if hasattr(config, key):
+                setattr(config, key, value)
+
+        # Format prompt using tokenizer's chat template
+        prompt = self._format_prompt(messages, config)
+
+        # Build sampler / logits processors (reused for both phases)
+        sampler = make_sampler(
+            temp=config.temperature,
+            top_p=config.top_p,
+            top_k=config.top_k if config.top_k > 0 else 0,
+        )
+        logits_processors = None
+        if config.repeat_penalty and config.repeat_penalty != 1.0:
+            logits_processors = make_logits_processors(
+                repetition_penalty=config.repeat_penalty,
+            )
+
+        gen_kwargs = {"sampler": sampler}
+        if logits_processors:
+            gen_kwargs["logits_processors"] = logits_processors
+
+        # ── budget == 0: disable thinking via empty think block ──────────
+        if thinking_budget == 0:
+            # Append empty thinking block so model skips straight to answer
+            prompt = prompt + "<think>\n</think>\n"
+            remaining_tokens = config.max_tokens
+
+            start_time = time.time()
+            first_token_time = None
+            token_count = 0
+            self.thinking_filter.reset()
+            self.unified_monitor.start_monitoring()
+
+            last_metrics_check = start_time
+            metrics_check_interval = 1.0
+            current_power = None
+
+            for response in stream_generate(
+                self.model, self.tokenizer, prompt=prompt,
+                max_tokens=remaining_tokens, **gen_kwargs,
+            ):
+                if first_token_time is None:
+                    first_token_time = time.time()
+
+                raw_token = response.text
+                filtered_token, is_thinking = self.thinking_filter.filter_token(raw_token)
+                token_count += 1
+
+                current_time = time.time()
+                ttft = (first_token_time - start_time) * 1000 if first_token_time else None
+                elapsed = current_time - start_time
+                tps = token_count / elapsed if elapsed > 0 else 0
+
+                if current_time - last_metrics_check >= metrics_check_interval:
+                    current_metrics = self.unified_monitor.get_current_metrics()
+                    current_power = current_metrics["power_watts"] if current_metrics else None
+                    last_metrics_check = current_time
+
+                thinking_stats = self.thinking_filter.get_stats()
+
+                yield {
+                    "token": filtered_token,
+                    "raw_token": raw_token,
+                    "is_thinking": is_thinking,
+                    "finish_reason": response.finish_reason,
+                    "thinking_budget": 0,
+                    "thinking_was_truncated": True,
+                    "metrics": {
+                        "ttft": ttft, "tps": tps, "tokens": token_count,
+                        "elapsed": elapsed, "current_power_watts": current_power,
+                        "thinking_tokens": thinking_stats["thinking_tokens"],
+                        "regular_tokens": thinking_stats["regular_tokens"],
+                        "prompt_tokens": response.prompt_tokens,
+                        "prompt_tps": response.prompt_tps,
+                        "generation_tps": response.generation_tps,
+                        "peak_memory_gb": response.peak_memory,
+                    },
+                }
+
+                if response.finish_reason is not None:
+                    remaining, was_thinking = self.thinking_filter.flush()
+                    if remaining:
+                        yield {
+                            "token": remaining, "raw_token": remaining,
+                            "is_thinking": was_thinking, "finish_reason": None,
+                            "thinking_budget": 0, "thinking_was_truncated": True,
+                            "metrics": {"ttft": ttft, "tps": tps, "tokens": token_count,
+                                        "elapsed": elapsed, "current_power_watts": current_power},
+                        }
+                    final_thinking_stats = self.thinking_filter.get_stats()
+                    energy_summary = self.unified_monitor.stop_monitoring()
+                    yield {
+                        "token": "", "finish_reason": "energy_summary",
+                        "thinking_budget": 0, "thinking_was_truncated": True,
+                        "metrics": {
+                            "energy_summary": energy_summary,
+                            "energy_per_token_joules": (
+                                energy_summary["total_energy_joules"] / token_count
+                                if token_count > 0 else 0
+                            ),
+                            "thinking_stats": final_thinking_stats,
+                            "prompt_tokens": response.prompt_tokens,
+                            "prompt_tps": response.prompt_tps,
+                            "generation_tps": response.generation_tps,
+                            "peak_memory_gb": response.peak_memory,
+                        },
+                    }
+            return
+
+        # ── budget > 0: two-phase generation ─────────────────────────────
+        start_time = time.time()
+        first_token_time = None
+        token_count = 0
+        thinking_token_count = 0
+        was_truncated = False
+        raw_accumulated = ""
+
+        self.thinking_filter.reset()
+        self.unified_monitor.start_monitoring()
+
+        last_metrics_check = start_time
+        metrics_check_interval = 1.0
+        current_power = None
+
+        # Phase 1: generate up to thinking_budget thinking tokens
+        phase1_max = thinking_budget + 512  # allow some non-thinking overhead
+        for response in stream_generate(
+            self.model, self.tokenizer, prompt=prompt,
+            max_tokens=phase1_max, **gen_kwargs,
+        ):
+            if first_token_time is None:
+                first_token_time = time.time()
+
+            raw_token = response.text
+            raw_accumulated += raw_token
+            filtered_token, is_thinking = self.thinking_filter.filter_token(raw_token)
+            token_count += 1
+
+            if is_thinking:
+                thinking_token_count += 1
+
+            current_time = time.time()
+            ttft = (first_token_time - start_time) * 1000 if first_token_time else None
+            elapsed = current_time - start_time
+            tps = token_count / elapsed if elapsed > 0 else 0
+
+            if current_time - last_metrics_check >= metrics_check_interval:
+                current_metrics = self.unified_monitor.get_current_metrics()
+                current_power = current_metrics["power_watts"] if current_metrics else None
+                last_metrics_check = current_time
+
+            thinking_stats = self.thinking_filter.get_stats()
+
+            yield {
+                "token": filtered_token,
+                "raw_token": raw_token,
+                "is_thinking": is_thinking,
+                "finish_reason": None,
+                "thinking_budget": thinking_budget,
+                "thinking_was_truncated": False,
+                "metrics": {
+                    "ttft": ttft, "tps": tps, "tokens": token_count,
+                    "elapsed": elapsed, "current_power_watts": current_power,
+                    "thinking_tokens": thinking_stats["thinking_tokens"],
+                    "regular_tokens": thinking_stats["regular_tokens"],
+                    "prompt_tokens": response.prompt_tokens,
+                    "prompt_tps": response.prompt_tps,
+                    "generation_tps": response.generation_tps,
+                    "peak_memory_gb": response.peak_memory,
+                },
+            }
+
+            # Check if model finished on its own
+            if response.finish_reason is not None:
+                # Model finished within budget -- wrap up normally
+                remaining, was_thinking_rem = self.thinking_filter.flush()
+                if remaining:
+                    yield {
+                        "token": remaining, "raw_token": remaining,
+                        "is_thinking": was_thinking_rem, "finish_reason": None,
+                        "thinking_budget": thinking_budget,
+                        "thinking_was_truncated": False,
+                        "metrics": {"ttft": ttft, "tps": tps, "tokens": token_count,
+                                    "elapsed": elapsed, "current_power_watts": current_power},
+                    }
+                final_thinking_stats = self.thinking_filter.get_stats()
+                energy_summary = self.unified_monitor.stop_monitoring()
+                yield {
+                    "token": "", "finish_reason": "energy_summary",
+                    "thinking_budget": thinking_budget,
+                    "thinking_was_truncated": False,
+                    "metrics": {
+                        "energy_summary": energy_summary,
+                        "energy_per_token_joules": (
+                            energy_summary["total_energy_joules"] / token_count
+                            if token_count > 0 else 0
+                        ),
+                        "thinking_stats": final_thinking_stats,
+                        "prompt_tokens": response.prompt_tokens,
+                        "prompt_tps": response.prompt_tps,
+                        "generation_tps": response.generation_tps,
+                        "peak_memory_gb": response.peak_memory,
+                    },
+                }
+                return
+
+            # Budget hit -- break out of phase 1
+            if thinking_token_count >= thinking_budget:
+                was_truncated = True
+                break
+
+        if not was_truncated:
+            # Phase 1 ran out of max_tokens without hitting budget
+            # and model didn't finish -- still wrap up
+            remaining, was_thinking_rem = self.thinking_filter.flush()
+            if remaining:
+                yield {
+                    "token": remaining, "raw_token": remaining,
+                    "is_thinking": was_thinking_rem, "finish_reason": None,
+                    "thinking_budget": thinking_budget,
+                    "thinking_was_truncated": False,
+                    "metrics": {"ttft": ttft, "tps": tps, "tokens": token_count,
+                                "elapsed": elapsed, "current_power_watts": current_power},
+                }
+            final_thinking_stats = self.thinking_filter.get_stats()
+            energy_summary = self.unified_monitor.stop_monitoring()
+            yield {
+                "token": "", "finish_reason": "energy_summary",
+                "thinking_budget": thinking_budget,
+                "thinking_was_truncated": False,
+                "metrics": {
+                    "energy_summary": energy_summary,
+                    "energy_per_token_joules": (
+                        energy_summary["total_energy_joules"] / token_count
+                        if token_count > 0 else 0
+                    ),
+                    "thinking_stats": final_thinking_stats,
+                },
+            }
+            return
+
+        # ── Phase 2: inject </think>\n and continue generation ───────────
+        # Build new prompt = original prompt + raw phase-1 output + </think>\n
+        phase2_prompt = prompt + raw_accumulated + "</think>\n"
+        remaining_tokens = max(config.max_tokens - token_count, 256)
+
+        if DEBUG_INFERENCE:
+            print(f"[DEBUG] Thinking budget hit ({thinking_token_count}/{thinking_budget}). "
+                  f"Starting phase 2 with {remaining_tokens} remaining tokens.")
+
+        # Reset thinking filter for phase 2 (model should no longer think)
+        self.thinking_filter.reset()
+
+        for response in stream_generate(
+            self.model, self.tokenizer, prompt=phase2_prompt,
+            max_tokens=remaining_tokens, **gen_kwargs,
+        ):
+            raw_token = response.text
+            filtered_token, is_thinking = self.thinking_filter.filter_token(raw_token)
+            token_count += 1
+
+            current_time = time.time()
+            elapsed = current_time - start_time
+            tps = token_count / elapsed if elapsed > 0 else 0
+
+            if current_time - last_metrics_check >= metrics_check_interval:
+                current_metrics = self.unified_monitor.get_current_metrics()
+                current_power = current_metrics["power_watts"] if current_metrics else None
+                last_metrics_check = current_time
+
+            thinking_stats_phase2 = self.thinking_filter.get_stats()
+
+            yield {
+                "token": filtered_token,
+                "raw_token": raw_token,
+                "is_thinking": is_thinking,
+                "finish_reason": response.finish_reason,
+                "thinking_budget": thinking_budget,
+                "thinking_was_truncated": True,
+                "metrics": {
+                    "ttft": ttft, "tps": tps, "tokens": token_count,
+                    "elapsed": elapsed, "current_power_watts": current_power,
+                    "thinking_tokens": thinking_token_count + thinking_stats_phase2["thinking_tokens"],
+                    "regular_tokens": thinking_stats_phase2["regular_tokens"],
+                    "prompt_tokens": response.prompt_tokens,
+                    "prompt_tps": response.prompt_tps,
+                    "generation_tps": response.generation_tps,
+                    "peak_memory_gb": response.peak_memory,
+                },
+            }
+
+            if response.finish_reason is not None:
+                remaining, was_thinking_rem = self.thinking_filter.flush()
+                if remaining:
+                    yield {
+                        "token": remaining, "raw_token": remaining,
+                        "is_thinking": was_thinking_rem, "finish_reason": None,
+                        "thinking_budget": thinking_budget,
+                        "thinking_was_truncated": True,
+                        "metrics": {"ttft": ttft, "tps": tps, "tokens": token_count,
+                                    "elapsed": elapsed, "current_power_watts": current_power},
+                    }
+
+                final_phase2_stats = self.thinking_filter.get_stats()
+                energy_summary = self.unified_monitor.stop_monitoring()
+                yield {
+                    "token": "", "finish_reason": "energy_summary",
+                    "thinking_budget": thinking_budget,
+                    "thinking_was_truncated": True,
+                    "metrics": {
+                        "energy_summary": energy_summary,
+                        "energy_per_token_joules": (
+                            energy_summary["total_energy_joules"] / token_count
+                            if token_count > 0 else 0
+                        ),
+                        "thinking_stats": {
+                            "thinking_tokens": thinking_token_count + final_phase2_stats["thinking_tokens"],
+                            "regular_tokens": final_phase2_stats["regular_tokens"],
+                            "total_tokens": token_count,
+                            "thinking_ratio": (
+                                (thinking_token_count + final_phase2_stats["thinking_tokens"])
+                                / token_count if token_count > 0 else 0
+                            ),
+                            "thinking_budget": thinking_budget,
+                            "thinking_was_truncated": True,
+                        },
+                        "prompt_tokens": response.prompt_tokens,
+                        "prompt_tps": response.prompt_tps,
+                        "generation_tps": response.generation_tps,
+                        "peak_memory_gb": response.peak_memory,
+                    },
+                }
+
     def generate_with_tools(
         self,
         messages: List[Dict[str, str]],

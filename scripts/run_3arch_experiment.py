@@ -139,18 +139,30 @@ def build_messages(problem, prompt_config):
 
 
 def sglang_chat(base_url, model_hf_id, messages, tools=None,
-                max_tokens=2048, temperature=0.7):
+                max_tokens=2048, temperature=0.7, retries=3):
     payload = {"model": model_hf_id, "messages": messages,
                "max_tokens": max_tokens, "temperature": temperature}
     if tools:
         payload["tools"] = tools
-    try:
-        resp = httpx.post(f"{base_url}/v1/chat/completions",
-                          json=payload, timeout=300)
-        resp.raise_for_status()
-        return resp.json()
-    except Exception as e:
-        return {"error": str(e)[:200]}
+    for attempt in range(retries):
+        try:
+            resp = httpx.post(f"{base_url}/v1/chat/completions",
+                              json=payload, timeout=300)
+            resp.raise_for_status()
+            d = resp.json()
+            # Verify we got actual content
+            tokens = d.get("usage", {}).get("completion_tokens", 0)
+            if tokens > 0:
+                return d
+            if attempt < retries - 1:
+                time.sleep(2)
+                continue
+            return d
+        except Exception as e:
+            if attempt < retries - 1:
+                time.sleep(5)
+                continue
+            return {"error": str(e)[:200]}
 
 
 def execute_tool_locally(code):
@@ -496,8 +508,9 @@ def run_experiment(args):
                             cloud_copy["network_condition"] = nc_name
                             # Cloud: just 1 upload + 1 download
                             sim = NetworkSimulator(nc, seed=42)
-                            up = sim.simulate_transfer_sync(cloud_copy["network_bytes"] // 2, "upload")
-                            down = sim.simulate_transfer_sync(cloud_copy["network_bytes"] // 2, "download")
+                            nbytes = cloud_copy.get("network_bytes", 2000)
+                            up = sim.simulate_transfer_sync(nbytes // 2, "upload")
+                            down = sim.simulate_transfer_sync(nbytes // 2, "download")
                             cloud_copy["network_time_s"] = round((up.total_delay_ms + down.total_delay_ms) / 1000, 3)
                             cloud_copy["total_time_s"] = round(cloud_copy["inference_time_s"] + cloud_copy["network_time_s"], 2)
                             cloud_copy["radio_tail_energy_j"] = nc.radio_tail_energy_j

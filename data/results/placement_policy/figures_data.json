@@ -1,0 +1,531 @@
+{
+  "policy_comparison": {
+    "description": "Bar chart comparing all policies on pass_rate, time, energy",
+    "policies": [
+      {
+        "policy": "ALWAYS_LOCAL",
+        "avg_pass_rate": 0.46,
+        "avg_time_s": 32.9,
+        "avg_energy_j": 470.68,
+        "vs_oracle_pass_pct": 84.3
+      },
+      {
+        "policy": "ALWAYS_CLOUD",
+        "avg_pass_rate": 0.515,
+        "avg_time_s": 13.39,
+        "avg_energy_j": 75.47,
+        "vs_oracle_pass_pct": 94.4
+      },
+      {
+        "policy": "ALWAYS_HYBRID",
+        "avg_pass_rate": 0.4414,
+        "avg_time_s": 13.16,
+        "avg_energy_j": 66.04,
+        "vs_oracle_pass_pct": 80.9
+      },
+      {
+        "policy": "NETWORK_AWARE",
+        "avg_pass_rate": 0.4686,
+        "avg_time_s": 24.4,
+        "avg_energy_j": 299.04,
+        "vs_oracle_pass_pct": 85.9
+      },
+      {
+        "policy": "COST_AWARE",
+        "avg_pass_rate": 0.5318,
+        "avg_time_s": 17.93,
+        "avg_energy_j": 177.48,
+        "vs_oracle_pass_pct": 97.5
+      },
+      {
+        "policy": "ORACLE",
+        "avg_pass_rate": 0.5457,
+        "avg_time_s": 15.01,
+        "avg_energy_j": 120.71,
+        "vs_oracle_pass_pct": 100.0
+      }
+    ]
+  },
+  "energy_accuracy_tradeoff": {
+    "description": "Scatter: x=avg_energy_j, y=avg_pass_rate per policy",
+    "points": [
+      {
+        "policy": "ALWAYS_LOCAL",
+        "avg_energy_j": 470.68,
+        "avg_pass_rate": 0.46
+      },
+      {
+        "policy": "ALWAYS_CLOUD",
+        "avg_energy_j": 75.47,
+        "avg_pass_rate": 0.515
+      },
+      {
+        "policy": "ALWAYS_HYBRID",
+        "avg_energy_j": 66.04,
+        "avg_pass_rate": 0.4414
+      },
+      {
+        "policy": "NETWORK_AWARE",
+        "avg_energy_j": 299.04,
+        "avg_pass_rate": 0.4686
+      },
+      {
+        "policy": "COST_AWARE",
+        "avg_energy_j": 177.48,
+        "avg_pass_rate": 0.5318
+      },
+      {
+        "policy": "ORACLE",
+        "avg_energy_j": 120.71,
+        "avg_pass_rate": 0.5457
+      }
+    ]
+  },
+  "network_heatmap": {
+    "description": "Heatmap: rows=network_conditions, cols=models, values=COST_AWARE pass_rate vs best static policy",
+    "cells": [
+      {
+        "network_condition": "4g",
+        "model": "deepseek-r1-distill-qwen-1.5b",
+        "cost_aware_pass_rate": 0.39,
+        "cost_aware_arch": "hybrid",
+        "best_static_pass_rate": 0.36,
+        "best_static_policy": "ALWAYS_LOCAL",
+        "improvement_pp": 3.0
+      },
+      {
+        "network_condition": "4g",
+        "model": "llama-3.2-3b-instruct",
+        "cost_aware_pass_rate": 0.57,
+        "cost_aware_arch": "cloud",
+        "best_static_pass_rate": 0.57,
+        "best_static_policy": "ALWAYS_CLOUD",
+        "improvement_pp": 0.0
+      },
+      {
+        "network_condition": "4g",
+        "model": "qwen-3-0.6b",
+        "cost_aware_pass_rate": 0.41,
+        "cost_aware_arch": "cloud",
+        "best_static_pass_rate": 0.41,
+        "best_static_policy": "ALWAYS_CLOUD",
+        "improvement_pp": 0.0
+      },
+      {
+        "network_condition": "4g",
+        "model": "qwen-3-4b",
+        "cost_aware_pass_rate": 0.81,
+        "cost_aware_arch": "cloud",
+        "best_static_pass_rate": 0.81,
+        "best_static_policy": "ALWAYS_CLOUD",
+        "improvement_pp": 0.0
+      },
+      {
+        "network_condition": "5g",
+        "model": "deepseek-r1-distill-qwen-1.5b",
+        "cost_aware_pass_rate": 0.38,
+        "cost_aware_arch": "hybrid",
+        "best_static_pass_rate": 0.36,
+        "best_static_policy": "ALWAYS_LOCAL",
+        "improvement_pp": 2.0
+      },
+      {
+        "network_condition": "5g",
+        "model": "llama-3.2-3b-instruct",
+        "cost_aware_pass_rate": 0.57,
+        "cost_aware_arch": "cloud",
+        "best_static_pass_rate": 0.57,
+        "best_static_policy": "ALWAYS_CLOUD",
+        "improvement_pp": 0.0
+      },
+      {
+        "network_condition": "5g",
+        "model": "qwen-3-0.6b",
+        "cost_aware_pass_rate": 0.41,
+        "cost_aware_arch": "cloud",
+        "best_static_pass_rate": 0.41,
+        "best_static_policy": "ALWAYS_CLOUD",
+        "improvement_pp": 0.0
+      },
+      {
+        "network_condition": "5g",
+        "model": "qwen-3-4b",
+        "cost_aware_pass_rate": 0.81,
+        "cost_aware_arch": "cloud",
+        "best_static_pass_rate": 0.81,
+        "best_static_policy": "ALWAYS_CLOUD",
+        "improvement_pp": 0.0
+      },
+      {
+        "network_condition": "edge_case",
+        "model": "deepseek-r1-distill-qwen-1.5b",
+        "cost_aware_pass_rate": 0.36,
+        "cost_aware_arch": "local",
+        "best_static_pass_rate": 0.36,
+        "best_static_policy": "ALWAYS_LOCAL",
+        "improvement_pp": 0.0
+      },
+      {
+        "network_condition": "edge_case",
+        "model": "llama-3.2-3b-instruct",
+        "cost_aware_pass_rate": 0.57,
+        "cost_aware_arch": "cloud",
+        "best_static_pass_rate": 0.57,
+        "best_static_policy": "ALWAYS_CLOUD",
+        "improvement_pp": 0.0
+      },
+      {
+        "network_condition": "edge_case",
+        "model": "qwen-3-0.6b",
+        "cost_aware_pass_rate": 0.41,
+        "cost_aware_arch": "cloud",
+        "best_static_pass_rate": 0.41,
+        "best_static_policy": "ALWAYS_CLOUD",
+        "improvement_pp": 0.0
+      },
+      {
+        "network_condition": "edge_case",
+        "model": "qwen-3-4b",
+        "cost_aware_pass_rate": 0.81,
+        "cost_aware_arch": "cloud",
+        "best_static_pass_rate": 0.81,
+        "best_static_policy": "ALWAYS_CLOUD",
+        "improvement_pp": 0.0
+      },
+      {
+        "network_condition": "lan",
+        "model": "deepseek-r1-distill-qwen-1.5b",
+        "cost_aware_pass_rate": 0.39,
+        "cost_aware_arch": "hybrid",
+        "best_static_pass_rate": 0.36,
+        "best_static_policy": "ALWAYS_LOCAL",
+        "improvement_pp": 3.0
+      },
+      {
+        "network_condition": "lan",
+        "model": "llama-3.2-3b-instruct",
+        "cost_aware_pass_rate": 0.57,
+        "cost_aware_arch": "cloud",
+        "best_static_pass_rate": 0.58,
+        "best_static_policy": "ALWAYS_HYBRID",
+        "improvement_pp": -1.0
+      },
+      {
+        "network_condition": "lan",
+        "model": "qwen-3-0.6b",
+        "cost_aware_pass_rate": 0.41,
+        "cost_aware_arch": "cloud",
+        "best_static_pass_rate": 0.41,
+        "best_static_policy": "ALWAYS_CLOUD",
+        "improvement_pp": 0.0
+      },
+      {
+        "network_condition": "lan",
+        "model": "qwen-3-4b",
+        "cost_aware_pass_rate": 0.81,
+        "cost_aware_arch": "cloud",
+        "best_static_pass_rate": 0.81,
+        "best_static_policy": "ALWAYS_CLOUD",
+        "improvement_pp": 0.0
+      },
+      {
+        "network_condition": "local",
+        "model": "deepseek-r1-distill-qwen-1.5b",
+        "cost_aware_pass_rate": 0.36,
+        "cost_aware_arch": "local",
+        "best_static_pass_rate": 0.36,
+        "best_static_policy": "ALWAYS_LOCAL",
+        "improvement_pp": 0.0
+      },
+      {
+        "network_condition": "local",
+        "model": "llama-3.2-3b-instruct",
+        "cost_aware_pass_rate": 0.53,
+        "cost_aware_arch": "local",
+        "best_static_pass_rate": 0.57,
+        "best_static_policy": "ALWAYS_CLOUD",
+        "improvement_pp": -4.0
+      },
+      {
+        "network_condition": "local",
+        "model": "qwen-3-0.6b",
+        "cost_aware_pass_rate": 0.19,
+        "cost_aware_arch": "local",
+        "best_static_pass_rate": 0.41,
+        "best_static_policy": "ALWAYS_CLOUD",
+        "improvement_pp": -22.0
+      },
+      {
+        "network_condition": "local",
+        "model": "qwen-3-4b",
+        "cost_aware_pass_rate": 0.76,
+        "cost_aware_arch": "local",
+        "best_static_pass_rate": 0.81,
+        "best_static_policy": "ALWAYS_CLOUD",
+        "improvement_pp": -5.0
+      },
+      {
+        "network_condition": "poor_cellular",
+        "model": "deepseek-r1-distill-qwen-1.5b",
+        "cost_aware_pass_rate": 0.4,
+        "cost_aware_arch": "hybrid",
+        "best_static_pass_rate": 0.36,
+        "best_static_policy": "ALWAYS_LOCAL",
+        "improvement_pp": 4.0
+      },
+      {
+        "network_condition": "poor_cellular",
+        "model": "llama-3.2-3b-instruct",
+        "cost_aware_pass_rate": 0.57,
+        "cost_aware_arch": "cloud",
+        "best_static_pass_rate": 0.57,
+        "best_static_policy": "ALWAYS_CLOUD",
+        "improvement_pp": 0.0
+      },
+      {
+        "network_condition": "poor_cellular",
+        "model": "qwen-3-0.6b",
+        "cost_aware_pass_rate": 0.41,
+        "cost_aware_arch": "cloud",
+        "best_static_pass_rate": 0.41,
+        "best_static_policy": "ALWAYS_CLOUD",
+        "improvement_pp": 0.0
+      },
+      {
+        "network_condition": "poor_cellular",
+        "model": "qwen-3-4b",
+        "cost_aware_pass_rate": 0.81,
+        "cost_aware_arch": "cloud",
+        "best_static_pass_rate": 0.81,
+        "best_static_policy": "ALWAYS_CLOUD",
+        "improvement_pp": 0.0
+      },
+      {
+        "network_condition": "wifi",
+        "model": "deepseek-r1-distill-qwen-1.5b",
+        "cost_aware_pass_rate": 0.39,
+        "cost_aware_arch": "hybrid",
+        "best_static_pass_rate": 0.36,
+        "best_static_policy": "ALWAYS_LOCAL",
+        "improvement_pp": 3.0
+      },
+      {
+        "network_condition": "wifi",
+        "model": "llama-3.2-3b-instruct",
+        "cost_aware_pass_rate": 0.57,
+        "cost_aware_arch": "cloud",
+        "best_static_pass_rate": 0.57,
+        "best_static_policy": "ALWAYS_CLOUD",
+        "improvement_pp": 0.0
+      },
+      {
+        "network_condition": "wifi",
+        "model": "qwen-3-0.6b",
+        "cost_aware_pass_rate": 0.41,
+        "cost_aware_arch": "cloud",
+        "best_static_pass_rate": 0.41,
+        "best_static_policy": "ALWAYS_CLOUD",
+        "improvement_pp": 0.0
+      },
+      {
+        "network_condition": "wifi",
+        "model": "qwen-3-4b",
+        "cost_aware_pass_rate": 0.81,
+        "cost_aware_arch": "cloud",
+        "best_static_pass_rate": 0.81,
+        "best_static_policy": "ALWAYS_CLOUD",
+        "improvement_pp": 0.0
+      }
+    ]
+  },
+  "per_model_summary": {
+    "description": "Per-model breakdown of each policy's performance",
+    "models": {
+      "deepseek-r1-distill-qwen-1.5b": {
+        "ALWAYS_LOCAL": {
+          "avg_pass_rate": 0.36,
+          "avg_time_s": 31.83,
+          "avg_energy_j": 458.41
+        },
+        "ALWAYS_CLOUD": {
+          "avg_pass_rate": 0.27,
+          "avg_time_s": 15.96,
+          "avg_energy_j": 85.28
+        },
+        "ALWAYS_HYBRID": {
+          "avg_pass_rate": 0.22,
+          "avg_time_s": 12.98,
+          "avg_energy_j": 53.25
+        },
+        "NETWORK_AWARE": {
+          "avg_pass_rate": 0.3114,
+          "avg_time_s": 24.4,
+          "avg_energy_j": 292.64
+        },
+        "COST_AWARE": {
+          "avg_pass_rate": 0.3814,
+          "avg_time_s": 25.15,
+          "avg_energy_j": 320.62
+        },
+        "ORACLE": {
+          "avg_pass_rate": 0.3857,
+          "avg_time_s": 22.76,
+          "avg_energy_j": 266.46
+        }
+      },
+      "llama-3.2-3b-instruct": {
+        "ALWAYS_LOCAL": {
+          "avg_pass_rate": 0.53,
+          "avg_time_s": 4.56,
+          "avg_energy_j": 60.21
+        },
+        "ALWAYS_CLOUD": {
+          "avg_pass_rate": 0.57,
+          "avg_time_s": 3.09,
+          "avg_energy_j": 12.09
+        },
+        "ALWAYS_HYBRID": {
+          "avg_pass_rate": 0.5386,
+          "avg_time_s": 3.17,
+          "avg_energy_j": 15.97
+        },
+        "NETWORK_AWARE": {
+          "avg_pass_rate": 0.5429,
+          "avg_time_s": 3.84,
+          "avg_energy_j": 39.94
+        },
+        "COST_AWARE": {
+          "avg_pass_rate": 0.5643,
+          "avg_time_s": 3.34,
+          "avg_energy_j": 19.02
+        },
+        "ORACLE": {
+          "avg_pass_rate": 0.5743,
+          "avg_time_s": 3.06,
+          "avg_energy_j": 12.72
+        }
+      },
+      "qwen-3-0.6b": {
+        "ALWAYS_LOCAL": {
+          "avg_pass_rate": 0.19,
+          "avg_time_s": 29.12,
+          "avg_energy_j": 495.22
+        },
+        "ALWAYS_CLOUD": {
+          "avg_pass_rate": 0.41,
+          "avg_time_s": 8.14,
+          "avg_energy_j": 80.68
+        },
+        "ALWAYS_HYBRID": {
+          "avg_pass_rate": 0.2571,
+          "avg_time_s": 8.92,
+          "avg_energy_j": 56.38
+        },
+        "NETWORK_AWARE": {
+          "avg_pass_rate": 0.2514,
+          "avg_time_s": 20.17,
+          "avg_energy_j": 311.84
+        },
+        "COST_AWARE": {
+          "avg_pass_rate": 0.3786,
+          "avg_time_s": 11.17,
+          "avg_energy_j": 139.95
+        },
+        "ORACLE": {
+          "avg_pass_rate": 0.4129,
+          "avg_time_s": 8.06,
+          "avg_energy_j": 80.25
+        }
+      },
+      "qwen-3-4b": {
+        "ALWAYS_LOCAL": {
+          "avg_pass_rate": 0.76,
+          "avg_time_s": 66.09,
+          "avg_energy_j": 868.9
+        },
+        "ALWAYS_CLOUD": {
+          "avg_pass_rate": 0.81,
+          "avg_time_s": 26.37,
+          "avg_energy_j": 123.84
+        },
+        "ALWAYS_HYBRID": {
+          "avg_pass_rate": 0.75,
+          "avg_time_s": 27.56,
+          "avg_energy_j": 138.58
+        },
+        "NETWORK_AWARE": {
+          "avg_pass_rate": 0.7686,
+          "avg_time_s": 49.18,
+          "avg_energy_j": 551.75
+        },
+        "COST_AWARE": {
+          "avg_pass_rate": 0.8029,
+          "avg_time_s": 32.08,
+          "avg_energy_j": 230.33
+        },
+        "ORACLE": {
+          "avg_pass_rate": 0.81,
+          "avg_time_s": 26.15,
+          "avg_energy_j": 123.39
+        }
+      }
+    }
+  },
+  "mode_comparison": {
+    "description": "How each policy performs in base vs full_tool mode",
+    "modes": {
+      "base": {
+        "ALWAYS_LOCAL": {
+          "avg_pass_rate": 0.475,
+          "avg_energy_j": 488.91
+        },
+        "ALWAYS_CLOUD": {
+          "avg_pass_rate": 0.545,
+          "avg_energy_j": 84.06
+        },
+        "ALWAYS_HYBRID": {
+          "avg_pass_rate": 0.515,
+          "avg_energy_j": 84.45
+        },
+        "NETWORK_AWARE": {
+          "avg_pass_rate": 0.4957,
+          "avg_energy_j": 314.88
+        },
+        "COST_AWARE": {
+          "avg_pass_rate": 0.5414,
+          "avg_energy_j": 153.75
+        },
+        "ORACLE": {
+          "avg_pass_rate": 0.5557,
+          "avg_energy_j": 81.99
+        }
+      },
+      "full_tool": {
+        "ALWAYS_LOCAL": {
+          "avg_pass_rate": 0.445,
+          "avg_energy_j": 452.45
+        },
+        "ALWAYS_CLOUD": {
+          "avg_pass_rate": 0.485,
+          "avg_energy_j": 66.88
+        },
+        "ALWAYS_HYBRID": {
+          "avg_pass_rate": 0.3679,
+          "avg_energy_j": 47.64
+        },
+        "NETWORK_AWARE": {
+          "avg_pass_rate": 0.4414,
+          "avg_energy_j": 283.2
+        },
+        "COST_AWARE": {
+          "avg_pass_rate": 0.5221,
+          "avg_energy_j": 201.21
+        },
+        "ORACLE": {
+          "avg_pass_rate": 0.5357,
+          "avg_energy_j": 159.42
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,1797 @@
+{
+  "description": "Which architecture each policy chooses at each (model, mode, network_condition) combination",
+  "matrix": {
+    "deepseek-r1-distill-qwen-1.5b|base|4g": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.36,
+        "est_energy_j": 482.16
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.38,
+        "est_energy_j": 105.67
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.42,
+        "est_energy_j": 94.48
+      },
+      "NETWORK_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.36,
+        "est_energy_j": 482.16
+      },
+      "COST_AWARE": {
+        "architecture": "hybrid",
+        "pass_rate": 0.42,
+        "est_energy_j": 94.48
+      },
+      "ORACLE": {
+        "architecture": "hybrid",
+        "pass_rate": 0.42,
+        "est_energy_j": 94.48
+      }
+    },
+    "deepseek-r1-distill-qwen-1.5b|base|5g": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.36,
+        "est_energy_j": 482.16
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.38,
+        "est_energy_j": 105.47
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.4,
+        "est_energy_j": 90.09
+      },
+      "NETWORK_AWARE": {
+        "architecture": "hybrid",
+        "pass_rate": 0.4,
+        "est_energy_j": 90.09
+      },
+      "COST_AWARE": {
+        "architecture": "hybrid",
+        "pass_rate": 0.4,
+        "est_energy_j": 90.09
+      },
+      "ORACLE": {
+        "architecture": "hybrid",
+        "pass_rate": 0.4,
+        "est_energy_j": 90.09
+      }
+    },
+    "deepseek-r1-distill-qwen-1.5b|base|edge_case": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.36,
+        "est_energy_j": 482.16
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.38,
+        "est_energy_j": 106.17
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.36,
+        "est_energy_j": 103.93
+      },
+      "NETWORK_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.36,
+        "est_energy_j": 482.16
+      },
+      "COST_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.36,
+        "est_energy_j": 482.16
+      },
+      "ORACLE": {
+        "architecture": "cloud",
+        "pass_rate": 0.38,
+        "est_energy_j": 106.17
+      }
+    },
+    "deepseek-r1-distill-qwen-1.5b|base|lan": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.36,
+        "est_energy_j": 482.16
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.38,
+        "est_energy_j": 105.17
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.42,
+        "est_energy_j": 93.66
+      },
+      "NETWORK_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.38,
+        "est_energy_j": 105.17
+      },
+      "COST_AWARE": {
+        "architecture": "hybrid",
+        "pass_rate": 0.42,
+        "est_energy_j": 93.66
+      },
+      "ORACLE": {
+        "architecture": "hybrid",
+        "pass_rate": 0.42,
+        "est_energy_j": 93.66
+      }
+    },
+    "deepseek-r1-distill-qwen-1.5b|base|local": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.36,
+        "est_energy_j": 482.16
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.38,
+        "est_energy_j": 105.17
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.4,
+        "est_energy_j": 99.94
+      },
+      "NETWORK_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.36,
+        "est_energy_j": 482.16
+      },
+      "COST_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.36,
+        "est_energy_j": 482.16
+      },
+      "ORACLE": {
+        "architecture": "hybrid",
+        "pass_rate": 0.4,
+        "est_energy_j": 99.94
+      }
+    },
+    "deepseek-r1-distill-qwen-1.5b|base|poor_cellular": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.36,
+        "est_energy_j": 482.16
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.38,
+        "est_energy_j": 105.97
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.44,
+        "est_energy_j": 99.68
+      },
+      "NETWORK_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.36,
+        "est_energy_j": 482.16
+      },
+      "COST_AWARE": {
+        "architecture": "hybrid",
+        "pass_rate": 0.44,
+        "est_energy_j": 99.68
+      },
+      "ORACLE": {
+        "architecture": "hybrid",
+        "pass_rate": 0.44,
+        "est_energy_j": 99.68
+      }
+    },
+    "deepseek-r1-distill-qwen-1.5b|base|wifi": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.36,
+        "est_energy_j": 482.16
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.38,
+        "est_energy_j": 105.17
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.42,
+        "est_energy_j": 103.91
+      },
+      "NETWORK_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.38,
+        "est_energy_j": 105.17
+      },
+      "COST_AWARE": {
+        "architecture": "hybrid",
+        "pass_rate": 0.42,
+        "est_energy_j": 103.91
+      },
+      "ORACLE": {
+        "architecture": "hybrid",
+        "pass_rate": 0.42,
+        "est_energy_j": 103.91
+      }
+    },
+    "deepseek-r1-distill-qwen-1.5b|full_tool|4g": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.36,
+        "est_energy_j": 434.65
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.16,
+        "est_energy_j": 65.14
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.0,
+        "est_energy_j": 0.0
+      },
+      "NETWORK_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.36,
+        "est_energy_j": 434.65
+      },
+      "COST_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.36,
+        "est_energy_j": 434.65
+      },
+      "ORACLE": {
+        "architecture": "local",
+        "pass_rate": 0.36,
+        "est_energy_j": 434.65
+      }
+    },
+    "deepseek-r1-distill-qwen-1.5b|full_tool|5g": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.36,
+        "est_energy_j": 434.65
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.16,
+        "est_energy_j": 64.94
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.0,
+        "est_energy_j": 0.0
+      },
+      "NETWORK_AWARE": {
+        "architecture": "hybrid",
+        "pass_rate": 0.0,
+        "est_energy_j": 0.0
+      },
+      "COST_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.36,
+        "est_energy_j": 434.65
+      },
+      "ORACLE": {
+        "architecture": "local",
+        "pass_rate": 0.36,
+        "est_energy_j": 434.65
+      }
+    },
+    "deepseek-r1-distill-qwen-1.5b|full_tool|edge_case": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.36,
+        "est_energy_j": 434.65
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.16,
+        "est_energy_j": 65.64
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.0,
+        "est_energy_j": 0.0
+      },
+      "NETWORK_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.36,
+        "est_energy_j": 434.65
+      },
+      "COST_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.36,
+        "est_energy_j": 434.65
+      },
+      "ORACLE": {
+        "architecture": "local",
+        "pass_rate": 0.36,
+        "est_energy_j": 434.65
+      }
+    },
+    "deepseek-r1-distill-qwen-1.5b|full_tool|lan": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.36,
+        "est_energy_j": 434.65
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.16,
+        "est_energy_j": 64.64
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.0,
+        "est_energy_j": 0.0
+      },
+      "NETWORK_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.16,
+        "est_energy_j": 64.64
+      },
+      "COST_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.36,
+        "est_energy_j": 434.65
+      },
+      "ORACLE": {
+        "architecture": "local",
+        "pass_rate": 0.36,
+        "est_energy_j": 434.65
+      }
+    },
+    "deepseek-r1-distill-qwen-1.5b|full_tool|local": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.36,
+        "est_energy_j": 434.65
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.16,
+        "est_energy_j": 64.64
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.22,
+        "est_energy_j": 59.81
+      },
+      "NETWORK_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.36,
+        "est_energy_j": 434.65
+      },
+      "COST_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.36,
+        "est_energy_j": 434.65
+      },
+      "ORACLE": {
+        "architecture": "local",
+        "pass_rate": 0.36,
+        "est_energy_j": 434.65
+      }
+    },
+    "deepseek-r1-distill-qwen-1.5b|full_tool|poor_cellular": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.36,
+        "est_energy_j": 434.65
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.16,
+        "est_energy_j": 65.44
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.0,
+        "est_energy_j": 0.0
+      },
+      "NETWORK_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.36,
+        "est_energy_j": 434.65
+      },
+      "COST_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.36,
+        "est_energy_j": 434.65
+      },
+      "ORACLE": {
+        "architecture": "local",
+        "pass_rate": 0.36,
+        "est_energy_j": 434.65
+      }
+    },
+    "deepseek-r1-distill-qwen-1.5b|full_tool|wifi": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.36,
+        "est_energy_j": 434.65
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.16,
+        "est_energy_j": 64.64
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.0,
+        "est_energy_j": 0.0
+      },
+      "NETWORK_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.16,
+        "est_energy_j": 64.64
+      },
+      "COST_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.36,
+        "est_energy_j": 434.65
+      },
+      "ORACLE": {
+        "architecture": "local",
+        "pass_rate": 0.36,
+        "est_energy_j": 434.65
+      }
+    },
+    "llama-3.2-3b-instruct|base|4g": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.54,
+        "est_energy_j": 60.18
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.58,
+        "est_energy_j": 11.6
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.58,
+        "est_energy_j": 14.27
+      },
+      "NETWORK_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.54,
+        "est_energy_j": 60.18
+      },
+      "COST_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.58,
+        "est_energy_j": 11.6
+      },
+      "ORACLE": {
+        "architecture": "hybrid",
+        "pass_rate": 0.58,
+        "est_energy_j": 14.27
+      }
+    },
+    "llama-3.2-3b-instruct|base|5g": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.54,
+        "est_energy_j": 60.18
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.58,
+        "est_energy_j": 11.4
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.5,
+        "est_energy_j": 14.27
+      },
+      "NETWORK_AWARE": {
+        "architecture": "hybrid",
+        "pass_rate": 0.5,
+        "est_energy_j": 14.27
+      },
+      "COST_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.58,
+        "est_energy_j": 11.4
+      },
+      "ORACLE": {
+        "architecture": "cloud",
+        "pass_rate": 0.58,
+        "est_energy_j": 11.4
+      }
+    },
+    "llama-3.2-3b-instruct|base|edge_case": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.54,
+        "est_energy_j": 60.18
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.58,
+        "est_energy_j": 12.1
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.56,
+        "est_energy_j": 14.76
+      },
+      "NETWORK_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.54,
+        "est_energy_j": 60.18
+      },
+      "COST_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.58,
+        "est_energy_j": 12.1
+      },
+      "ORACLE": {
+        "architecture": "cloud",
+        "pass_rate": 0.58,
+        "est_energy_j": 12.1
+      }
+    },
+    "llama-3.2-3b-instruct|base|lan": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.54,
+        "est_energy_j": 60.18
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.58,
+        "est_energy_j": 11.1
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.62,
+        "est_energy_j": 13.64
+      },
+      "NETWORK_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.58,
+        "est_energy_j": 11.1
+      },
+      "COST_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.58,
+        "est_energy_j": 11.1
+      },
+      "ORACLE": {
+        "architecture": "hybrid",
+        "pass_rate": 0.62,
+        "est_energy_j": 13.64
+      }
+    },
+    "llama-3.2-3b-instruct|base|local": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.54,
+        "est_energy_j": 60.18
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.58,
+        "est_energy_j": 11.1
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.54,
+        "est_energy_j": 14.17
+      },
+      "NETWORK_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.54,
+        "est_energy_j": 60.18
+      },
+      "COST_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.54,
+        "est_energy_j": 60.18
+      },
+      "ORACLE": {
+        "architecture": "cloud",
+        "pass_rate": 0.58,
+        "est_energy_j": 11.1
+      }
+    },
+    "llama-3.2-3b-instruct|base|poor_cellular": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.54,
+        "est_energy_j": 60.18
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.58,
+        "est_energy_j": 11.9
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.5,
+        "est_energy_j": 14.99
+      },
+      "NETWORK_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.54,
+        "est_energy_j": 60.18
+      },
+      "COST_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.58,
+        "est_energy_j": 11.9
+      },
+      "ORACLE": {
+        "architecture": "cloud",
+        "pass_rate": 0.58,
+        "est_energy_j": 11.9
+      }
+    },
+    "llama-3.2-3b-instruct|base|wifi": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.54,
+        "est_energy_j": 60.18
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.58,
+        "est_energy_j": 11.1
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.52,
+        "est_energy_j": 14.02
+      },
+      "NETWORK_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.58,
+        "est_energy_j": 11.1
+      },
+      "COST_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.58,
+        "est_energy_j": 11.1
+      },
+      "ORACLE": {
+        "architecture": "cloud",
+        "pass_rate": 0.58,
+        "est_energy_j": 11.1
+      }
+    },
+    "llama-3.2-3b-instruct|full_tool|4g": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.52,
+        "est_energy_j": 60.24
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.56,
+        "est_energy_j": 12.84
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.48,
+        "est_energy_j": 17.98
+      },
+      "NETWORK_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.52,
+        "est_energy_j": 60.24
+      },
+      "COST_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.56,
+        "est_energy_j": 12.84
+      },
+      "ORACLE": {
+        "architecture": "cloud",
+        "pass_rate": 0.56,
+        "est_energy_j": 12.84
+      }
+    },
+    "llama-3.2-3b-instruct|full_tool|5g": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.52,
+        "est_energy_j": 60.24
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.56,
+        "est_energy_j": 12.64
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.58,
+        "est_energy_j": 16.28
+      },
+      "NETWORK_AWARE": {
+        "architecture": "hybrid",
+        "pass_rate": 0.58,
+        "est_energy_j": 16.28
+      },
+      "COST_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.56,
+        "est_energy_j": 12.64
+      },
+      "ORACLE": {
+        "architecture": "hybrid",
+        "pass_rate": 0.58,
+        "est_energy_j": 16.28
+      }
+    },
+    "llama-3.2-3b-instruct|full_tool|edge_case": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.52,
+        "est_energy_j": 60.24
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.56,
+        "est_energy_j": 13.34
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.5,
+        "est_energy_j": 16.9
+      },
+      "NETWORK_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.52,
+        "est_energy_j": 60.24
+      },
+      "COST_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.56,
+        "est_energy_j": 13.34
+      },
+      "ORACLE": {
+        "architecture": "cloud",
+        "pass_rate": 0.56,
+        "est_energy_j": 13.34
+      }
+    },
+    "llama-3.2-3b-instruct|full_tool|lan": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.52,
+        "est_energy_j": 60.24
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.56,
+        "est_energy_j": 12.34
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.54,
+        "est_energy_j": 17.44
+      },
+      "NETWORK_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.56,
+        "est_energy_j": 12.34
+      },
+      "COST_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.56,
+        "est_energy_j": 12.34
+      },
+      "ORACLE": {
+        "architecture": "cloud",
+        "pass_rate": 0.56,
+        "est_energy_j": 12.34
+      }
+    },
+    "llama-3.2-3b-instruct|full_tool|local": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.52,
+        "est_energy_j": 60.24
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.56,
+        "est_energy_j": 12.34
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.56,
+        "est_energy_j": 18.0
+      },
+      "NETWORK_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.52,
+        "est_energy_j": 60.24
+      },
+      "COST_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.52,
+        "est_energy_j": 60.24
+      },
+      "ORACLE": {
+        "architecture": "cloud",
+        "pass_rate": 0.56,
+        "est_energy_j": 12.34
+      }
+    },
+    "llama-3.2-3b-instruct|full_tool|poor_cellular": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.52,
+        "est_energy_j": 60.24
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.56,
+        "est_energy_j": 13.14
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.52,
+        "est_energy_j": 17.33
+      },
+      "NETWORK_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.52,
+        "est_energy_j": 60.24
+      },
+      "COST_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.56,
+        "est_energy_j": 13.14
+      },
+      "ORACLE": {
+        "architecture": "cloud",
+        "pass_rate": 0.56,
+        "est_energy_j": 13.14
+      }
+    },
+    "llama-3.2-3b-instruct|full_tool|wifi": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.52,
+        "est_energy_j": 60.24
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.56,
+        "est_energy_j": 12.34
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.54,
+        "est_energy_j": 19.47
+      },
+      "NETWORK_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.56,
+        "est_energy_j": 12.34
+      },
+      "COST_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.56,
+        "est_energy_j": 12.34
+      },
+      "ORACLE": {
+        "architecture": "cloud",
+        "pass_rate": 0.56,
+        "est_energy_j": 12.34
+      }
+    },
+    "qwen-3-0.6b|base|4g": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.22,
+        "est_energy_j": 509.17
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.44,
+        "est_energy_j": 85.03
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.42,
+        "est_energy_j": 92.49
+      },
+      "NETWORK_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.22,
+        "est_energy_j": 509.17
+      },
+      "COST_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.44,
+        "est_energy_j": 85.03
+      },
+      "ORACLE": {
+        "architecture": "cloud",
+        "pass_rate": 0.44,
+        "est_energy_j": 85.03
+      }
+    },
+    "qwen-3-0.6b|base|5g": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.22,
+        "est_energy_j": 509.17
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.44,
+        "est_energy_j": 84.83
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.36,
+        "est_energy_j": 82.85
+      },
+      "NETWORK_AWARE": {
+        "architecture": "hybrid",
+        "pass_rate": 0.36,
+        "est_energy_j": 82.85
+      },
+      "COST_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.44,
+        "est_energy_j": 84.83
+      },
+      "ORACLE": {
+        "architecture": "cloud",
+        "pass_rate": 0.44,
+        "est_energy_j": 84.83
+      }
+    },
+    "qwen-3-0.6b|base|edge_case": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.22,
+        "est_energy_j": 509.17
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.44,
+        "est_energy_j": 85.53
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.4,
+        "est_energy_j": 91.19
+      },
+      "NETWORK_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.22,
+        "est_energy_j": 509.17
+      },
+      "COST_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.44,
+        "est_energy_j": 85.53
+      },
+      "ORACLE": {
+        "architecture": "cloud",
+        "pass_rate": 0.44,
+        "est_energy_j": 85.53
+      }
+    },
+    "qwen-3-0.6b|base|lan": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.22,
+        "est_energy_j": 509.17
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.44,
+        "est_energy_j": 84.53
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.4,
+        "est_energy_j": 99.83
+      },
+      "NETWORK_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.44,
+        "est_energy_j": 84.53
+      },
+      "COST_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.44,
+        "est_energy_j": 84.53
+      },
+      "ORACLE": {
+        "architecture": "cloud",
+        "pass_rate": 0.44,
+        "est_energy_j": 84.53
+      }
+    },
+    "qwen-3-0.6b|base|local": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.22,
+        "est_energy_j": 509.17
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.44,
+        "est_energy_j": 84.53
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.4,
+        "est_energy_j": 100.15
+      },
+      "NETWORK_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.22,
+        "est_energy_j": 509.17
+      },
+      "COST_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.22,
+        "est_energy_j": 509.17
+      },
+      "ORACLE": {
+        "architecture": "cloud",
+        "pass_rate": 0.44,
+        "est_energy_j": 84.53
+      }
+    },
+    "qwen-3-0.6b|base|poor_cellular": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.22,
+        "est_energy_j": 509.17
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.44,
+        "est_energy_j": 85.33
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.48,
+        "est_energy_j": 79.43
+      },
+      "NETWORK_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.22,
+        "est_energy_j": 509.17
+      },
+      "COST_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.44,
+        "est_energy_j": 85.33
+      },
+      "ORACLE": {
+        "architecture": "hybrid",
+        "pass_rate": 0.48,
+        "est_energy_j": 79.43
+      }
+    },
+    "qwen-3-0.6b|base|wifi": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.22,
+        "est_energy_j": 509.17
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.44,
+        "est_energy_j": 84.53
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.4,
+        "est_energy_j": 83.12
+      },
+      "NETWORK_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.44,
+        "est_energy_j": 84.53
+      },
+      "COST_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.44,
+        "est_energy_j": 84.53
+      },
+      "ORACLE": {
+        "architecture": "cloud",
+        "pass_rate": 0.44,
+        "est_energy_j": 84.53
+      }
+    },
+    "qwen-3-0.6b|full_tool|4g": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.16,
+        "est_energy_j": 481.26
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.38,
+        "est_energy_j": 76.58
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.0,
+        "est_energy_j": 0.0
+      },
+      "NETWORK_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.16,
+        "est_energy_j": 481.26
+      },
+      "COST_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.38,
+        "est_energy_j": 76.58
+      },
+      "ORACLE": {
+        "architecture": "cloud",
+        "pass_rate": 0.38,
+        "est_energy_j": 76.58
+      }
+    },
+    "qwen-3-0.6b|full_tool|5g": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.16,
+        "est_energy_j": 481.26
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.38,
+        "est_energy_j": 76.38
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.0,
+        "est_energy_j": 0.0
+      },
+      "NETWORK_AWARE": {
+        "architecture": "hybrid",
+        "pass_rate": 0.0,
+        "est_energy_j": 0.0
+      },
+      "COST_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.38,
+        "est_energy_j": 76.38
+      },
+      "ORACLE": {
+        "architecture": "cloud",
+        "pass_rate": 0.38,
+        "est_energy_j": 76.38
+      }
+    },
+    "qwen-3-0.6b|full_tool|edge_case": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.16,
+        "est_energy_j": 481.26
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.38,
+        "est_energy_j": 77.08
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.0,
+        "est_energy_j": 0.0
+      },
+      "NETWORK_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.16,
+        "est_energy_j": 481.26
+      },
+      "COST_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.38,
+        "est_energy_j": 77.08
+      },
+      "ORACLE": {
+        "architecture": "cloud",
+        "pass_rate": 0.38,
+        "est_energy_j": 77.08
+      }
+    },
+    "qwen-3-0.6b|full_tool|lan": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.16,
+        "est_energy_j": 481.26
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.38,
+        "est_energy_j": 76.08
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.32,
+        "est_energy_j": 66.59
+      },
+      "NETWORK_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.38,
+        "est_energy_j": 76.08
+      },
+      "COST_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.38,
+        "est_energy_j": 76.08
+      },
+      "ORACLE": {
+        "architecture": "cloud",
+        "pass_rate": 0.38,
+        "est_energy_j": 76.08
+      }
+    },
+    "qwen-3-0.6b|full_tool|local": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.16,
+        "est_energy_j": 481.26
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.38,
+        "est_energy_j": 76.08
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.38,
+        "est_energy_j": 85.88
+      },
+      "NETWORK_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.16,
+        "est_energy_j": 481.26
+      },
+      "COST_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.16,
+        "est_energy_j": 481.26
+      },
+      "ORACLE": {
+        "architecture": "cloud",
+        "pass_rate": 0.38,
+        "est_energy_j": 76.08
+      }
+    },
+    "qwen-3-0.6b|full_tool|poor_cellular": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.16,
+        "est_energy_j": 481.26
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.38,
+        "est_energy_j": 76.88
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.0,
+        "est_energy_j": 0.0
+      },
+      "NETWORK_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.16,
+        "est_energy_j": 481.26
+      },
+      "COST_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.38,
+        "est_energy_j": 76.88
+      },
+      "ORACLE": {
+        "architecture": "cloud",
+        "pass_rate": 0.38,
+        "est_energy_j": 76.88
+      }
+    },
+    "qwen-3-0.6b|full_tool|wifi": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.16,
+        "est_energy_j": 481.26
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.38,
+        "est_energy_j": 76.08
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.04,
+        "est_energy_j": 7.79
+      },
+      "NETWORK_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.38,
+        "est_energy_j": 76.08
+      },
+      "COST_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.38,
+        "est_energy_j": 76.08
+      },
+      "ORACLE": {
+        "architecture": "cloud",
+        "pass_rate": 0.38,
+        "est_energy_j": 76.08
+      }
+    },
+    "qwen-3-4b|base|4g": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.78,
+        "est_energy_j": 904.13
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.78,
+        "est_energy_j": 134.45
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.68,
+        "est_energy_j": 135.09
+      },
+      "NETWORK_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.78,
+        "est_energy_j": 904.13
+      },
+      "COST_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.78,
+        "est_energy_j": 134.45
+      },
+      "ORACLE": {
+        "architecture": "cloud",
+        "pass_rate": 0.78,
+        "est_energy_j": 134.45
+      }
+    },
+    "qwen-3-4b|base|5g": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.78,
+        "est_energy_j": 904.13
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.78,
+        "est_energy_j": 134.25
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.66,
+        "est_energy_j": 137.45
+      },
+      "NETWORK_AWARE": {
+        "architecture": "hybrid",
+        "pass_rate": 0.66,
+        "est_energy_j": 137.45
+      },
+      "COST_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.78,
+        "est_energy_j": 134.25
+      },
+      "ORACLE": {
+        "architecture": "cloud",
+        "pass_rate": 0.78,
+        "est_energy_j": 134.25
+      }
+    },
+    "qwen-3-4b|base|edge_case": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.78,
+        "est_energy_j": 904.13
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.78,
+        "est_energy_j": 134.95
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.72,
+        "est_energy_j": 136.76
+      },
+      "NETWORK_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.78,
+        "est_energy_j": 904.13
+      },
+      "COST_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.78,
+        "est_energy_j": 134.95
+      },
+      "ORACLE": {
+        "architecture": "cloud",
+        "pass_rate": 0.78,
+        "est_energy_j": 134.95
+      }
+    },
+    "qwen-3-4b|base|lan": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.78,
+        "est_energy_j": 904.13
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.78,
+        "est_energy_j": 133.95
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.68,
+        "est_energy_j": 141.65
+      },
+      "NETWORK_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.78,
+        "est_energy_j": 133.95
+      },
+      "COST_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.78,
+        "est_energy_j": 133.95
+      },
+      "ORACLE": {
+        "architecture": "cloud",
+        "pass_rate": 0.78,
+        "est_energy_j": 133.95
+      }
+    },
+    "qwen-3-4b|base|local": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.78,
+        "est_energy_j": 904.13
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.78,
+        "est_energy_j": 133.95
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.78,
+        "est_energy_j": 127.57
+      },
+      "NETWORK_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.78,
+        "est_energy_j": 904.13
+      },
+      "COST_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.78,
+        "est_energy_j": 904.13
+      },
+      "ORACLE": {
+        "architecture": "hybrid",
+        "pass_rate": 0.78,
+        "est_energy_j": 127.57
+      }
+    },
+    "qwen-3-4b|base|poor_cellular": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.78,
+        "est_energy_j": 904.13
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.78,
+        "est_energy_j": 134.75
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.64,
+        "est_energy_j": 138.06
+      },
+      "NETWORK_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.78,
+        "est_energy_j": 904.13
+      },
+      "COST_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.78,
+        "est_energy_j": 134.75
+      },
+      "ORACLE": {
+        "architecture": "cloud",
+        "pass_rate": 0.78,
+        "est_energy_j": 134.75
+      }
+    },
+    "qwen-3-4b|base|wifi": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.78,
+        "est_energy_j": 904.13
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.78,
+        "est_energy_j": 133.95
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.72,
+        "est_energy_j": 133.23
+      },
+      "NETWORK_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.78,
+        "est_energy_j": 133.95
+      },
+      "COST_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.78,
+        "est_energy_j": 133.95
+      },
+      "ORACLE": {
+        "architecture": "cloud",
+        "pass_rate": 0.78,
+        "est_energy_j": 133.95
+      }
+    },
+    "qwen-3-4b|full_tool|4g": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.74,
+        "est_energy_j": 833.67
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.84,
+        "est_energy_j": 113.49
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.8,
+        "est_energy_j": 138.03
+      },
+      "NETWORK_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.74,
+        "est_energy_j": 833.67
+      },
+      "COST_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.84,
+        "est_energy_j": 113.49
+      },
+      "ORACLE": {
+        "architecture": "cloud",
+        "pass_rate": 0.84,
+        "est_energy_j": 113.49
+      }
+    },
+    "qwen-3-4b|full_tool|5g": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.74,
+        "est_energy_j": 833.67
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.84,
+        "est_energy_j": 113.29
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.78,
+        "est_energy_j": 142.04
+      },
+      "NETWORK_AWARE": {
+        "architecture": "hybrid",
+        "pass_rate": 0.78,
+        "est_energy_j": 142.04
+      },
+      "COST_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.84,
+        "est_energy_j": 113.29
+      },
+      "ORACLE": {
+        "architecture": "cloud",
+        "pass_rate": 0.84,
+        "est_energy_j": 113.29
+      }
+    },
+    "qwen-3-4b|full_tool|edge_case": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.74,
+        "est_energy_j": 833.67
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.84,
+        "est_energy_j": 113.99
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.84,
+        "est_energy_j": 147.37
+      },
+      "NETWORK_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.74,
+        "est_energy_j": 833.67
+      },
+      "COST_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.84,
+        "est_energy_j": 113.99
+      },
+      "ORACLE": {
+        "architecture": "cloud",
+        "pass_rate": 0.84,
+        "est_energy_j": 113.99
+      }
+    },
+    "qwen-3-4b|full_tool|lan": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.74,
+        "est_energy_j": 833.67
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.84,
+        "est_energy_j": 112.99
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.74,
+        "est_energy_j": 141.3
+      },
+      "NETWORK_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.84,
+        "est_energy_j": 112.99
+      },
+      "COST_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.84,
+        "est_energy_j": 112.99
+      },
+      "ORACLE": {
+        "architecture": "cloud",
+        "pass_rate": 0.84,
+        "est_energy_j": 112.99
+      }
+    },
+    "qwen-3-4b|full_tool|local": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.74,
+        "est_energy_j": 833.67
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.84,
+        "est_energy_j": 112.99
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.82,
+        "est_energy_j": 145.32
+      },
+      "NETWORK_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.74,
+        "est_energy_j": 833.67
+      },
+      "COST_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.74,
+        "est_energy_j": 833.67
+      },
+      "ORACLE": {
+        "architecture": "cloud",
+        "pass_rate": 0.84,
+        "est_energy_j": 112.99
+      }
+    },
+    "qwen-3-4b|full_tool|poor_cellular": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.74,
+        "est_energy_j": 833.67
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.84,
+        "est_energy_j": 113.79
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.82,
+        "est_energy_j": 140.94
+      },
+      "NETWORK_AWARE": {
+        "architecture": "local",
+        "pass_rate": 0.74,
+        "est_energy_j": 833.67
+      },
+      "COST_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.84,
+        "est_energy_j": 113.79
+      },
+      "ORACLE": {
+        "architecture": "cloud",
+        "pass_rate": 0.84,
+        "est_energy_j": 113.79
+      }
+    },
+    "qwen-3-4b|full_tool|wifi": {
+      "ALWAYS_LOCAL": {
+        "architecture": "local",
+        "pass_rate": 0.74,
+        "est_energy_j": 833.67
+      },
+      "ALWAYS_CLOUD": {
+        "architecture": "cloud",
+        "pass_rate": 0.84,
+        "est_energy_j": 112.99
+      },
+      "ALWAYS_HYBRID": {
+        "architecture": "hybrid",
+        "pass_rate": 0.82,
+        "est_energy_j": 135.36
+      },
+      "NETWORK_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.84,
+        "est_energy_j": 112.99
+      },
+      "COST_AWARE": {
+        "architecture": "cloud",
+        "pass_rate": 0.84,
+        "est_energy_j": 112.99
+      },
+      "ORACLE": {
+        "architecture": "cloud",
+        "pass_rate": 0.84,
+        "est_energy_j": 112.99
+      }
+    }
+  }
+}

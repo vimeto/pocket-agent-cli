@@ -5,7 +5,7 @@ import os
 from typing import Dict, Any, List, Optional, Generator, Tuple
 from ..config import InferenceConfig, Model
 from ..utils.tool_extractor import ToolExtractor
-from ..utils.thinking_filter import ThinkingFilter
+from ..utils.thinking_filter import ThinkingFilter, prompt_starts_thinking
 from ..monitoring.unified_monitor import UnifiedMonitor
 
 DEBUG_INFERENCE = os.environ.get("DEBUG_INFERENCE", "").lower() == "true"
@@ -187,8 +187,11 @@ class MLXInferenceService:
         first_token_time = None
         token_count = 0
 
+        # Detect if prompt already opens a thinking block (e.g. DeepSeek R1)
+        starts_in_thinking = prompt_starts_thinking(prompt)
+
         # Reset thinking filter for new generation
-        self.thinking_filter.reset()
+        self.thinking_filter.reset(starts_in_thinking=starts_in_thinking)
 
         # Start unified monitoring
         if DEBUG_INFERENCE:
@@ -356,6 +359,9 @@ class MLXInferenceService:
         # Format prompt using tokenizer's chat template
         prompt = self._format_prompt(messages, config)
 
+        # Detect if prompt already opens a thinking block (e.g. DeepSeek R1)
+        starts_in_thinking = prompt_starts_thinking(prompt)
+
         # Build sampler / logits processors (reused for both phases)
         sampler = make_sampler(
             temp=config.temperature,
@@ -374,8 +380,13 @@ class MLXInferenceService:
 
         # ── budget == 0: disable thinking via empty think block ──────────
         if thinking_budget == 0:
-            # Append empty thinking block so model skips straight to answer
-            prompt = prompt + "<think>\n</think>\n"
+            # Append empty thinking block so model skips straight to answer.
+            # If the prompt already ends with <think> (e.g. DeepSeek R1),
+            # we only need to close it.
+            if starts_in_thinking:
+                prompt = prompt + "</think>\n"
+            else:
+                prompt = prompt + "<think>\n</think>\n"
             remaining_tokens = config.max_tokens
 
             start_time = time.time()
@@ -468,7 +479,9 @@ class MLXInferenceService:
         was_truncated = False
         raw_accumulated = ""
 
-        self.thinking_filter.reset()
+        # If the prompt already opened <think>, start the filter in thinking
+        # mode so every token is counted as a thinking token until </think>.
+        self.thinking_filter.reset(starts_in_thinking=starts_in_thinking)
         self.unified_monitor.start_monitoring()
 
         last_metrics_check = start_time

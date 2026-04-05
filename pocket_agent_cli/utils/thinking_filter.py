@@ -23,7 +23,7 @@ class ThinkingState:
 
 class ThinkingFilter:
     """Filter thinking tokens from model outputs."""
-    
+
     # Thinking block patterns (case-insensitive)
     THINKING_PATTERNS = [
         (r'<think>', r'</think>'),
@@ -32,13 +32,26 @@ class ThinkingFilter:
         (r'<reflection>', r'</reflection>'),
         (r'<THINK>', r'</THINK>'),  # Some models use uppercase
     ]
-    
-    def __init__(self):
-        self.state = ThinkingState()
-    
-    def reset(self):
-        """Reset the filter state for a new generation."""
-        self.state = ThinkingState()
+
+    def __init__(self, starts_in_thinking: bool = False):
+        self.state = ThinkingState(
+            in_thinking_block=starts_in_thinking,
+            thinking_depth=1 if starts_in_thinking else 0,
+        )
+
+    def reset(self, starts_in_thinking: bool = False):
+        """Reset the filter state for a new generation.
+
+        Args:
+            starts_in_thinking: If True, the filter starts in thinking mode.
+                This handles models like DeepSeek R1 whose chat template
+                appends <think> to the prompt, so the model's response
+                begins mid-thinking without an opening <think> tag.
+        """
+        self.state = ThinkingState(
+            in_thinking_block=starts_in_thinking,
+            thinking_depth=1 if starts_in_thinking else 0,
+        )
     
     def filter_token(self, token: str) -> Tuple[str, bool]:
         """Filter a single token, removing thinking content.
@@ -236,3 +249,23 @@ def remove_thinking_blocks(text: str) -> Tuple[str, Dict[str, Any]]:
     }
     
     return filtered_text, stats
+
+
+def prompt_starts_thinking(prompt: str) -> bool:
+    """Check if a formatted prompt ends with an opening think tag.
+
+    Some model chat templates (e.g. DeepSeek R1) append ``<think>`` or
+    ``<think>\\n`` to the prompt so the model starts generating inside a
+    thinking block.  When this is the case the ThinkingFilter must begin
+    in thinking state because the response will NOT contain an opening
+    ``<think>`` tag -- only the closing ``</think>`` will appear.
+
+    Args:
+        prompt: The fully formatted prompt string.
+
+    Returns:
+        True if the prompt ends with an opening think tag (possibly
+        followed by whitespace/newline).
+    """
+    stripped = prompt.rstrip()
+    return stripped.endswith("<think>") or stripped.endswith("<THINK>")

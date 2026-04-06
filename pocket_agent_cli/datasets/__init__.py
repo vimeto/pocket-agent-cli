@@ -31,6 +31,7 @@ from .registry import DatasetRegistry
 from . import mbpp
 from . import humaneval
 from . import gsm8k
+from . import hotpotqa
 
 __all__ = [
     "Dataset",

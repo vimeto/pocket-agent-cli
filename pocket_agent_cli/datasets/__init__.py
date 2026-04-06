@@ -32,6 +32,7 @@ from . import mbpp
 from . import humaneval
 from . import gsm8k
 from . import hotpotqa
+from . import bfcl
 
 __all__ = [
     "Dataset",

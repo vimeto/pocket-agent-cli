@@ -54,7 +54,7 @@ MODELS = [
      "no_api_tools": True},
     {"id": "deepseek-r1-distill-qwen-1.5b", "name": "DeepSeek R1 1.5B",
      "arch": "qwen", "hf_id": "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B",
-     "local_port": 30004},
+     "local_port": 30004, "no_api_tools": True, "max_tokens": 2048},
     {"id": "gemma-3n-e2b-it", "name": "Gemma 3n E2B", "arch": "gemma",
      "hf_id": "google/gemma-3n-E2B-it", "local_port": 30005,
      "no_api_tools": True},
@@ -62,7 +62,7 @@ MODELS = [
      "hf_id": "Qwen/Qwen3.5-4B", "local_port": 30006},
     {"id": "gemma-4-e2b-it", "name": "Gemma 4 E2B", "arch": "gemma",
      "hf_id": "google/gemma-4-E2B-it", "local_port": 30007,
-     "no_api_tools": True, "max_tokens": 3072},
+     "max_tokens": 3072},
 ]
 
 
@@ -273,7 +273,21 @@ def run_single_example(
     )
 
     usage = resp.get("usage", {})
-    content = resp.get("choices", [{}])[0].get("message", {}).get("content", "") or ""
+    choice = resp.get("choices", [{}])[0]
+    msg = choice.get("message", {})
+    content = msg.get("content", "") or ""
+    api_tool_calls = msg.get("tool_calls")
+
+    # Debug: log raw response details for empty content
+    raw_debug = ""
+    if not content and not actual_calls:
+        raw_debug = json.dumps({
+            "content_type": str(type(msg.get("content"))),
+            "content_raw": str(msg.get("content"))[:200],
+            "tool_calls_raw": str(api_tool_calls)[:200] if api_tool_calls else None,
+            "msg_keys": list(msg.keys()),
+            "finish_reason": choice.get("finish_reason"),
+        })
 
     return {
         "id": example["id"],
@@ -288,6 +302,7 @@ def run_single_example(
         "expected_calls": example["expected"],
         "call_results": eval_result.get("call_results", []),
         "response_preview": content[:300],
+        "raw_debug": raw_debug,
         "tokens": usage.get("completion_tokens", 0),
         "elapsed_s": round(elapsed, 2),
     }
@@ -390,7 +405,7 @@ def main():
 
     for model_def in selected:
         mid = model_def["id"]
-        port = model_def.get("local_port", args.port)
+        port = args.port if args.port != 30001 else model_def.get("local_port", args.port)
         base_url = f"http://localhost:{port}"
         max_tok = model_def.get("max_tokens", args.max_tokens)
 

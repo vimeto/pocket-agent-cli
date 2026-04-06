@@ -46,6 +46,11 @@ MODELS = [
     {"id": "gemma-3n-e2b-it", "name": "Gemma 3n E2B", "arch": "gemma",
      "hf_id": "google/gemma-3n-E2B-it", "parser": None, "local_port": 30005,
      "no_api_tools": True},  # vLLM, prompt-based tools
+    {"id": "qwen-3.5-4b", "name": "Qwen 3.5 4B", "arch": "qwen",
+     "hf_id": "Qwen/Qwen3.5-4B", "parser": "qwen3_coder", "local_port": 30006},
+    {"id": "gemma-4-e2b-it", "name": "Gemma 4 E2B", "arch": "gemma",
+     "hf_id": "google/gemma-4-E2B-it", "parser": "gemma4", "local_port": 30007,
+     "max_tokens": 3072},  # server max-model-len is 4096, leave room for prompt
 ]
 
 TOOL_DEFS = [
@@ -54,6 +59,15 @@ TOOL_DEFS = [
         "parameters": {"type": "object",
                        "properties": {"code": {"type": "string", "description": "Python code"}},
                        "required": ["code"]}}},
+    {"type": "function", "function": {
+        "name": "submit_python_solution", "description": "Submit your final Python solution",
+        "parameters": {"type": "object",
+                       "properties": {"code": {"type": "string", "description": "Complete function code"}},
+                       "required": ["code"]}}},
+]
+
+# Only submit tool — used in tool_submission mode to reduce confusion
+SUBMIT_TOOL_DEFS = [
     {"type": "function", "function": {
         "name": "submit_python_solution", "description": "Submit your final Python solution",
         "parameters": {"type": "object",
@@ -167,7 +181,8 @@ def cancel_all_jobs():
 
 def sglang_chat(base_url: str, model_hf_id: str,
                 messages: List[Dict], tools: Optional[List] = None,
-                max_tokens: int = 2048, temperature: float = 0.7) -> Dict:
+                max_tokens: int = 2048, temperature: float = 0.7,
+                tool_choice: Optional[Any] = None) -> Dict:
     """Send a chat completion request to SGLang via tunnel."""
     import httpx
 
@@ -179,6 +194,8 @@ def sglang_chat(base_url: str, model_hf_id: str,
     }
     if tools:
         payload["tools"] = tools
+        if tool_choice:
+            payload["tool_choice"] = tool_choice
 
     try:
         resp = httpx.post(f"{base_url}/v1/chat/completions",
@@ -342,11 +359,13 @@ def run_problem_single_turn(problem, model_def: Dict, mode: str,
     messages = format_problem(problem, prompt_config)
 
     is_thinking = model_def["arch"] == "qwen"
-    max_tokens = 8192 if is_thinking else 2048
+    default_max = 8192 if is_thinking else 2048
+    max_tokens = model_def.get("max_tokens", default_max)
     # Some models use prompt-based tool calling (no API tools)
     no_api = prompt_config.get("no_api_tools") or model_def.get("no_api_tools")
     use_api_tools = mode == "tool_submission" and not no_api
-    tools = TOOL_DEFS if use_api_tools else None
+    # Use submit-only tools for tool_submission mode
+    tools = SUBMIT_TOOL_DEFS if use_api_tools else None
 
     t0 = time.time()
     resp = sglang_chat(base_url, model_def["hf_id"], messages,
@@ -421,7 +440,8 @@ def run_problem_agentic(problem, model_def: Dict, dataset_name: str,
     use_prompt_tools = prompt_config.get("no_api_tools", False) or model_def.get("no_api_tools", False)
 
     is_thinking = model_def["arch"] == "qwen"
-    max_tokens = 8192 if is_thinking else 2048
+    default_max = 8192 if is_thinking else 2048
+    max_tokens = model_def.get("max_tokens", default_max)
 
     t0 = time.time()
     submitted_code = None
@@ -448,12 +468,18 @@ def run_problem_agentic(problem, model_def: Dict, dataset_name: str,
         total_tokens += usage.get("completion_tokens", 0)
 
         # Get tool calls — from API response or by parsing text
-        tool_calls = msg.get("tool_calls")
+        api_tool_calls = msg.get("tool_calls")
+        tool_calls = api_tool_calls
         if not tool_calls and content:
             tool_calls = _parse_tool_calls_from_text(content)
 
         # Add assistant message to conversation
-        messages.append({"role": "assistant", "content": content})
+        # Include tool_calls in the message if they came from the API
+        # (required for valid multi-turn tool calling conversation)
+        assistant_msg = {"role": "assistant", "content": content}
+        if api_tool_calls:
+            assistant_msg["tool_calls"] = api_tool_calls
+        messages.append(assistant_msg)
 
         if not tool_calls:
             # No tool calls found at all — model is done (or stuck)
@@ -504,6 +530,29 @@ def run_problem_agentic(problem, model_def: Dict, dataset_name: str,
 
     # If no explicit submission, try to extract from conversation
     if not submitted_code:
+        # First try: extract from run_python_code tool calls (last one first)
+        for msg in reversed(messages):
+            tcs = msg.get("tool_calls", [])
+            if tcs:
+                for tc in reversed(tcs):
+                    fn = tc.get("function", {})
+                    if fn.get("name") == "run_python_code":
+                        args_raw = fn.get("arguments", "{}")
+                        if isinstance(args_raw, str):
+                            try:
+                                args = json.loads(args_raw)
+                            except json.JSONDecodeError:
+                                continue
+                        else:
+                            args = args_raw
+                        code = args.get("code", "")
+                        if code and "def " in code and len(code) > 10:
+                            submitted_code = code
+                            break
+            if submitted_code:
+                break
+    if not submitted_code:
+        # Second try: extract from message content
         for msg in reversed(messages):
             c = msg.get("content", "")
             if c:

@@ -1,0 +1,216 @@
+[
+  {
+    "id": "simple_0",
+    "category": "simple",
+    "prompt": "What's the weather in San Francisco?",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_weather",
+          "description": "Get current weather for a location",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "location": {
+                "type": "string",
+                "description": "City name"
+              },
+              "unit": {
+                "type": "string",
+                "enum": [
+                  "celsius",
+                  "fahrenheit"
+                ],
+                "description": "Temperature unit"
+              }
+            },
+            "required": [
+              "location"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": [
+      {
+        "name": "get_weather",
+        "arguments": {
+          "location": "San Francisco"
+        }
+      }
+    ]
+  },
+  {
+    "id": "simple_1",
+    "category": "simple",
+    "prompt": "Calculate 15% tip on a $85.50 bill.",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "calculate_tip",
+          "description": "Calculate tip amount",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "bill_amount": {
+                "type": "number",
+                "description": "Total bill"
+              },
+              "tip_percentage": {
+                "type": "number",
+                "description": "Tip percentage"
+              }
+            },
+            "required": [
+              "bill_amount",
+              "tip_percentage"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": [
+      {
+        "name": "calculate_tip",
+        "arguments": {
+          "bill_amount": 85.5,
+          "tip_percentage": 15
+        }
+      }
+    ]
+  },
+  {
+    "id": "simple_2",
+    "category": "simple",
+    "prompt": "Send an email to john@example.com with subject 'Meeting Tomorrow' and body 'Hi John, can we meet at 3pm?'",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "send_email",
+          "description": "Send an email",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "to": {
+                "type": "string",
+                "description": "Recipient email"
+              },
+              "subject": {
+                "type": "string",
+                "description": "Email subject"
+              },
+              "body": {
+                "type": "string",
+                "description": "Email body"
+              }
+            },
+            "required": [
+              "to",
+              "subject",
+              "body"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": [
+      {
+        "name": "send_email",
+        "arguments": {
+          "to": "john@example.com",
+          "subject": "Meeting Tomorrow",
+          "body": "Hi John, can we meet at 3pm?"
+        }
+      }
+    ]
+  },
+  {
+    "id": "simple_3",
+    "category": "simple",
+    "prompt": "Create a reminder for 'Buy groceries' at 5pm today.",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "create_reminder",
+          "description": "Create a reminder",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string",
+                "description": "Reminder title"
+              },
+              "time": {
+                "type": "string",
+                "description": "Time for reminder"
+              }
+            },
+            "required": [
+              "title",
+              "time"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": [
+      {
+        "name": "create_reminder",
+        "arguments": {
+          "title": "Buy groceries",
+          "time": "5pm today"
+        }
+      }
+    ]
+  },
+  {
+    "id": "simple_4",
+    "category": "simple",
+    "prompt": "Convert 100 USD to EUR.",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "convert_currency",
+          "description": "Convert between currencies",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "amount": {
+                "type": "number",
+                "description": "Amount to convert"
+              },
+              "from_currency": {
+                "type": "string",
+                "description": "Source currency"
+              },
+              "to_currency": {
+                "type": "string",
+                "description": "Target currency"
+              }
+            },
+            "required": [
+              "amount",
+              "from_currency",
+              "to_currency"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": [
+      {
+        "name": "convert_currency",
+        "arguments": {
+          "amount": 100,
+          "from_currency": "USD",
+          "to_currency": "EUR"
+        }
+      }
+    ]
+  }
+]

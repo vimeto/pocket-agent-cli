@@ -46,6 +46,15 @@ EXPERIMENT_MODELS = [
     {"id": "llama-3.2-3b-instruct", "name": "Llama 3.2 3B", "arch": "llama",
      "hf_id": "meta-llama/Llama-3.2-3B-Instruct", "local_port": 30003,
      "tool_benefit": False},  # -8pp with tools in paper
+    {"id": "qwen-3-0.6b", "name": "Qwen 3 0.6B", "arch": "qwen",
+     "hf_id": "Qwen/Qwen3-0.6B", "local_port": 30002,
+     "tool_benefit": False},  # +4pp with tools
+    {"id": "deepseek-r1-distill-qwen-1.5b", "name": "DeepSeek R1 1.5B", "arch": "qwen",
+     "hf_id": "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B", "local_port": 30004,
+     "tool_benefit": False},  # ~0pp with tools
+    {"id": "gemma-3n-e2b-it", "name": "Gemma 3n E2B", "arch": "gemma",
+     "hf_id": "google/gemma-3n-E2B-it", "local_port": 30005,
+     "tool_benefit": False},  # -8pp with tools, no_api_tools set in prompts
 ]
 
 NETWORK_CONDITIONS = list(NETWORK_PRESETS.keys())  # 7 conditions
@@ -450,15 +459,25 @@ def run_experiment(args):
     if not ds.is_downloaded():
         ds.download()
     problems = ds.load(split="test", limit=args.problems)
+
+    # Filter models if --models specified
+    models_to_run = EXPERIMENT_MODELS
+    if args.models:
+        models_to_run = [m for m in EXPERIMENT_MODELS if m["id"] in args.models]
+        if not models_to_run:
+            print(f"ERROR: No matching models for {args.models}")
+            print(f"Available: {[m['id'] for m in EXPERIMENT_MODELS]}")
+            sys.exit(1)
+
     print(f"3-Architecture Experiment")
-    print(f"Problems: {len(problems)}, Models: {len(EXPERIMENT_MODELS)}")
+    print(f"Problems: {len(problems)}, Models: {len(models_to_run)}")
     print(f"Network conditions: {NETWORK_CONDITIONS}")
     print(f"Output: {out_dir}\n")
 
     selected_modes = args.modes or ["base", "full_tool"]
     all_results = []
 
-    for model_def in EXPERIMENT_MODELS:
+    for model_def in models_to_run:
         base_url = f"http://localhost:{model_def['local_port']}"
 
         # Verify server is running
@@ -512,7 +531,8 @@ def run_experiment(args):
                             up = sim.simulate_transfer_sync(nbytes // 2, "upload")
                             down = sim.simulate_transfer_sync(nbytes // 2, "download")
                             cloud_copy["network_time_s"] = round((up.total_delay_ms + down.total_delay_ms) / 1000, 3)
-                            cloud_copy["total_time_s"] = round(cloud_copy["inference_time_s"] + cloud_copy["network_time_s"], 2)
+                            inf_time = cloud_copy.get("inference_time_s", cloud_copy.get("total_time_s", 0))
+                            cloud_copy["total_time_s"] = round(inf_time + cloud_copy["network_time_s"], 2)
                             cloud_copy["radio_tail_energy_j"] = nc.radio_tail_energy_j
                             all_results.append(cloud_copy)
 
@@ -536,6 +556,28 @@ def run_experiment(args):
         for r in all_results:
             f.write(json.dumps(r, default=str) + "\n")
     print(f"\nSaved {len(all_results)} results to {out_file}")
+
+    # Merge with previous results if specified
+    if args.merge_with:
+        merge_path = Path(args.merge_with)
+        if merge_path.exists():
+            prev_results = []
+            with open(merge_path) as f:
+                for line in f:
+                    prev_results.append(json.loads(line))
+            # Only keep previous results for models NOT in current run
+            current_models = set(m["id"] for m in models_to_run)
+            prev_filtered = [r for r in prev_results if r.get("model") not in current_models]
+            merged = prev_filtered + all_results
+            merged_file = out_dir / "3arch_results_merged.jsonl"
+            with open(merged_file, "w") as f:
+                for r in merged:
+                    f.write(json.dumps(r, default=str) + "\n")
+            print(f"Merged {len(prev_filtered)} previous + {len(all_results)} new = {len(merged)} total")
+            print(f"Merged file: {merged_file}")
+            all_results = merged
+        else:
+            print(f"WARNING: merge file not found: {merge_path}")
 
     # Generate summary and figures
     generate_summary(all_results, out_dir)
@@ -627,6 +669,10 @@ def main():
     parser = argparse.ArgumentParser(description="3-Architecture Deployment Experiment")
     parser.add_argument("--problems", type=int, default=50)
     parser.add_argument("--modes", nargs="*", default=["base", "full_tool"])
+    parser.add_argument("--models", nargs="*", default=None,
+                        help="Filter to specific model IDs (e.g. --models qwen-3-0.6b deepseek-r1-distill-qwen-1.5b)")
+    parser.add_argument("--merge-with", default=None,
+                        help="Path to a previous 3arch_results.jsonl to merge with new results")
     parser.add_argument("--output-dir", default="data/results/3arch_experiment")
     args = parser.parse_args()
     run_experiment(args)

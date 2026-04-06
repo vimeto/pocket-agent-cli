@@ -125,6 +125,7 @@ _GEMMA_PROMPTS = {
     "tool_submission": {
         "system": 'Output ONLY: [submit_python_solution(code="...")]',
         "user_suffix": '\n\nSubmit using [submit_python_solution(code="...")]:',
+        "no_api_tools": True,
     },
     "full_tool": {
         "system": (
@@ -137,6 +138,68 @@ _GEMMA_PROMPTS = {
             "MUST call submit_python_solution at the end."
         ),
         "user_suffix": "",
+        "no_api_tools": True,
+    },
+}
+
+
+# ── Qwen 3.5 (4B) ───────────────────────────────────────────────────
+# Native format: <function=name><parameter=key>value</parameter></function>
+# SGLang uses --tool-call-parser qwen3_coder which handles this natively.
+# Thinking tokens enabled by default. Let API handle tool formatting.
+
+_QWEN35_PROMPTS = {
+    "base": {
+        "system": "You are a Python programmer. Complete functions by providing the implementation.",
+        "user_suffix": "\n\nComplete this function:",
+    },
+    "tool_submission": {
+        "system": (
+            "You are a Python developer. Analyze the problem and test cases, "
+            "write the correct function, then call submit_python_solution."
+        ),
+        "user_suffix": "\n\nSolve and submit the function:",
+    },
+    "full_tool": {
+        "system": (
+            "You are a Python developer with a code execution environment.\n\n"
+            "Workflow: write function, test with run_python_code, "
+            "fix if needed, submit with submit_python_solution."
+        ),
+        "user_suffix": "",
+    },
+}
+
+# ── Gemma 4 E2B IT ──────────────────────────────────────────────────
+# Native format: uses <|tool_call|> special tokens parsed by vLLM gemma4 parser.
+# Let the API handle tool calling natively - no prompt-based formatting needed.
+
+_GEMMA4_PROMPTS = {
+    "base": {
+        "system": (
+            "You are an expert Python programmer. Read the problem and test cases carefully.\n"
+            "Write a correct, concise function. Output ONLY the function in ```python."
+        ),
+        "user_suffix": "\n\nComplete Python function:",
+    },
+    "tool_submission": {
+        "system": (
+            "You are a Python developer. Write a concise, correct function "
+            "and submit using submit_python_solution. Include only the function code."
+        ),
+        "user_suffix": "\n\nSubmit the function:",
+    },
+    "full_tool": {
+        "system": (
+            "You are a Python developer with tools to execute and submit code.\n\n"
+            "ALWAYS follow this workflow:\n"
+            "1. Write the function\n"
+            "2. Test with run_python_code using the provided test cases\n"
+            "3. Fix any errors\n"
+            "4. Call submit_python_solution with the final working code\n\n"
+            "You MUST call submit_python_solution at the end."
+        ),
+        "user_suffix": "\n\nWrite, test, then SUBMIT:",
     },
 }
 
@@ -147,6 +210,8 @@ OPTIMIZED_PROMPTS: Dict[str, Dict[str, Dict[str, str]]] = {
     "llama-3.2-3b-instruct": _LLAMA_PROMPTS,
     "deepseek-r1-distill-qwen-1.5b": _DEEPSEEK_PROMPTS,
     "gemma-3n-e2b-it": _GEMMA_PROMPTS,
+    "qwen-3.5-4b": _QWEN35_PROMPTS,
+    "gemma-4-e2b-it": _GEMMA4_PROMPTS,
 }
 
 

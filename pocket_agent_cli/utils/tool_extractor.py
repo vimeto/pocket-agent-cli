@@ -27,6 +27,7 @@ class ToolExtractor:
         # Try multiple extraction strategies in order of preference
         strategies = [
             self._extract_xml_tool_call_tags,  # <tool_call>...</tool_call> (Qwen3)
+            self._extract_qwen35_function_tags,  # <function=name>...</function> (Qwen3.5)
             self._extract_gemma_python_style,  # Gemma's official format
             self._extract_gemma_json_style,    # Gemma's JSON format
             self._extract_qwen_thinking_json,  # Qwen's thinking pattern
@@ -80,6 +81,41 @@ class ToolExtractor:
                 alt_tool = self._parse_malformed_json(match.strip())
                 if alt_tool and self._validate_tool(alt_tool):
                     tools.append(alt_tool)
+
+        return tools
+
+    def _extract_qwen35_function_tags(self, response: str) -> List[Dict[str, Any]]:
+        """Extract Qwen 3.5 function call format.
+
+        Qwen 3.5 may use:
+            <function=tool_name>
+            <parameter=key>value</parameter>
+            </function>
+        """
+        pattern = r'<function=(\w+)>(.*?)</function>'
+        matches = re.findall(pattern, response, re.DOTALL)
+
+        tools = []
+        for func_name, body in matches:
+            params = {}
+            param_pattern = r'<parameter=(\w+)>(.*?)</parameter>'
+            for key, value in re.findall(param_pattern, body, re.DOTALL):
+                # Unescape common sequences
+                value = value.replace('\\n', '\n')
+                value = value.replace('\\t', '\t')
+                value = value.replace('\\"', '"')
+                params[key] = value
+
+            # Also try JSON body (some Qwen 3.5 variants output JSON inside)
+            if not params:
+                try:
+                    parsed = json.loads(body.strip())
+                    if isinstance(parsed, dict):
+                        params = parsed
+                except (json.JSONDecodeError, ValueError):
+                    pass
+
+            tools.append({"name": func_name, "parameters": params})
 
         return tools
 
@@ -184,7 +220,11 @@ class ToolExtractor:
                             value = value.strip()
                             
                             # Remove quotes and handle escapes
-                            if (value.startswith('"') and value.endswith('"')) or \
+                            # Handle triple-quoted strings first (e.g. """...""" or '''...''')
+                            if (value.startswith('"""') and value.endswith('"""')) or \
+                               (value.startswith("'''") and value.endswith("'''")):
+                                value = value[3:-3]
+                            elif (value.startswith('"') and value.endswith('"')) or \
                                (value.startswith("'") and value.endswith("'")):
                                 value = value[1:-1]
                             elif value.startswith('"') and not value.endswith('"'):

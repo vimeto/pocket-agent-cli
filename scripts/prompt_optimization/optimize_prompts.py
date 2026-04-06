@@ -44,21 +44,10 @@ MODES = ["base", "tool_submission", "full_tool"]
 
 # ── Prompt Templates (evolved per round) ──────────────────────────────────
 
-def get_prompts(round_num: int) -> Dict[str, Dict[str, Dict[str, str]]]:
-    """Return prompt templates for each model×mode for the given round.
-
-    Structure: {model_id: {mode: {"system": ..., "user_prefix": ..., "user_suffix": ...}}}
-    """
-    if round_num == 1:
-        return _round1_prompts()
-    elif round_num == 2:
-        return _round2_prompts()
-    elif round_num == 3:
-        return _round3_prompts()
-    elif round_num == 4:
-        return _round4_prompts()
-    else:
-        raise ValueError(f"Unknown round {round_num}")
+def get_prompts(round_num: int = None) -> Dict[str, Dict[str, Dict[str, str]]]:
+    """Return prompt templates from optimized_prompts.py."""
+    from pocket_agent_cli.utils.optimized_prompts import OPTIMIZED_PROMPTS
+    return OPTIMIZED_PROMPTS
 
 
 def _base_prompts():
@@ -438,13 +427,15 @@ def run_evaluation(
             default_version="Q4_K_M",
             current_version="Q4_K_M",
         )
+        # Thinking models (Qwen, DeepSeek) need 8k+ tokens for reasoning chains
+        is_thinking = model_def["arch"] == "qwen"
         config = InferenceConfig(
             temperature=0.7,
-            max_tokens=2048,
+            max_tokens=8192 if is_thinking else 2048,
             top_p=0.9,
             top_k=40,
             repeat_penalty=1.1,
-            context_length=8192,
+            context_length=16384,
             jinja=True,
         )
 

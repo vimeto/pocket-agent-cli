@@ -68,13 +68,120 @@ MODELS = [
         "local_port": 30001,
     },
     {
+        "id": "qwen-3-0.6b",
+        "name": "Qwen 3 0.6B",
+        "arch": "qwen",
+        "hf_id": "Qwen/Qwen3-0.6B",
+        "local_port": 30002,
+    },
+    {
         "id": "llama-3.2-3b-instruct",
         "name": "Llama 3.2 3B",
         "arch": "llama",
         "hf_id": "meta-llama/Llama-3.2-3B-Instruct",
         "local_port": 30003,
+        "no_api_tools": True,
+    },
+    {
+        "id": "deepseek-r1-distill-qwen-1.5b",
+        "name": "DeepSeek R1 1.5B",
+        "arch": "qwen",
+        "hf_id": "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B",
+        "local_port": 30004,
+    },
+    {
+        "id": "gemma-3n-e2b-it",
+        "name": "Gemma 3n E2B",
+        "arch": "gemma",
+        "hf_id": "google/gemma-3n-E2B-it",
+        "local_port": 30005,
+        "no_api_tools": True,
+    },
+    {
+        "id": "qwen-3.5-4b",
+        "name": "Qwen 3.5 4B",
+        "arch": "qwen",
+        "hf_id": "Qwen/Qwen3.5-4B",
+        "local_port": 30006,
+    },
+    {
+        "id": "gemma-4-e2b-it",
+        "name": "Gemma 4 E2B",
+        "arch": "gemma",
+        "hf_id": "google/gemma-4-E2B-it",
+        "local_port": 30007,
+        "no_api_tools": True,
     },
 ]
+
+# ── Model-specific system prompts ─────────────────────────────────────────
+# The dataset's SYSTEM_PROMPT uses <tool_call> XML format (works for Qwen 3).
+# Other model families need adapted prompts for reliable tool calling.
+
+MODEL_SYSTEM_PROMPTS = {
+    # Qwen 3 models: use default <tool_call> XML format from dataset
+    "qwen": None,  # Will use HotpotQADataset.SYSTEM_PROMPT
+
+    # Llama 3.2: uses ```tool_call code-block format
+    "llama": (
+        "You are a question answering assistant with access to a web search tool.\n\n"
+        "Available tool:\n"
+        "- web_search(query) - Search the web and return relevant passages\n\n"
+        "To use the tool, you MUST write:\n"
+        "```tool_call\n"
+        '{"name": "web_search", "arguments": {"query": "your search query"}}\n'
+        "```\n\n"
+        "IMPORTANT: You MUST call web_search to find information before answering. "
+        "Do NOT answer from memory. Always search first.\n\n"
+        "After receiving search results, provide your final answer clearly, "
+        "starting with 'The answer is: '"
+    ),
+
+    # Gemma models: use bracket format [func(param=value)]
+    "gemma": (
+        "You are a question answering assistant with access to a web search tool.\n\n"
+        "Available tool:\n"
+        "- web_search(query) - Search the web and return relevant passages\n\n"
+        "To search, write:\n"
+        '[web_search(query="your search query")]\n\n'
+        "IMPORTANT: You MUST call web_search to find information before answering. "
+        "Do NOT answer from memory. Always search first.\n\n"
+        "After receiving search results, provide your final answer clearly, "
+        "starting with 'The answer is: '"
+    ),
+
+    # DeepSeek R1: thinking model, uses <tool_call> XML but may spend tokens on thinking
+    "deepseek": (
+        "You are a question answering assistant with access to a web search tool.\n\n"
+        "Available tool:\n"
+        "- web_search(query) - Search the web and return relevant passages\n\n"
+        "To use the tool, write:\n"
+        "<tool_call>\n"
+        '{"name": "web_search", "arguments": {"query": "your search query"}}\n'
+        "</tool_call>\n\n"
+        "IMPORTANT: You MUST call web_search to find information. "
+        "Do NOT answer from memory. Search first, then answer.\n\n"
+        "Provide your final answer clearly, starting with 'The answer is: '"
+    ),
+}
+
+
+def get_system_prompt(model_def: Dict) -> str:
+    """Get the appropriate system prompt for a model.
+
+    Uses model-specific prompts for non-Qwen architectures,
+    falls back to the dataset's default SYSTEM_PROMPT for Qwen.
+    """
+    arch = model_def.get("arch", "qwen")
+    # DeepSeek R1 uses qwen arch but needs its own prompt
+    if "deepseek" in model_def["id"]:
+        prompt = MODEL_SYSTEM_PROMPTS.get("deepseek")
+        if prompt:
+            return prompt
+    prompt = MODEL_SYSTEM_PROMPTS.get(arch)
+    if prompt:
+        return prompt
+    return HotpotQADataset.SYSTEM_PROMPT
 
 # ── Tool Definition (for API-based tool calling) ────────────────────────
 
@@ -205,14 +312,14 @@ def run_hybrid_websearch(
     # Set up inference network simulator
     inference_net_sim = NetworkSimulator(network_config, seed=42)
 
-    # Build initial messages
-    system_prompt = HotpotQADataset.SYSTEM_PROMPT
+    # Build initial messages with model-specific system prompt
+    system_prompt = get_system_prompt(model_def)
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": problem.prompt},
     ]
 
-    is_thinking = model_def["arch"] == "qwen"
+    is_thinking = model_def["arch"] == "qwen" or "deepseek" in model_def["id"]
     max_tokens = 8192 if is_thinking else 2048
 
     t0 = time.time()
@@ -376,13 +483,13 @@ def run_cloud_websearch(
         network_config=None,  # No network cost for co-located search
     )
 
-    system_prompt = HotpotQADataset.SYSTEM_PROMPT
+    system_prompt = get_system_prompt(model_def)
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": problem.prompt},
     ]
 
-    is_thinking = model_def["arch"] == "qwen"
+    is_thinking = model_def["arch"] == "qwen" or "deepseek" in model_def["id"]
     max_tokens = 8192 if is_thinking else 2048
 
     t0 = time.time()
@@ -519,7 +626,9 @@ def run_experiment(args):
     per_problem_results = []
 
     for model_def in selected_models:
-        base_url = f"http://localhost:{args.port}"
+        # Use model-specific port if --port is the default (0), else use --port
+        port = model_def["local_port"] if args.port == 0 else args.port
+        base_url = f"http://localhost:{port}"
 
         # Verify server
         try:
@@ -722,8 +831,8 @@ def main():
     parser.add_argument("--network-conditions", nargs="*",
                         default=["wifi", "4g", "poor_cellular"],
                         help="Network conditions to test")
-    parser.add_argument("--port", type=int, default=30001,
-                        help="SGLang server port")
+    parser.add_argument("--port", type=int, default=0,
+                        help="SGLang server port (0 = use per-model ports)")
     parser.add_argument("--concurrency", type=int, default=10,
                         help="Number of concurrent problem runners")
     parser.add_argument("--max-iterations", type=int, default=3,

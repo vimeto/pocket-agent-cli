@@ -1,0 +1,2400 @@
+[
+  {
+    "id": "simple_0",
+    "category": "simple",
+    "prompt": "What's the weather in San Francisco?",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_weather",
+          "description": "Get current weather for a location",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "location": {
+                "type": "string",
+                "description": "City name"
+              },
+              "unit": {
+                "type": "string",
+                "enum": [
+                  "celsius",
+                  "fahrenheit"
+                ],
+                "description": "Temperature unit"
+              }
+            },
+            "required": [
+              "location"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": [
+      {
+        "name": "get_weather",
+        "arguments": {
+          "location": "San Francisco"
+        }
+      }
+    ]
+  },
+  {
+    "id": "simple_1",
+    "category": "simple",
+    "prompt": "Calculate 15% tip on a $85.50 bill.",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "calculate_tip",
+          "description": "Calculate tip amount",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "bill_amount": {
+                "type": "number",
+                "description": "Total bill"
+              },
+              "tip_percentage": {
+                "type": "number",
+                "description": "Tip percentage"
+              }
+            },
+            "required": [
+              "bill_amount",
+              "tip_percentage"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": [
+      {
+        "name": "calculate_tip",
+        "arguments": {
+          "bill_amount": 85.5,
+          "tip_percentage": 15
+        }
+      }
+    ]
+  },
+  {
+    "id": "simple_2",
+    "category": "simple",
+    "prompt": "Send an email to john@example.com with subject 'Meeting Tomorrow' and body 'Hi John, can we meet at 3pm?'",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "send_email",
+          "description": "Send an email",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "to": {
+                "type": "string",
+                "description": "Recipient email"
+              },
+              "subject": {
+                "type": "string",
+                "description": "Email subject"
+              },
+              "body": {
+                "type": "string",
+                "description": "Email body"
+              }
+            },
+            "required": [
+              "to",
+              "subject",
+              "body"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": [
+      {
+        "name": "send_email",
+        "arguments": {
+          "to": "john@example.com",
+          "subject": "Meeting Tomorrow",
+          "body": "Hi John, can we meet at 3pm?"
+        }
+      }
+    ]
+  },
+  {
+    "id": "simple_3",
+    "category": "simple",
+    "prompt": "Create a reminder for 'Buy groceries' at 5pm today.",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "create_reminder",
+          "description": "Create a reminder",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string",
+                "description": "Reminder title"
+              },
+              "time": {
+                "type": "string",
+                "description": "Time for reminder"
+              }
+            },
+            "required": [
+              "title",
+              "time"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": [
+      {
+        "name": "create_reminder",
+        "arguments": {
+          "title": "Buy groceries",
+          "time": "5pm today"
+        }
+      }
+    ]
+  },
+  {
+    "id": "simple_4",
+    "category": "simple",
+    "prompt": "Convert 100 USD to EUR.",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "convert_currency",
+          "description": "Convert between currencies",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "amount": {
+                "type": "number",
+                "description": "Amount to convert"
+              },
+              "from_currency": {
+                "type": "string",
+                "description": "Source currency"
+              },
+              "to_currency": {
+                "type": "string",
+                "description": "Target currency"
+              }
+            },
+            "required": [
+              "amount",
+              "from_currency",
+              "to_currency"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": [
+      {
+        "name": "convert_currency",
+        "arguments": {
+          "amount": 100,
+          "from_currency": "USD",
+          "to_currency": "EUR"
+        }
+      }
+    ]
+  },
+  {
+    "id": "simple_5",
+    "category": "simple",
+    "prompt": "Search for 'machine learning tutorials' on the web.",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the web",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "description": "Search query"
+              },
+              "num_results": {
+                "type": "integer",
+                "description": "Number of results",
+                "default": 10
+              }
+            },
+            "required": [
+              "query"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": [
+      {
+        "name": "web_search",
+        "arguments": {
+          "query": "machine learning tutorials"
+        }
+      }
+    ]
+  },
+  {
+    "id": "simple_6",
+    "category": "simple",
+    "prompt": "Set an alarm for 7:30 AM tomorrow.",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "set_alarm",
+          "description": "Set an alarm",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "time": {
+                "type": "string",
+                "description": "Alarm time"
+              },
+              "label": {
+                "type": "string",
+                "description": "Optional label"
+              }
+            },
+            "required": [
+              "time"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": [
+      {
+        "name": "set_alarm",
+        "arguments": {
+          "time": "7:30 AM tomorrow"
+        }
+      }
+    ]
+  },
+  {
+    "id": "simple_7",
+    "category": "simple",
+    "prompt": "Translate 'Hello, how are you?' to Spanish.",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "translate_text",
+          "description": "Translate text between languages",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string",
+                "description": "Text to translate"
+              },
+              "target_language": {
+                "type": "string",
+                "description": "Target language"
+              },
+              "source_language": {
+                "type": "string",
+                "description": "Source language"
+              }
+            },
+            "required": [
+              "text",
+              "target_language"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": [
+      {
+        "name": "translate_text",
+        "arguments": {
+          "text": "Hello, how are you?",
+          "target_language": "Spanish"
+        }
+      }
+    ]
+  },
+  {
+    "id": "simple_8",
+    "category": "simple",
+    "prompt": "Read the file '/home/user/report.txt'.",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "read_file",
+          "description": "Read contents of a file",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "File path"
+              }
+            },
+            "required": [
+              "path"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": [
+      {
+        "name": "read_file",
+        "arguments": {
+          "path": "/home/user/report.txt"
+        }
+      }
+    ]
+  },
+  {
+    "id": "simple_9",
+    "category": "simple",
+    "prompt": "Get the current time in Tokyo.",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_time",
+          "description": "Get current time in a timezone",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "timezone": {
+                "type": "string",
+                "description": "Timezone name"
+              }
+            },
+            "required": [
+              "timezone"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": [
+      {
+        "name": "get_time",
+        "arguments": {
+          "timezone": "Tokyo"
+        }
+      }
+    ]
+  },
+  {
+    "id": "simple_10",
+    "category": "simple",
+    "prompt": "Add 'Buy milk' to my todo list.",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "add_todo",
+          "description": "Add an item to the todo list",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "item": {
+                "type": "string",
+                "description": "Todo item text"
+              },
+              "priority": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ],
+                "description": "Priority level"
+              }
+            },
+            "required": [
+              "item"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": [
+      {
+        "name": "add_todo",
+        "arguments": {
+          "item": "Buy milk"
+        }
+      }
+    ]
+  },
+  {
+    "id": "simple_11",
+    "category": "simple",
+    "prompt": "Calculate the square root of 144.",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "calculator",
+          "description": "Perform mathematical calculations",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "expression": {
+                "type": "string",
+                "description": "Mathematical expression"
+              }
+            },
+            "required": [
+              "expression"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": [
+      {
+        "name": "calculator",
+        "arguments": {
+          "expression": "sqrt(144)"
+        }
+      }
+    ]
+  },
+  {
+    "id": "simple_12",
+    "category": "simple",
+    "prompt": "Play the song 'Bohemian Rhapsody' by Queen.",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "play_music",
+          "description": "Play a song",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "song": {
+                "type": "string",
+                "description": "Song name"
+              },
+              "artist": {
+                "type": "string",
+                "description": "Artist name"
+              }
+            },
+            "required": [
+              "song"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": [
+      {
+        "name": "play_music",
+        "arguments": {
+          "song": "Bohemian Rhapsody",
+          "artist": "Queen"
+        }
+      }
+    ]
+  },
+  {
+    "id": "simple_13",
+    "category": "simple",
+    "prompt": "Book a table for 4 at 'La Trattoria' at 7pm tonight.",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "book_restaurant",
+          "description": "Book a restaurant reservation",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "restaurant": {
+                "type": "string",
+                "description": "Restaurant name"
+              },
+              "party_size": {
+                "type": "integer",
+                "description": "Number of guests"
+              },
+              "time": {
+                "type": "string",
+                "description": "Reservation time"
+              }
+            },
+            "required": [
+              "restaurant",
+              "party_size",
+              "time"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": [
+      {
+        "name": "book_restaurant",
+        "arguments": {
+          "restaurant": "La Trattoria",
+          "party_size": 4,
+          "time": "7pm tonight"
+        }
+      }
+    ]
+  },
+  {
+    "id": "simple_14",
+    "category": "simple",
+    "prompt": "Create a new folder called 'projects' in /home/user/.",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "create_directory",
+          "description": "Create a new directory",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Directory path"
+              }
+            },
+            "required": [
+              "path"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": [
+      {
+        "name": "create_directory",
+        "arguments": {
+          "path": "/home/user/projects"
+        }
+      }
+    ]
+  },
+  {
+    "id": "simple_15",
+    "category": "simple",
+    "prompt": "Find all Python files in /home/user/code.",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "search_files",
+          "description": "Search for files matching a pattern",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "directory": {
+                "type": "string",
+                "description": "Directory to search"
+              },
+              "pattern": {
+                "type": "string",
+                "description": "File pattern (glob)"
+              }
+            },
+            "required": [
+              "directory",
+              "pattern"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": [
+      {
+        "name": "search_files",
+        "arguments": {
+          "directory": "/home/user/code",
+          "pattern": "*.py"
+        }
+      }
+    ]
+  },
+  {
+    "id": "simple_16",
+    "category": "simple",
+    "prompt": "Compress the file /tmp/data.csv using gzip.",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "compress_file",
+          "description": "Compress a file",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "File to compress"
+              },
+              "format": {
+                "type": "string",
+                "enum": [
+                  "gzip",
+                  "zip",
+                  "tar.gz"
+                ],
+                "description": "Compression format"
+              }
+            },
+            "required": [
+              "path",
+              "format"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": [
+      {
+        "name": "compress_file",
+        "arguments": {
+          "path": "/tmp/data.csv",
+          "format": "gzip"
+        }
+      }
+    ]
+  },
+  {
+    "id": "simple_17",
+    "category": "simple",
+    "prompt": "Get stock price for AAPL.",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_stock_price",
+          "description": "Get current stock price",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "symbol": {
+                "type": "string",
+                "description": "Stock ticker symbol"
+              }
+            },
+            "required": [
+              "symbol"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": [
+      {
+        "name": "get_stock_price",
+        "arguments": {
+          "symbol": "AAPL"
+        }
+      }
+    ]
+  },
+  {
+    "id": "simple_18",
+    "category": "simple",
+    "prompt": "Resize the image /photos/vacation.jpg to 800x600 pixels.",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "resize_image",
+          "description": "Resize an image",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Image file path"
+              },
+              "width": {
+                "type": "integer",
+                "description": "New width"
+              },
+              "height": {
+                "type": "integer",
+                "description": "New height"
+              }
+            },
+            "required": [
+              "path",
+              "width",
+              "height"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": [
+      {
+        "name": "resize_image",
+        "arguments": {
+          "path": "/photos/vacation.jpg",
+          "width": 800,
+          "height": 600
+        }
+      }
+    ]
+  },
+  {
+    "id": "simple_19",
+    "category": "simple",
+    "prompt": "Schedule a meeting titled 'Sprint Planning' for next Monday at 10am.",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "create_event",
+          "description": "Create a calendar event",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string",
+                "description": "Event title"
+              },
+              "date": {
+                "type": "string",
+                "description": "Event date"
+              },
+              "time": {
+                "type": "string",
+                "description": "Event time"
+              }
+            },
+            "required": [
+              "title",
+              "date",
+              "time"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": [
+      {
+        "name": "create_event",
+        "arguments": {
+          "title": "Sprint Planning",
+          "date": "next Monday",
+          "time": "10am"
+        }
+      }
+    ]
+  },
+  {
+    "id": "multiple_0",
+    "category": "multiple",
+    "prompt": "What is the weather in Paris right now?",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_weather",
+          "description": "Get current weather for a location",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "location": {
+                "type": "string",
+                "description": "City name"
+              },
+              "unit": {
+                "type": "string",
+                "enum": [
+                  "celsius",
+                  "fahrenheit"
+                ]
+              }
+            },
+            "required": [
+              "location"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "get_forecast",
+          "description": "Get weather forecast for upcoming days",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "location": {
+                "type": "string",
+                "description": "City name"
+              },
+              "days": {
+                "type": "integer",
+                "description": "Number of days"
+              }
+            },
+            "required": [
+              "location",
+              "days"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "get_historical_weather",
+          "description": "Get historical weather data",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "location": {
+                "type": "string"
+              },
+              "date": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "location",
+              "date"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": [
+      {
+        "name": "get_weather",
+        "arguments": {
+          "location": "Paris"
+        }
+      }
+    ]
+  },
+  {
+    "id": "multiple_1",
+    "category": "multiple",
+    "prompt": "Delete the file /tmp/old_log.txt.",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "read_file",
+          "description": "Read file contents",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "File path"
+              }
+            },
+            "required": [
+              "path"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write_file",
+          "description": "Write content to a file",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "content": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path",
+              "content"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "delete_file",
+          "description": "Delete a file",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "File path to delete"
+              }
+            },
+            "required": [
+              "path"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": [
+      {
+        "name": "delete_file",
+        "arguments": {
+          "path": "/tmp/old_log.txt"
+        }
+      }
+    ]
+  },
+  {
+    "id": "multiple_2",
+    "category": "multiple",
+    "prompt": "Add 25 and 17.",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "add",
+          "description": "Add two numbers",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "a": {
+                "type": "number",
+                "description": "First number"
+              },
+              "b": {
+                "type": "number",
+                "description": "Second number"
+              }
+            },
+            "required": [
+              "a",
+              "b"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "subtract",
+          "description": "Subtract two numbers",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "a": {
+                "type": "number"
+              },
+              "b": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "a",
+              "b"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "multiply",
+          "description": "Multiply two numbers",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "a": {
+                "type": "number"
+              },
+              "b": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "a",
+              "b"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "divide",
+          "description": "Divide two numbers",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "a": {
+                "type": "number"
+              },
+              "b": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "a",
+              "b"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": [
+      {
+        "name": "add",
+        "arguments": {
+          "a": 25,
+          "b": 17
+        }
+      }
+    ]
+  },
+  {
+    "id": "multiple_3",
+    "category": "multiple",
+    "prompt": "Find restaurants near me.",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "search_restaurants",
+          "description": "Search for restaurants nearby",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "cuisine": {
+                "type": "string",
+                "description": "Cuisine type"
+              },
+              "radius_km": {
+                "type": "number",
+                "description": "Search radius in km"
+              }
+            },
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "book_restaurant",
+          "description": "Book a restaurant reservation",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "restaurant": {
+                "type": "string"
+              },
+              "party_size": {
+                "type": "integer"
+              },
+              "time": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "restaurant",
+              "party_size",
+              "time"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "get_restaurant_reviews",
+          "description": "Get reviews for a specific restaurant",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "restaurant": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "restaurant"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": [
+      {
+        "name": "search_restaurants",
+        "arguments": {}
+      }
+    ]
+  },
+  {
+    "id": "multiple_4",
+    "category": "multiple",
+    "prompt": "Multiply 12 by 8.",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "add",
+          "description": "Add two numbers",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "a": {
+                "type": "number"
+              },
+              "b": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "a",
+              "b"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "multiply",
+          "description": "Multiply two numbers",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "a": {
+                "type": "number"
+              },
+              "b": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "a",
+              "b"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": [
+      {
+        "name": "multiply",
+        "arguments": {
+          "a": 12,
+          "b": 8
+        }
+      }
+    ]
+  },
+  {
+    "id": "multiple_5",
+    "category": "multiple",
+    "prompt": "Send a text message to Alice saying 'Running late, be there in 10.'",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "send_sms",
+          "description": "Send an SMS text message",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "recipient": {
+                "type": "string",
+                "description": "Recipient name or number"
+              },
+              "message": {
+                "type": "string",
+                "description": "Message text"
+              }
+            },
+            "required": [
+              "recipient",
+              "message"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "send_email",
+          "description": "Send an email",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "to": {
+                "type": "string"
+              },
+              "subject": {
+                "type": "string"
+              },
+              "body": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "to",
+              "subject",
+              "body"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "make_call",
+          "description": "Make a phone call",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "contact": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "contact"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": [
+      {
+        "name": "send_sms",
+        "arguments": {
+          "recipient": "Alice",
+          "message": "Running late, be there in 10."
+        }
+      }
+    ]
+  },
+  {
+    "id": "multiple_6",
+    "category": "multiple",
+    "prompt": "Turn on the living room lights.",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "control_light",
+          "description": "Control a smart light",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "room": {
+                "type": "string",
+                "description": "Room name"
+              },
+              "action": {
+                "type": "string",
+                "enum": [
+                  "on",
+                  "off",
+                  "dim"
+                ],
+                "description": "Action to perform"
+              }
+            },
+            "required": [
+              "room",
+              "action"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "set_thermostat",
+          "description": "Set thermostat temperature",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "temperature": {
+                "type": "number"
+              },
+              "unit": {
+                "type": "string",
+                "enum": [
+                  "celsius",
+                  "fahrenheit"
+                ]
+              }
+            },
+            "required": [
+              "temperature"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "lock_door",
+          "description": "Lock or unlock a door",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "door": {
+                "type": "string"
+              },
+              "action": {
+                "type": "string",
+                "enum": [
+                  "lock",
+                  "unlock"
+                ]
+              }
+            },
+            "required": [
+              "door",
+              "action"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": [
+      {
+        "name": "control_light",
+        "arguments": {
+          "room": "living room",
+          "action": "on"
+        }
+      }
+    ]
+  },
+  {
+    "id": "multiple_7",
+    "category": "multiple",
+    "prompt": "Get the 5-day weather forecast for London.",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_weather",
+          "description": "Get current weather for a location",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "location": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "location"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "get_forecast",
+          "description": "Get weather forecast for upcoming days",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "location": {
+                "type": "string"
+              },
+              "days": {
+                "type": "integer",
+                "description": "Number of forecast days"
+              }
+            },
+            "required": [
+              "location",
+              "days"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": [
+      {
+        "name": "get_forecast",
+        "arguments": {
+          "location": "London",
+          "days": 5
+        }
+      }
+    ]
+  },
+  {
+    "id": "multiple_8",
+    "category": "multiple",
+    "prompt": "Show me the last 20 lines of /var/log/syslog.",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "read_file",
+          "description": "Read entire file contents",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "tail_file",
+          "description": "Read last N lines of a file",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "lines": {
+                "type": "integer",
+                "description": "Number of lines"
+              }
+            },
+            "required": [
+              "path",
+              "lines"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "search_file",
+          "description": "Search for a pattern in a file",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "pattern": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path",
+              "pattern"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": [
+      {
+        "name": "tail_file",
+        "arguments": {
+          "path": "/var/log/syslog",
+          "lines": 20
+        }
+      }
+    ]
+  },
+  {
+    "id": "multiple_9",
+    "category": "multiple",
+    "prompt": "What's the distance between New York and Los Angeles?",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_distance",
+          "description": "Calculate distance between two locations",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "origin": {
+                "type": "string",
+                "description": "Starting location"
+              },
+              "destination": {
+                "type": "string",
+                "description": "End location"
+              },
+              "unit": {
+                "type": "string",
+                "enum": [
+                  "km",
+                  "miles"
+                ]
+              }
+            },
+            "required": [
+              "origin",
+              "destination"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "get_directions",
+          "description": "Get driving directions",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "origin": {
+                "type": "string"
+              },
+              "destination": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "origin",
+              "destination"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": [
+      {
+        "name": "get_distance",
+        "arguments": {
+          "origin": "New York",
+          "destination": "Los Angeles"
+        }
+      }
+    ]
+  },
+  {
+    "id": "multiple_10",
+    "category": "multiple",
+    "prompt": "List all running processes.",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "list_processes",
+          "description": "List running processes",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "filter": {
+                "type": "string",
+                "description": "Optional name filter"
+              }
+            },
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "kill_process",
+          "description": "Kill a process by name or PID",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "identifier": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "identifier"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "get_system_info",
+          "description": "Get system information (CPU, RAM, etc.)",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      }
+    ],
+    "expected": [
+      {
+        "name": "list_processes",
+        "arguments": {}
+      }
+    ]
+  },
+  {
+    "id": "multiple_11",
+    "category": "multiple",
+    "prompt": "Download the file from https://example.com/data.csv and save it to /tmp/data.csv.",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "download_file",
+          "description": "Download a file from a URL",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "URL to download from"
+              },
+              "save_path": {
+                "type": "string",
+                "description": "Local path to save to"
+              }
+            },
+            "required": [
+              "url",
+              "save_path"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "upload_file",
+          "description": "Upload a file to a URL",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path",
+              "url"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": [
+      {
+        "name": "download_file",
+        "arguments": {
+          "url": "https://example.com/data.csv",
+          "save_path": "/tmp/data.csv"
+        }
+      }
+    ]
+  },
+  {
+    "id": "multiple_12",
+    "category": "multiple",
+    "prompt": "Rename the file /tmp/old_name.txt to /tmp/new_name.txt.",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "rename_file",
+          "description": "Rename or move a file",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "old_path": {
+                "type": "string",
+                "description": "Current file path"
+              },
+              "new_path": {
+                "type": "string",
+                "description": "New file path"
+              }
+            },
+            "required": [
+              "old_path",
+              "new_path"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "copy_file",
+          "description": "Copy a file",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "source": {
+                "type": "string"
+              },
+              "destination": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "source",
+              "destination"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "delete_file",
+          "description": "Delete a file",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": [
+      {
+        "name": "rename_file",
+        "arguments": {
+          "old_path": "/tmp/old_name.txt",
+          "new_path": "/tmp/new_name.txt"
+        }
+      }
+    ]
+  },
+  {
+    "id": "multiple_13",
+    "category": "multiple",
+    "prompt": "Set the thermostat to 72 degrees Fahrenheit.",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "control_light",
+          "description": "Control a smart light",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "room": {
+                "type": "string"
+              },
+              "action": {
+                "type": "string",
+                "enum": [
+                  "on",
+                  "off",
+                  "dim"
+                ]
+              }
+            },
+            "required": [
+              "room",
+              "action"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "set_thermostat",
+          "description": "Set thermostat temperature",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "temperature": {
+                "type": "number",
+                "description": "Target temperature"
+              },
+              "unit": {
+                "type": "string",
+                "enum": [
+                  "celsius",
+                  "fahrenheit"
+                ]
+              }
+            },
+            "required": [
+              "temperature"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": [
+      {
+        "name": "set_thermostat",
+        "arguments": {
+          "temperature": 72,
+          "unit": "fahrenheit"
+        }
+      }
+    ]
+  },
+  {
+    "id": "multiple_14",
+    "category": "multiple",
+    "prompt": "Take a screenshot.",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "take_screenshot",
+          "description": "Capture a screenshot",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "save_path": {
+                "type": "string",
+                "description": "Path to save screenshot"
+              }
+            },
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "record_screen",
+          "description": "Start screen recording",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "duration": {
+                "type": "integer",
+                "description": "Duration in seconds"
+              }
+            },
+            "required": [
+              "duration"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": [
+      {
+        "name": "take_screenshot",
+        "arguments": {}
+      }
+    ]
+  },
+  {
+    "id": "parallel_0",
+    "category": "parallel",
+    "prompt": "What's the weather in Tokyo AND New York?",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_weather",
+          "description": "Get current weather for a location",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "location": {
+                "type": "string",
+                "description": "City name"
+              }
+            },
+            "required": [
+              "location"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": [
+      {
+        "name": "get_weather",
+        "arguments": {
+          "location": "Tokyo"
+        }
+      },
+      {
+        "name": "get_weather",
+        "arguments": {
+          "location": "New York"
+        }
+      }
+    ]
+  },
+  {
+    "id": "parallel_1",
+    "category": "parallel",
+    "prompt": "Add 3 and 5, and also multiply 4 and 7.",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "add",
+          "description": "Add two numbers",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "a": {
+                "type": "number"
+              },
+              "b": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "a",
+              "b"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "multiply",
+          "description": "Multiply two numbers",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "a": {
+                "type": "number"
+              },
+              "b": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "a",
+              "b"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": [
+      {
+        "name": "add",
+        "arguments": {
+          "a": 3,
+          "b": 5
+        }
+      },
+      {
+        "name": "multiply",
+        "arguments": {
+          "a": 4,
+          "b": 7
+        }
+      }
+    ]
+  },
+  {
+    "id": "parallel_2",
+    "category": "parallel",
+    "prompt": "Turn on the bedroom lights and set thermostat to 68F.",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "control_light",
+          "description": "Control a smart light",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "room": {
+                "type": "string"
+              },
+              "action": {
+                "type": "string",
+                "enum": [
+                  "on",
+                  "off",
+                  "dim"
+                ]
+              }
+            },
+            "required": [
+              "room",
+              "action"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "set_thermostat",
+          "description": "Set thermostat temperature",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "temperature": {
+                "type": "number"
+              },
+              "unit": {
+                "type": "string",
+                "enum": [
+                  "celsius",
+                  "fahrenheit"
+                ]
+              }
+            },
+            "required": [
+              "temperature"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": [
+      {
+        "name": "control_light",
+        "arguments": {
+          "room": "bedroom",
+          "action": "on"
+        }
+      },
+      {
+        "name": "set_thermostat",
+        "arguments": {
+          "temperature": 68,
+          "unit": "fahrenheit"
+        }
+      }
+    ]
+  },
+  {
+    "id": "parallel_3",
+    "category": "parallel",
+    "prompt": "Send an email to bob@example.com about the meeting and add 'Follow up with Bob' to my todo list.",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "send_email",
+          "description": "Send an email",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "to": {
+                "type": "string"
+              },
+              "subject": {
+                "type": "string"
+              },
+              "body": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "to",
+              "subject",
+              "body"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "add_todo",
+          "description": "Add a todo item",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "item": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "item"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": [
+      {
+        "name": "send_email",
+        "arguments": {
+          "to": "bob@example.com",
+          "subject": "Meeting",
+          "body": "Meeting"
+        }
+      },
+      {
+        "name": "add_todo",
+        "arguments": {
+          "item": "Follow up with Bob"
+        }
+      }
+    ]
+  },
+  {
+    "id": "parallel_4",
+    "category": "parallel",
+    "prompt": "Get stock prices for AAPL, GOOGL, and MSFT.",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_stock_price",
+          "description": "Get current stock price",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "symbol": {
+                "type": "string",
+                "description": "Ticker symbol"
+              }
+            },
+            "required": [
+              "symbol"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": [
+      {
+        "name": "get_stock_price",
+        "arguments": {
+          "symbol": "AAPL"
+        }
+      },
+      {
+        "name": "get_stock_price",
+        "arguments": {
+          "symbol": "GOOGL"
+        }
+      },
+      {
+        "name": "get_stock_price",
+        "arguments": {
+          "symbol": "MSFT"
+        }
+      }
+    ]
+  },
+  {
+    "id": "relevance_0",
+    "category": "relevance",
+    "prompt": "What is the meaning of life?",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_weather",
+          "description": "Get current weather for a location",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "location": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "location"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": []
+  },
+  {
+    "id": "relevance_1",
+    "category": "relevance",
+    "prompt": "Tell me a joke.",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "calculator",
+          "description": "Perform mathematical calculations",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "expression": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "expression"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "send_email",
+          "description": "Send an email",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "to": {
+                "type": "string"
+              },
+              "subject": {
+                "type": "string"
+              },
+              "body": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "to",
+              "subject",
+              "body"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": []
+  },
+  {
+    "id": "relevance_2",
+    "category": "relevance",
+    "prompt": "Explain how photosynthesis works.",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "search_files",
+          "description": "Search for files",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "directory": {
+                "type": "string"
+              },
+              "pattern": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "directory",
+              "pattern"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": []
+  },
+  {
+    "id": "relevance_3",
+    "category": "relevance",
+    "prompt": "What is 2+2? Just tell me without using any tools.",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "calculator",
+          "description": "Perform mathematical calculations",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "expression": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "expression"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": []
+  },
+  {
+    "id": "relevance_4",
+    "category": "relevance",
+    "prompt": "Write me a poem about the ocean.",
+    "functions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "write_file",
+          "description": "Write content to a file",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "content": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path",
+              "content"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the web",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "query"
+            ]
+          }
+        }
+      }
+    ],
+    "expected": []
+  }
+]

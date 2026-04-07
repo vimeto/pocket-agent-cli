@@ -315,9 +315,9 @@ We add Qwen~3.5 (4B) and Gemma~4 (4B) as generalizability probes, evaluating the
 
 \subsection{Hardware}
 
-\textbf{MacBook Pro M2 Max} (64\,GB unified memory, active cooling): serves as the local deployment platform using MLX for Apple Silicon--optimized inference.
+\textbf{MacBook Pro M2 Max} (64\,GB unified memory, active cooling): local deployment platform using MLX for Apple-Silicon-optimized inference.
 
-\textbf{NVIDIA A100} (40\,GB HBM2e, 256\,GB system RAM): serves as the cloud/edge server using SGLang (or vLLM for Gemma~4) with FP16 precision and prefix caching enabled.
+\textbf{NVIDIA A100} (40\,GB HBM2e, 256\,GB system RAM): cloud/edge server using SGLang (or vLLM for Gemma~4) with FP16 precision and prefix caching enabled.
 
 \subsection{Benchmarks}
 
@@ -693,7 +693,7 @@ Three directions follow from our findings:
 \begin{insightbox}{Compute dominance simplifies deployment}
 For current agentic workloads with models up to 4B parameters, the deployment decision is driven by compute availability and energy cost, not network conditions.
 A two-signal placement rule (TPS ratio, model size) achieves near-oracle performance.
-The networking challenge is not latency or bandwidth but radio energy waste from structural timing mismatches.
+The networking challenge is not latency or bandwidth but radio energy waste from structural timing mismatches between agentic inference patterns and cellular RRC state machines.
 \end{insightbox}
 
 \bibliographystyle{ACM-Reference-Format}

@@ -43,6 +43,7 @@ from pocket_agent_cli.datasets.registry import DatasetRegistry
 THINKING_MODELS = [
     {"id": "qwen-3-4b",                    "name": "Qwen 3 4B",       "arch": "qwen"},
     {"id": "qwen-3-0.6b",                  "name": "Qwen 3 0.6B",     "arch": "qwen"},
+    {"id": "qwen-3.5-4b",                  "name": "Qwen 3.5 4B",     "arch": "qwen"},
     {"id": "deepseek-r1-distill-qwen-1.5b", "name": "DeepSeek R1 1.5B", "arch": "qwen"},
 ]
 

@@ -210,7 +210,10 @@ Pass@k is the probability a correct solution appears within $k$ attempts~\cite{c
 
 \textbf{Energy.}
 Energy per Token = $\mathrm{Power}_{\mathrm{gen}} / \mathrm{TPS}$.
-\emph{Energy per Successful Solution} sums energy across all attempts until success: $E_{\text{succ}} = \sum_{a=1}^{k^*} E_a$, where $k^*$ is the first successful attempt~\cite{schwartz2020greenai}. This deployment-focused metric captures the true cost of retries.
+\emph{Energy per Successful Solution} sums energy across all attempts until success:
+$E_{\text{succ}} = \sum_{a=1}^{k^*} E_a$,
+where $k^*$ is the first successful attempt~\cite{schwartz2020greenai}.
+This deployment-focused metric captures the true cost of retries.
 
 \subsection{Deployment Architectures}
 
@@ -263,13 +266,13 @@ All engines expose a unified API for the agentic loop, enabling controlled compa
 To evaluate hybrid and cloud deployments under controlled conditions, Pocket Agent includes a network simulation layer with seven RTT presets: local (0\,ms), WiFi-fast (5\,ms), WiFi (20\,ms), 5G (50\,ms), 4G (100\,ms), congested (200\,ms), and satellite (500\,ms).
 
 The simulator wraps each API call with calibrated delay injection and bandwidth throttling.
-For radio energy estimation, we implement a 3GPP-based RRC state machine~\cite{huang2012close_look_power} that models Connected $\rightarrow$ Short DRX $\rightarrow$ Long DRX $\rightarrow$ Idle transitions with configurable inactivity timers (default: 7\,s for the tail timer, following typical LTE/5G operator configurations).
+For radio energy estimation, we implement a 3GPP-based RRC state machine~\cite{huang2012close_look_power} that models Connected $\rightarrow$ Short DRX $\rightarrow$ Long DRX $\rightarrow$ Idle transitions with configurable inactivity timers (default: 7\,s tail timer, following typical LTE/5G operator configurations).
 The hybrid wrapper additionally models local prefill followed by cloud decode, with network overhead applied only to the offloaded portion.
 
 \subsection{Thinking Budget Mechanism}
 
-Chain-of-thought models emit reasoning tokens enclosed in \texttt{<think>...</think>} tags before producing actionable output.
-We previously showed that thinking-token volume correlates \emph{negatively} with task success: the model thinks longer because it is stuck, not because extended reasoning helps (Section~\ref{sec:thinking}).
+Chain-of-thought models emit reasoning tokens enclosed in \texttt{<think>} tags before producing actionable output.
+We show that thinking-token volume correlates \emph{negatively} with task success: the model thinks longer because it is stuck, not because extended reasoning helps (Section~\ref{sec:thinking}).
 
 Pocket Agent implements an early-exit mechanism via two-phase generation.
 In the first phase, the model generates normally until either the \texttt{</think>} tag appears or a configurable token budget $B$ is reached.
@@ -343,7 +346,7 @@ We interpret results comparatively (between modes, models, and architectures) ra
 \section{On-Device Agent Characterization}
 \label{sec:ondevice}
 
-We first characterize agent behavior independent of deployment architecture, establishing capability baselines, thinking-token dynamics, and the early-exit mechanism that underpins our deployment analysis.
+Before evaluating deployment architectures, we characterize agent behavior on its own terms: capability baselines, thinking-token dynamics, and the early-exit mechanism that underpins our deployment analysis.
 
 \subsection{Capability Threshold}
 \label{sec:capability}
@@ -361,11 +364,11 @@ Figure~\ref{fig:pass1} presents Pass@1 across all seven models and three executi
 \textbf{MBPP (Cloud, FP16).}
 Qwen~3 (4B) exhibits a clear capability threshold: Pass@1 rises from 68\% (Base) to 79\% (Tool-Submission) to 77\% (Full-Tool), a net +9pp gain from structured tool use.
 In contrast, Llama~3.2 drops from 50\% to 43\% ($-$7pp), and DeepSeek R1 from 42\% to 33\% ($-$9pp) in Full-Tool mode, generating malformed tool calls or invoking tools at inappropriate times.
-Gemma~3n maintains Base-level performance in Tool-Submission (61\%) but drops sharply in Full-Tool (35\%), suggesting it can produce structured output but cannot sustain multi-turn tool use.
+Gemma~3n maintains Base-level performance in Tool-Submission (61\%) but drops sharply in Full-Tool (35\%): it can produce structured output but cannot sustain multi-turn tool use.
 Qwen~3 (0.6B) degrades from 42\% (Base) to 34\% in both Tool-Submission and Full-Tool modes, consistent with insufficient capability for effective tool use.
 
 \textbf{HumanEval (Cloud, FP16).}
-The capability threshold pattern holds: Qwen~3 (4B) gains +7pp (73\%$\rightarrow$80\%), confirming that the threshold is dataset-independent.
+The capability threshold pattern holds: Qwen~3 (4B) rises from 73\% (Base) to 80\% in both Tool-Submission and Full-Tool modes (+7pp), confirming that the threshold is dataset-independent.
 
 \textbf{Generalizability probes.}
 Qwen~3.5 (4B) achieves 70\%/78\%/86\% (Base/Tool-Submission/Full-Tool) on a 50-problem MBPP subset, demonstrating that newer models amplify the tool benefit (+16pp).
@@ -429,7 +432,7 @@ Figure~\ref{fig:earlyexit} evaluates the early-exit mechanism across four thinki
 \textbf{Qwen~3 (4B).}
 At budget $B=2048$, Pass@1 reaches 78\%, a +6pp improvement over unlimited thinking (72\%).
 Energy drops from 1{,}688\,J to 1{,}027\,J ($-$39\%).
-The improvement arises because capping prevents the model from entering unproductive reasoning loops that consume thousands of tokens without progress.
+Capping prevents the model from entering unproductive reasoning loops that consume thousands of tokens without progress.
 Below $B=1024$, accuracy degrades as the model lacks sufficient reasoning depth for complex problems.
 
 \textbf{DeepSeek R1 (1.5B).}
@@ -465,9 +468,9 @@ We validate a simple energy model: $E = P \times N / \text{TPS}$, where $P$ is m
 Figure~\ref{fig:costmodel} shows this model achieves $R^2=0.89$ across all model-platform combinations, confirming that token count and throughput are sufficient predictors of energy consumption.
 
 This model reveals two deployment-relevant findings.
-First, \emph{thinking models consume 3.7$\times$ more energy} than non-thinking models of comparable size, because they generate 3--5$\times$ more tokens per attempt.
-Second, an \emph{inverse efficiency paradox} persists: slower platforms (MacBook vs.\ A100) consume more total energy per task despite lower instantaneous power, because lower TPS extends generation time proportionally.
-Energy per successful solution is thus dominated by (1)~the number of tokens generated (thinking overhead) and (2)~the first-pass success rate (retry cost).
+First, \emph{thinking models consume $3.7\times$ more energy} than non-thinking models of comparable size, because they generate $3$--$5\times$ more tokens per attempt.
+Second, an \emph{inverse efficiency paradox} persists: slower platforms (MacBook vs.\ A100) consume more total energy per task despite lower instantaneous power, because lower TPS extends generation time.
+Energy per successful solution is dominated by (1)~token count (thinking overhead) and (2)~first-pass success rate (retry cost).
 
 %% ============================================================
 %% 7. NETWORK-AWARE DEPLOYMENT
@@ -475,8 +478,8 @@ Energy per successful solution is thus dominated by (1)~the number of tokens gen
 \section{Network-Aware Deployment}
 \label{sec:network}
 
-The preceding section established that agentic workloads are compute-dominated and that thinking budgets can substantially reduce per-task cost.
-We now evaluate how network conditions affect the deployment decision, characterize the traffic patterns that agentic workloads impose on cellular networks, and develop placement policies that account for both compute and radio energy.
+Having established that agentic workloads are compute-dominated and that thinking budgets substantially reduce per-task cost, we now turn to the networking dimension.
+This section evaluates how network conditions affect the deployment decision, characterizes the traffic patterns that agentic workloads impose on cellular networks, and develops placement policies that account for both compute and radio energy.
 
 \subsection{Three-Architecture Comparison}
 \label{sec:architecture}
@@ -524,8 +527,8 @@ At 0.5\,Mbps---below typical 4G throughput---cloud latency for Qwen~3 (4B) incre
 Even the largest payloads (21\,KB for a Full-Tool response with extensive tool output) transfer in under 0.4\,s at 0.5\,Mbps.
 The compute-to-transfer ratio exceeds 100:1 for all models at all tested bandwidths.
 
-The implication is clear: \emph{for current model sizes and agentic workloads, bandwidth is not a deployment constraint.}
-The deployment decision should be driven by compute availability, energy cost, and privacy requirements rather than network capacity.
+\emph{For current model sizes and agentic workloads, bandwidth is not a deployment constraint.}
+The deployment decision should instead be driven by compute availability, energy cost, and privacy requirements.
 
 \subsection{Agentic Traffic Characterization}
 \label{sec:traffic}
@@ -573,7 +576,7 @@ We evaluate six compression levels (L1: none, L2: light, L3: moderate, L4: aggre
 
 \textbf{Sweet spot at moderate compression.}
 L3 (moderate) reduces payload size by 40\% while \emph{improving} accuracy by +4pp.
-The improvement arises because compression removes verbose, unhelpful tool output that distracts the model, effectively acting as context curation.
+Compression removes verbose, unhelpful tool output that distracts the model, effectively acting as context curation.
 
 \textbf{Three-way tradeoff.}
 Beyond moderate compression, a three-way tradeoff emerges:
@@ -614,7 +617,7 @@ Given the architectural comparison and traffic characterization, we evaluate six
 
 \textbf{Results.}
 Cost-Aware achieves 97.5\% of oracle performance on a combined accuracy-energy metric, while reducing energy by 62\% versus always-local and 23\% versus always-cloud.
-The rule is simple: offload to the cloud when cloud TPS exceeds local TPS by more than 2$\times$ and model size exceeds 1B parameters; otherwise, run locally.
+Concretely, it offloads to the cloud when cloud TPS exceeds local TPS by more than $2\times$ and model size exceeds 1B parameters; otherwise, it runs locally.
 Gemma~3n is correctly routed locally (due to MLX's architecture advantage), while all other models are offloaded.
 
 The bandwidth-aware policy performs equivalently to always-cloud, confirming that bandwidth is not a useful placement signal for current agentic workloads.
@@ -643,7 +646,7 @@ However, 68\% of gaps still exceed the 7\,s RRC timer for thinking models, confi
 \section{Discussion and Conclusion}
 \label{sec:discussion}
 
-We revisit the three research questions posed in Section~\ref{sec:introduction}.
+Our measurements span seven models, four benchmarks, and seven network conditions. We now revisit the three research questions posed in Section~\ref{sec:introduction}.
 
 \textbf{Q1: What is the true cost of agentic loops across deployment architectures?}
 Agentic workloads are compute-dominated. Cloud deployment via SGLang provides 2--3$\times$ lower latency than local MLX inference for most models, and network overhead adds less than 4\% even at 500\,ms RTT.
@@ -665,7 +668,7 @@ The two mechanisms are complementary: thinking budgets reduce compute cost, whil
 Based on our findings, we distill guidelines across three dimensions:
 
 \emph{Deployment.}
-For models above 1B parameters without architecture-specific local advantages, cloud offloading is preferred---compute savings dominate network costs.
+For models above 1B parameters without architecture-specific local advantages, cloud offloading is preferred because compute savings dominate network costs.
 The cost-aware placement rule (TPS ratio + model size) suffices; bandwidth monitoring adds no value.
 
 \emph{Inference.}
@@ -680,7 +683,7 @@ Application-layer solutions---batching tool outputs, local reasoning with cloud-
 \noindent\textbf{Limitations.}
 Our evaluation covers code-generation and question-answering tasks; extending to multi-modal agents and longer-horizon planning would broaden applicability.
 Network conditions are simulated rather than measured on real cellular networks.
-Mobile phone evaluation (performed in our prior work on iPhone and Android) is not included in the architecture comparison because SGLang and vLLM lack mobile ports.
+Mobile phone evaluation (performed in our prior work on iPhone and Android) is excluded from the architecture comparison because SGLang and vLLM lack mobile ports.
 The RRC energy model uses standard 3GPP parameters; operator-specific configurations may differ.
 
 \medskip
@@ -693,7 +696,7 @@ Three directions follow from our findings:
 \begin{insightbox}{Compute dominance simplifies deployment}
 For current agentic workloads with models up to 4B parameters, the deployment decision is driven by compute availability and energy cost, not network conditions.
 A two-signal placement rule (TPS ratio, model size) achieves near-oracle performance.
-The networking challenge is not latency or bandwidth but radio energy waste from structural timing mismatches between agentic inference patterns and cellular RRC state machines.
+The networking challenge is not latency or bandwidth but radio energy waste from timing mismatches between inference patterns and cellular RRC state machines.
 \end{insightbox}
 
 \bibliographystyle{ACM-Reference-Format}

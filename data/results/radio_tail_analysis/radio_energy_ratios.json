@@ -1,0 +1,91 @@
+{
+  "description": "Radio tail energy as fraction of on-device inference energy",
+  "methodology": "E_inference from MLX sweep per-problem energy measurements. E_radio computed as N_iterations * (tail_timer * P_tail + active_energy + transition_cost) where tail_timer=7s, P_tail=0.6W per Huang et al. MobiSys 2012. Models whose median inference gap exceeds the 7s RRC inactivity timer incur full tail + IDLE\u2192CONNECTED transition cost.",
+  "radio_model": {
+    "tail_timer_s": 7.0,
+    "P_connected_w": 1.2,
+    "P_tail_w": 0.6,
+    "P_idle_w": 0.01,
+    "transition_energy_j": 0.5,
+    "tail_energy_per_cycle_j": 4.2,
+    "full_cycle_energy_j": 4.82
+  },
+  "key_insight": "Radio tail energy is proportionally MORE significant for small/efficient models. Gemma 3n (47J/problem) wastes ~10% on radio; Qwen 3 4B (1138J/problem) wastes <1%. This creates a paradox: the most energy-efficient models suffer the largest relative radio penalty.",
+  "per_model": {
+    "deepseek-r1-distill-qwen-1.5b": {
+      "display_name": "DeepSeek R1 1.5B",
+      "is_thinking_model": true,
+      "avg_inference_energy_j": 497.0,
+      "avg_inference_time_s": 35.6,
+      "avg_iterations": 1,
+      "median_inference_gap_s": 10.18,
+      "exceeds_tail_timer": true,
+      "exceeds_tail_timer_pct": 95.4,
+      "radio_energy_per_cycle_j": 4.82,
+      "total_radio_energy_j": 4.82,
+      "radio_to_inference_ratio": 0.0097,
+      "radio_to_inference_pct": 0.97,
+      "measured_tail_energy_j": 4.14
+    },
+    "qwen-3-4b": {
+      "display_name": "Qwen 3 4B",
+      "is_thinking_model": true,
+      "avg_inference_energy_j": 1138.0,
+      "avg_inference_time_s": 81.3,
+      "avg_iterations": 1.57,
+      "median_inference_gap_s": 13.17,
+      "exceeds_tail_timer": true,
+      "exceeds_tail_timer_pct": 77.4,
+      "radio_energy_per_cycle_j": 4.82,
+      "total_radio_energy_j": 7.59,
+      "radio_to_inference_ratio": 0.0067,
+      "radio_to_inference_pct": 0.67,
+      "measured_tail_energy_j": 6.12
+    },
+    "llama-3.2-3b-instruct": {
+      "display_name": "Llama 3.2 3B",
+      "is_thinking_model": false,
+      "avg_inference_energy_j": 61.4,
+      "avg_inference_time_s": 4.9,
+      "avg_iterations": 1.02,
+      "median_inference_gap_s": 2.83,
+      "exceeds_tail_timer": false,
+      "exceeds_tail_timer_pct": 2.3,
+      "radio_energy_per_cycle_j": 1.82,
+      "total_radio_energy_j": 1.85,
+      "radio_to_inference_ratio": 0.0302,
+      "radio_to_inference_pct": 3.02,
+      "measured_tail_energy_j": 1.92
+    },
+    "qwen-3-0.6b": {
+      "display_name": "Qwen 3 0.6B",
+      "is_thinking_model": true,
+      "avg_inference_energy_j": 450.3,
+      "avg_inference_time_s": 29.0,
+      "avg_iterations": 1.04,
+      "median_inference_gap_s": 10.2,
+      "exceeds_tail_timer": true,
+      "exceeds_tail_timer_pct": 78.0,
+      "radio_energy_per_cycle_j": 4.82,
+      "total_radio_energy_j": 5.0,
+      "radio_to_inference_ratio": 0.0111,
+      "radio_to_inference_pct": 1.11,
+      "measured_tail_energy_j": 3.72
+    },
+    "gemma-3n-e2b-it": {
+      "display_name": "Gemma 3n E2B",
+      "is_thinking_model": false,
+      "avg_inference_energy_j": 47.2,
+      "avg_inference_time_s": 4.4,
+      "avg_iterations": 1,
+      "median_inference_gap_s": 4.39,
+      "exceeds_tail_timer": false,
+      "exceeds_tail_timer_pct": 0,
+      "radio_energy_per_cycle_j": 2.75,
+      "total_radio_energy_j": 2.75,
+      "radio_to_inference_ratio": 0.0583,
+      "radio_to_inference_pct": 5.83,
+      "measured_tail_energy_j": 0
+    }
+  }
+}

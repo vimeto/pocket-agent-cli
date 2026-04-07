@@ -1,0 +1,74 @@
+{
+  "description": "Comparison of agentic LLM traffic with established mobile traffic classes in terms of RRC state machine interaction",
+  "key_finding": "Agentic LLM traffic with thinking models creates a uniquely problematic traffic class: unlike messaging (sporadic, human-driven), thinking model gaps are systematic and predictable (10-30s, determined by model size and problem difficulty). Unlike video streaming (periodic, within-timer), thinking gaps consistently exceed the RRC timer. This systematic timer exceedance is a structural property of chain-of-thought inference, not random.",
+  "traffic_classes": [
+    {
+      "traffic_class": "Web browsing",
+      "description": "HTTP page loads with embedded objects",
+      "inter_request_gap_range_s": "0.1-2",
+      "typical_gap_s": 0.5,
+      "exceeds_7s_timer_pct": 5,
+      "radio_tail_waste_pct": 5,
+      "source": "Qian et al. MobiSys 2011; Falaki et al. MobiSys 2010",
+      "pattern": "Bursty, clustered transfers with short gaps"
+    },
+    {
+      "traffic_class": "Video streaming (adaptive)",
+      "description": "DASH/HLS segment downloads",
+      "inter_request_gap_range_s": "0-4",
+      "typical_gap_s": 2.0,
+      "exceeds_7s_timer_pct": 0,
+      "radio_tail_waste_pct": 2,
+      "source": "Rao et al. IMC 2011",
+      "pattern": "Periodic segment fetches, gap = segment duration"
+    },
+    {
+      "traffic_class": "Messaging / social media",
+      "description": "Push notifications, message sends/receives",
+      "inter_request_gap_range_s": "10-60",
+      "typical_gap_s": 30,
+      "exceeds_7s_timer_pct": 60,
+      "radio_tail_waste_pct": 30,
+      "source": "Xu et al. IMC 2011",
+      "pattern": "Sporadic, human-driven timing"
+    },
+    {
+      "traffic_class": "Background sync",
+      "description": "Email sync, app updates, telemetry",
+      "inter_request_gap_range_s": "60-900",
+      "typical_gap_s": 300,
+      "exceeds_7s_timer_pct": 99,
+      "radio_tail_waste_pct": 50,
+      "source": "Qian et al. MobiSys 2011",
+      "pattern": "Periodic, long intervals, small payloads"
+    },
+    {
+      "traffic_class": "Agentic LLM (non-thinking)",
+      "description": "On-device inference with tool use, no chain-of-thought",
+      "inter_request_gap_range_s": "1-14",
+      "typical_gap_s": 2.8,
+      "exceeds_7s_timer_pct": 2.3,
+      "radio_tail_waste_pct": 2.3,
+      "source": "This work (Llama 3.2 3B, Gemma 3n measurements)",
+      "pattern": "Fast inference (2-5s), bursty within sessions",
+      "is_measured": true
+    },
+    {
+      "traffic_class": "Agentic LLM (thinking)",
+      "description": "On-device inference with chain-of-thought reasoning",
+      "inter_request_gap_range_s": "2-71",
+      "typical_gap_s": 11.7,
+      "exceeds_7s_timer_pct": 83.6,
+      "radio_tail_waste_pct": 83.6,
+      "source": "This work (Qwen 3 4B, DeepSeek R1 1.5B, Qwen 3 0.6B measurements)",
+      "pattern": "Long inference gaps (10-30s), systematic timer exceedance",
+      "is_measured": true
+    }
+  ],
+  "comparison_dimensions": [
+    "inter_request_gap_range_s",
+    "typical_gap_s",
+    "exceeds_7s_timer_pct",
+    "radio_tail_waste_pct"
+  ]
+}

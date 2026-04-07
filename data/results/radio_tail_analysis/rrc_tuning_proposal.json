@@ -1,0 +1,695 @@
+{
+  "description": "RRC inactivity timer tuning proposal for agentic AI traffic. Evaluates the energy impact of different timer values for thinking vs non-thinking LLM workloads.",
+  "current_standard_timer_s": 7.0,
+  "reference": "Huang et al., MobiSys 2012 \u2014 LTE RRC state machine model",
+  "key_proposal": "For thinking models with 10-70s inference gaps, no single RRC timer value can efficiently handle the traffic. Shorter timers (e.g. 5s) minimize wasted tail energy but guarantee IDLE transitions. Longer timers (e.g. 30s) reduce transitions but waste energy in DRX tail state for the remaining gaps that still exceed the timer. The fundamental problem is structural: thinking model inference gaps are an order of magnitude longer than the gaps network-layer timers are designed for. Application-layer solutions (early-exit, radio-aware inference scheduling) are more effective than timer tuning alone.",
+  "trade_off": "Extending the tail timer keeps the radio in a higher-power DRX state longer, but avoids the costly IDLE->CONNECTED promotion. For thinking models, the gap distribution spans 10-70s, so even a 30s timer still misses ~50% of gaps. The net energy cost of extending the timer increases roughly linearly with timer value because most gaps far exceed even the extended timer.",
+  "optimal_timer_thinking_s": 5,
+  "optimal_timer_non_thinking_s": 5,
+  "timer_proposals": [
+    {
+      "timer_s": 5,
+      "per_model": {
+        "deepseek-r1-distill-qwen-1.5b": {
+          "display_name": "DeepSeek R1 1.5B",
+          "n_problems": 150,
+          "exceeds_timer_pct_current": 90.7,
+          "exceeds_timer_pct_proposed": 97.3,
+          "avg_radio_energy_current_j": 4.692,
+          "avg_radio_energy_proposed_j": 3.591,
+          "energy_change_pct": -23.5,
+          "transition_reduction_pct": -7.4
+        },
+        "qwen-3-4b": {
+          "display_name": "Qwen 3 4B",
+          "n_problems": 150,
+          "exceeds_timer_pct_current": 99.3,
+          "exceeds_timer_pct_proposed": 99.3,
+          "avg_radio_energy_current_j": 4.805,
+          "avg_radio_energy_proposed_j": 3.613,
+          "energy_change_pct": -24.8,
+          "transition_reduction_pct": 0.0
+        },
+        "llama-3.2-3b-instruct": {
+          "display_name": "Llama 3.2 3B",
+          "n_problems": 150,
+          "exceeds_timer_pct_current": 12.7,
+          "exceeds_timer_pct_proposed": 34.0,
+          "avg_radio_energy_current_j": 2.953,
+          "avg_radio_energy_proposed_j": 2.774,
+          "energy_change_pct": -6.1,
+          "transition_reduction_pct": -168.4
+        },
+        "qwen-3-0.6b": {
+          "display_name": "Qwen 3 0.6B",
+          "n_problems": 150,
+          "exceeds_timer_pct_current": 80.7,
+          "exceeds_timer_pct_proposed": 89.3,
+          "avg_radio_energy_current_j": 4.472,
+          "avg_radio_energy_proposed_j": 3.486,
+          "energy_change_pct": -22.1,
+          "transition_reduction_pct": -10.7
+        },
+        "gemma-3n-e2b-it": {
+          "display_name": "Gemma 3n E2B",
+          "n_problems": 150,
+          "exceeds_timer_pct_current": 5.3,
+          "exceeds_timer_pct_proposed": 21.3,
+          "avg_radio_energy_current_j": 2.669,
+          "avg_radio_energy_proposed_j": 2.589,
+          "energy_change_pct": -3.0,
+          "transition_reduction_pct": -300.0
+        }
+      },
+      "aggregate": {
+        "total_problems": 750,
+        "avg_radio_energy_current_j": 3.918,
+        "avg_radio_energy_proposed_j": 3.211,
+        "energy_change_pct": -18.1,
+        "transitions_current": 433,
+        "transitions_proposed": 512,
+        "transition_reduction_pct": -18.2
+      },
+      "thinking_aggregate": {
+        "avg_radio_energy_j": 3.563,
+        "transitions_current": 405,
+        "transitions_proposed": 426,
+        "transition_reduction_pct": -5.2
+      },
+      "non_thinking_aggregate": {
+        "avg_radio_energy_j": 2.681,
+        "transitions_current": 26,
+        "transitions_proposed": 82,
+        "transition_reduction_pct": -215.4
+      }
+    },
+    {
+      "timer_s": 7,
+      "per_model": {
+        "deepseek-r1-distill-qwen-1.5b": {
+          "display_name": "DeepSeek R1 1.5B",
+          "n_problems": 150,
+          "exceeds_timer_pct_current": 90.7,
+          "exceeds_timer_pct_proposed": 90.7,
+          "avg_radio_energy_current_j": 4.692,
+          "avg_radio_energy_proposed_j": 4.692,
+          "energy_change_pct": 0.0,
+          "transition_reduction_pct": 0.0
+        },
+        "qwen-3-4b": {
+          "display_name": "Qwen 3 4B",
+          "n_problems": 150,
+          "exceeds_timer_pct_current": 99.3,
+          "exceeds_timer_pct_proposed": 99.3,
+          "avg_radio_energy_current_j": 4.805,
+          "avg_radio_energy_proposed_j": 4.805,
+          "energy_change_pct": 0.0,
+          "transition_reduction_pct": 0.0
+        },
+        "llama-3.2-3b-instruct": {
+          "display_name": "Llama 3.2 3B",
+          "n_problems": 150,
+          "exceeds_timer_pct_current": 12.7,
+          "exceeds_timer_pct_proposed": 12.7,
+          "avg_radio_energy_current_j": 2.953,
+          "avg_radio_energy_proposed_j": 2.953,
+          "energy_change_pct": 0.0,
+          "transition_reduction_pct": 0.0
+        },
+        "qwen-3-0.6b": {
+          "display_name": "Qwen 3 0.6B",
+          "n_problems": 150,
+          "exceeds_timer_pct_current": 80.7,
+          "exceeds_timer_pct_proposed": 80.7,
+          "avg_radio_energy_current_j": 4.472,
+          "avg_radio_energy_proposed_j": 4.472,
+          "energy_change_pct": 0.0,
+          "transition_reduction_pct": 0.0
+        },
+        "gemma-3n-e2b-it": {
+          "display_name": "Gemma 3n E2B",
+          "n_problems": 150,
+          "exceeds_timer_pct_current": 5.3,
+          "exceeds_timer_pct_proposed": 5.3,
+          "avg_radio_energy_current_j": 2.669,
+          "avg_radio_energy_proposed_j": 2.669,
+          "energy_change_pct": 0.0,
+          "transition_reduction_pct": 0.0
+        }
+      },
+      "aggregate": {
+        "total_problems": 750,
+        "avg_radio_energy_current_j": 3.918,
+        "avg_radio_energy_proposed_j": 3.918,
+        "energy_change_pct": 0.0,
+        "transitions_current": 433,
+        "transitions_proposed": 433,
+        "transition_reduction_pct": 0.0
+      },
+      "thinking_aggregate": {
+        "avg_radio_energy_j": 4.656,
+        "transitions_current": 405,
+        "transitions_proposed": 405,
+        "transition_reduction_pct": 0.0
+      },
+      "non_thinking_aggregate": {
+        "avg_radio_energy_j": 2.811,
+        "transitions_current": 26,
+        "transitions_proposed": 26,
+        "transition_reduction_pct": 0.0
+      }
+    },
+    {
+      "timer_s": 10,
+      "per_model": {
+        "deepseek-r1-distill-qwen-1.5b": {
+          "display_name": "DeepSeek R1 1.5B",
+          "n_problems": 150,
+          "exceeds_timer_pct_current": 90.7,
+          "exceeds_timer_pct_proposed": 82.0,
+          "avg_radio_energy_current_j": 4.692,
+          "avg_radio_energy_proposed_j": 6.193,
+          "energy_change_pct": 32.0,
+          "transition_reduction_pct": 9.6
+        },
+        "qwen-3-4b": {
+          "display_name": "Qwen 3 4B",
+          "n_problems": 150,
+          "exceeds_timer_pct_current": 99.3,
+          "exceeds_timer_pct_proposed": 98.7,
+          "avg_radio_energy_current_j": 4.805,
+          "avg_radio_energy_proposed_j": 6.582,
+          "energy_change_pct": 37.0,
+          "transition_reduction_pct": 0.7
+        },
+        "llama-3.2-3b-instruct": {
+          "display_name": "Llama 3.2 3B",
+          "n_problems": 150,
+          "exceeds_timer_pct_current": 12.7,
+          "exceeds_timer_pct_proposed": 4.0,
+          "avg_radio_energy_current_j": 2.953,
+          "avg_radio_energy_proposed_j": 3.036,
+          "energy_change_pct": 2.8,
+          "transition_reduction_pct": 68.4
+        },
+        "qwen-3-0.6b": {
+          "display_name": "Qwen 3 0.6B",
+          "n_problems": 150,
+          "exceeds_timer_pct_current": 80.7,
+          "exceeds_timer_pct_proposed": 76.7,
+          "avg_radio_energy_current_j": 4.472,
+          "avg_radio_energy_proposed_j": 5.862,
+          "energy_change_pct": 31.1,
+          "transition_reduction_pct": 5.0
+        },
+        "gemma-3n-e2b-it": {
+          "display_name": "Gemma 3n E2B",
+          "n_problems": 150,
+          "exceeds_timer_pct_current": 5.3,
+          "exceeds_timer_pct_proposed": 1.3,
+          "avg_radio_energy_current_j": 2.669,
+          "avg_radio_energy_proposed_j": 2.699,
+          "energy_change_pct": 1.1,
+          "transition_reduction_pct": 75.0
+        }
+      },
+      "aggregate": {
+        "total_problems": 750,
+        "avg_radio_energy_current_j": 3.918,
+        "avg_radio_energy_proposed_j": 4.874,
+        "energy_change_pct": 24.4,
+        "transitions_current": 433,
+        "transitions_proposed": 394,
+        "transition_reduction_pct": 9.0
+      },
+      "thinking_aggregate": {
+        "avg_radio_energy_j": 6.212,
+        "transitions_current": 405,
+        "transitions_proposed": 385,
+        "transition_reduction_pct": 4.9
+      },
+      "non_thinking_aggregate": {
+        "avg_radio_energy_j": 2.867,
+        "transitions_current": 26,
+        "transitions_proposed": 7,
+        "transition_reduction_pct": 73.1
+      }
+    },
+    {
+      "timer_s": 15,
+      "per_model": {
+        "deepseek-r1-distill-qwen-1.5b": {
+          "display_name": "DeepSeek R1 1.5B",
+          "n_problems": 150,
+          "exceeds_timer_pct_current": 90.7,
+          "exceeds_timer_pct_proposed": 74.0,
+          "avg_radio_energy_current_j": 4.692,
+          "avg_radio_energy_proposed_j": 8.54,
+          "energy_change_pct": 82.0,
+          "transition_reduction_pct": 18.4
+        },
+        "qwen-3-4b": {
+          "display_name": "Qwen 3 4B",
+          "n_problems": 150,
+          "exceeds_timer_pct_current": 99.3,
+          "exceeds_timer_pct_proposed": 96.7,
+          "avg_radio_energy_current_j": 4.805,
+          "avg_radio_energy_proposed_j": 9.504,
+          "energy_change_pct": 97.8,
+          "transition_reduction_pct": 2.7
+        },
+        "llama-3.2-3b-instruct": {
+          "display_name": "Llama 3.2 3B",
+          "n_problems": 150,
+          "exceeds_timer_pct_current": 12.7,
+          "exceeds_timer_pct_proposed": 0.7,
+          "avg_radio_energy_current_j": 2.953,
+          "avg_radio_energy_proposed_j": 3.04,
+          "energy_change_pct": 2.9,
+          "transition_reduction_pct": 94.7
+        },
+        "qwen-3-0.6b": {
+          "display_name": "Qwen 3 0.6B",
+          "n_problems": 150,
+          "exceeds_timer_pct_current": 80.7,
+          "exceeds_timer_pct_proposed": 68.7,
+          "avg_radio_energy_current_j": 4.472,
+          "avg_radio_energy_proposed_j": 7.971,
+          "energy_change_pct": 78.2,
+          "transition_reduction_pct": 14.9
+        },
+        "gemma-3n-e2b-it": {
+          "display_name": "Gemma 3n E2B",
+          "n_problems": 150,
+          "exceeds_timer_pct_current": 5.3,
+          "exceeds_timer_pct_proposed": 1.3,
+          "avg_radio_energy_current_j": 2.669,
+          "avg_radio_energy_proposed_j": 2.739,
+          "energy_change_pct": 2.6,
+          "transition_reduction_pct": 75.0
+        }
+      },
+      "aggregate": {
+        "total_problems": 750,
+        "avg_radio_energy_current_j": 3.918,
+        "avg_radio_energy_proposed_j": 6.359,
+        "energy_change_pct": 62.3,
+        "transitions_current": 433,
+        "transitions_proposed": 362,
+        "transition_reduction_pct": 16.4
+      },
+      "thinking_aggregate": {
+        "avg_radio_energy_j": 8.672,
+        "transitions_current": 405,
+        "transitions_proposed": 359,
+        "transition_reduction_pct": 11.4
+      },
+      "non_thinking_aggregate": {
+        "avg_radio_energy_j": 2.889,
+        "transitions_current": 26,
+        "transitions_proposed": 2,
+        "transition_reduction_pct": 92.3
+      }
+    },
+    {
+      "timer_s": 20,
+      "per_model": {
+        "deepseek-r1-distill-qwen-1.5b": {
+          "display_name": "DeepSeek R1 1.5B",
+          "n_problems": 150,
+          "exceeds_timer_pct_current": 90.7,
+          "exceeds_timer_pct_proposed": 62.7,
+          "avg_radio_energy_current_j": 4.692,
+          "avg_radio_energy_proposed_j": 10.476,
+          "energy_change_pct": 123.3,
+          "transition_reduction_pct": 30.9
+        },
+        "qwen-3-4b": {
+          "display_name": "Qwen 3 4B",
+          "n_problems": 150,
+          "exceeds_timer_pct_current": 99.3,
+          "exceeds_timer_pct_proposed": 90.7,
+          "avg_radio_energy_current_j": 4.805,
+          "avg_radio_energy_proposed_j": 12.272,
+          "energy_change_pct": 155.4,
+          "transition_reduction_pct": 8.7
+        },
+        "llama-3.2-3b-instruct": {
+          "display_name": "Llama 3.2 3B",
+          "n_problems": 150,
+          "exceeds_timer_pct_current": 12.7,
+          "exceeds_timer_pct_proposed": 0.7,
+          "avg_radio_energy_current_j": 2.953,
+          "avg_radio_energy_proposed_j": 3.06,
+          "energy_change_pct": 3.6,
+          "transition_reduction_pct": 94.7
+        },
+        "qwen-3-0.6b": {
+          "display_name": "Qwen 3 0.6B",
+          "n_problems": 150,
+          "exceeds_timer_pct_current": 80.7,
+          "exceeds_timer_pct_proposed": 63.3,
+          "avg_radio_energy_current_j": 4.472,
+          "avg_radio_energy_proposed_j": 9.896,
+          "energy_change_pct": 121.3,
+          "transition_reduction_pct": 21.5
+        },
+        "gemma-3n-e2b-it": {
+          "display_name": "Gemma 3n E2B",
+          "n_problems": 150,
+          "exceeds_timer_pct_current": 5.3,
+          "exceeds_timer_pct_proposed": 0.0,
+          "avg_radio_energy_current_j": 2.669,
+          "avg_radio_energy_proposed_j": 2.753,
+          "energy_change_pct": 3.2,
+          "transition_reduction_pct": 100.0
+        }
+      },
+      "aggregate": {
+        "total_problems": 750,
+        "avg_radio_energy_current_j": 3.918,
+        "avg_radio_energy_proposed_j": 7.691,
+        "energy_change_pct": 96.3,
+        "transitions_current": 433,
+        "transitions_proposed": 326,
+        "transition_reduction_pct": 24.7
+      },
+      "thinking_aggregate": {
+        "avg_radio_energy_j": 10.881,
+        "transitions_current": 405,
+        "transitions_proposed": 324,
+        "transition_reduction_pct": 20.0
+      },
+      "non_thinking_aggregate": {
+        "avg_radio_energy_j": 2.907,
+        "transitions_current": 26,
+        "transitions_proposed": 1,
+        "transition_reduction_pct": 96.2
+      }
+    },
+    {
+      "timer_s": 25,
+      "per_model": {
+        "deepseek-r1-distill-qwen-1.5b": {
+          "display_name": "DeepSeek R1 1.5B",
+          "n_problems": 150,
+          "exceeds_timer_pct_current": 90.7,
+          "exceeds_timer_pct_proposed": 56.0,
+          "avg_radio_energy_current_j": 4.692,
+          "avg_radio_energy_proposed_j": 12.201,
+          "energy_change_pct": 160.0,
+          "transition_reduction_pct": 38.2
+        },
+        "qwen-3-4b": {
+          "display_name": "Qwen 3 4B",
+          "n_problems": 150,
+          "exceeds_timer_pct_current": 99.3,
+          "exceeds_timer_pct_proposed": 82.7,
+          "avg_radio_energy_current_j": 4.805,
+          "avg_radio_energy_proposed_j": 14.792,
+          "energy_change_pct": 207.9,
+          "transition_reduction_pct": 16.8
+        },
+        "llama-3.2-3b-instruct": {
+          "display_name": "Llama 3.2 3B",
+          "n_problems": 150,
+          "exceeds_timer_pct_current": 12.7,
+          "exceeds_timer_pct_proposed": 0.0,
+          "avg_radio_energy_current_j": 2.953,
+          "avg_radio_energy_proposed_j": 3.073,
+          "energy_change_pct": 4.0,
+          "transition_reduction_pct": 100.0
+        },
+        "qwen-3-0.6b": {
+          "display_name": "Qwen 3 0.6B",
+          "n_problems": 150,
+          "exceeds_timer_pct_current": 80.7,
+          "exceeds_timer_pct_proposed": 55.3,
+          "avg_radio_energy_current_j": 4.472,
+          "avg_radio_energy_proposed_j": 11.651,
+          "energy_change_pct": 160.5,
+          "transition_reduction_pct": 31.4
+        },
+        "gemma-3n-e2b-it": {
+          "display_name": "Gemma 3n E2B",
+          "n_problems": 150,
+          "exceeds_timer_pct_current": 5.3,
+          "exceeds_timer_pct_proposed": 0.0,
+          "avg_radio_energy_current_j": 2.669,
+          "avg_radio_energy_proposed_j": 2.753,
+          "energy_change_pct": 3.2,
+          "transition_reduction_pct": 100.0
+        }
+      },
+      "aggregate": {
+        "total_problems": 750,
+        "avg_radio_energy_current_j": 3.918,
+        "avg_radio_energy_proposed_j": 8.894,
+        "energy_change_pct": 127.0,
+        "transitions_current": 433,
+        "transitions_proposed": 291,
+        "transition_reduction_pct": 32.8
+      },
+      "thinking_aggregate": {
+        "avg_radio_energy_j": 12.881,
+        "transitions_current": 405,
+        "transitions_proposed": 290,
+        "transition_reduction_pct": 28.4
+      },
+      "non_thinking_aggregate": {
+        "avg_radio_energy_j": 2.913,
+        "transitions_current": 26,
+        "transitions_proposed": 0,
+        "transition_reduction_pct": 100.0
+      }
+    },
+    {
+      "timer_s": 30,
+      "per_model": {
+        "deepseek-r1-distill-qwen-1.5b": {
+          "display_name": "DeepSeek R1 1.5B",
+          "n_problems": 150,
+          "exceeds_timer_pct_current": 90.7,
+          "exceeds_timer_pct_proposed": 50.0,
+          "avg_radio_energy_current_j": 4.692,
+          "avg_radio_energy_proposed_j": 13.779,
+          "energy_change_pct": 193.7,
+          "transition_reduction_pct": 44.9
+        },
+        "qwen-3-4b": {
+          "display_name": "Qwen 3 4B",
+          "n_problems": 150,
+          "exceeds_timer_pct_current": 99.3,
+          "exceeds_timer_pct_proposed": 76.7,
+          "avg_radio_energy_current_j": 4.805,
+          "avg_radio_energy_proposed_j": 17.125,
+          "energy_change_pct": 256.4,
+          "transition_reduction_pct": 22.8
+        },
+        "llama-3.2-3b-instruct": {
+          "display_name": "Llama 3.2 3B",
+          "n_problems": 150,
+          "exceeds_timer_pct_current": 12.7,
+          "exceeds_timer_pct_proposed": 0.0,
+          "avg_radio_energy_current_j": 2.953,
+          "avg_radio_energy_proposed_j": 3.073,
+          "energy_change_pct": 4.0,
+          "transition_reduction_pct": 100.0
+        },
+        "qwen-3-0.6b": {
+          "display_name": "Qwen 3 0.6B",
+          "n_problems": 150,
+          "exceeds_timer_pct_current": 80.7,
+          "exceeds_timer_pct_proposed": 53.3,
+          "avg_radio_energy_current_j": 4.472,
+          "avg_radio_energy_proposed_j": 13.297,
+          "energy_change_pct": 197.3,
+          "transition_reduction_pct": 33.9
+        },
+        "gemma-3n-e2b-it": {
+          "display_name": "Gemma 3n E2B",
+          "n_problems": 150,
+          "exceeds_timer_pct_current": 5.3,
+          "exceeds_timer_pct_proposed": 0.0,
+          "avg_radio_energy_current_j": 2.669,
+          "avg_radio_energy_proposed_j": 2.753,
+          "energy_change_pct": 3.2,
+          "transition_reduction_pct": 100.0
+        }
+      },
+      "aggregate": {
+        "total_problems": 750,
+        "avg_radio_energy_current_j": 3.918,
+        "avg_radio_energy_proposed_j": 10.006,
+        "energy_change_pct": 155.4,
+        "transitions_current": 433,
+        "transitions_proposed": 270,
+        "transition_reduction_pct": 37.6
+      },
+      "thinking_aggregate": {
+        "avg_radio_energy_j": 14.734,
+        "transitions_current": 405,
+        "transitions_proposed": 269,
+        "transition_reduction_pct": 33.6
+      },
+      "non_thinking_aggregate": {
+        "avg_radio_energy_j": 2.913,
+        "transitions_current": 26,
+        "transitions_proposed": 0,
+        "transition_reduction_pct": 100.0
+      }
+    },
+    {
+      "timer_s": 45,
+      "per_model": {
+        "deepseek-r1-distill-qwen-1.5b": {
+          "display_name": "DeepSeek R1 1.5B",
+          "n_problems": 150,
+          "exceeds_timer_pct_current": 90.7,
+          "exceeds_timer_pct_proposed": 41.3,
+          "avg_radio_energy_current_j": 4.692,
+          "avg_radio_energy_proposed_j": 18.001,
+          "energy_change_pct": 283.7,
+          "transition_reduction_pct": 54.4
+        },
+        "qwen-3-4b": {
+          "display_name": "Qwen 3 4B",
+          "n_problems": 150,
+          "exceeds_timer_pct_current": 99.3,
+          "exceeds_timer_pct_proposed": 57.3,
+          "avg_radio_energy_current_j": 4.805,
+          "avg_radio_energy_proposed_j": 22.987,
+          "energy_change_pct": 378.4,
+          "transition_reduction_pct": 42.3
+        },
+        "llama-3.2-3b-instruct": {
+          "display_name": "Llama 3.2 3B",
+          "n_problems": 150,
+          "exceeds_timer_pct_current": 12.7,
+          "exceeds_timer_pct_proposed": 0.0,
+          "avg_radio_energy_current_j": 2.953,
+          "avg_radio_energy_proposed_j": 3.073,
+          "energy_change_pct": 4.0,
+          "transition_reduction_pct": 100.0
+        },
+        "qwen-3-0.6b": {
+          "display_name": "Qwen 3 0.6B",
+          "n_problems": 150,
+          "exceeds_timer_pct_current": 80.7,
+          "exceeds_timer_pct_proposed": 36.7,
+          "avg_radio_energy_current_j": 4.472,
+          "avg_radio_energy_proposed_j": 17.308,
+          "energy_change_pct": 287.0,
+          "transition_reduction_pct": 54.5
+        },
+        "gemma-3n-e2b-it": {
+          "display_name": "Gemma 3n E2B",
+          "n_problems": 150,
+          "exceeds_timer_pct_current": 5.3,
+          "exceeds_timer_pct_proposed": 0.0,
+          "avg_radio_energy_current_j": 2.669,
+          "avg_radio_energy_proposed_j": 2.753,
+          "energy_change_pct": 3.2,
+          "transition_reduction_pct": 100.0
+        }
+      },
+      "aggregate": {
+        "total_problems": 750,
+        "avg_radio_energy_current_j": 3.918,
+        "avg_radio_energy_proposed_j": 12.824,
+        "energy_change_pct": 227.3,
+        "transitions_current": 433,
+        "transitions_proposed": 203,
+        "transition_reduction_pct": 53.1
+      },
+      "thinking_aggregate": {
+        "avg_radio_energy_j": 19.432,
+        "transitions_current": 405,
+        "transitions_proposed": 201,
+        "transition_reduction_pct": 50.4
+      },
+      "non_thinking_aggregate": {
+        "avg_radio_energy_j": 2.913,
+        "transitions_current": 26,
+        "transitions_proposed": 0,
+        "transition_reduction_pct": 100.0
+      }
+    },
+    {
+      "timer_s": 60,
+      "per_model": {
+        "deepseek-r1-distill-qwen-1.5b": {
+          "display_name": "DeepSeek R1 1.5B",
+          "n_problems": 150,
+          "exceeds_timer_pct_current": 90.7,
+          "exceeds_timer_pct_proposed": 16.7,
+          "avg_radio_energy_current_j": 4.692,
+          "avg_radio_energy_proposed_j": 21.381,
+          "energy_change_pct": 355.7,
+          "transition_reduction_pct": 81.6
+        },
+        "qwen-3-4b": {
+          "display_name": "Qwen 3 4B",
+          "n_problems": 150,
+          "exceeds_timer_pct_current": 99.3,
+          "exceeds_timer_pct_proposed": 49.3,
+          "avg_radio_energy_current_j": 4.805,
+          "avg_radio_energy_proposed_j": 27.717,
+          "energy_change_pct": 476.9,
+          "transition_reduction_pct": 50.3
+        },
+        "llama-3.2-3b-instruct": {
+          "display_name": "Llama 3.2 3B",
+          "n_problems": 150,
+          "exceeds_timer_pct_current": 12.7,
+          "exceeds_timer_pct_proposed": 0.0,
+          "avg_radio_energy_current_j": 2.953,
+          "avg_radio_energy_proposed_j": 3.073,
+          "energy_change_pct": 4.0,
+          "transition_reduction_pct": 100.0
+        },
+        "qwen-3-0.6b": {
+          "display_name": "Qwen 3 0.6B",
+          "n_problems": 150,
+          "exceeds_timer_pct_current": 80.7,
+          "exceeds_timer_pct_proposed": 0.0,
+          "avg_radio_energy_current_j": 4.472,
+          "avg_radio_energy_proposed_j": 17.5,
+          "energy_change_pct": 291.3,
+          "transition_reduction_pct": 100.0
+        },
+        "gemma-3n-e2b-it": {
+          "display_name": "Gemma 3n E2B",
+          "n_problems": 150,
+          "exceeds_timer_pct_current": 5.3,
+          "exceeds_timer_pct_proposed": 0.0,
+          "avg_radio_energy_current_j": 2.669,
+          "avg_radio_energy_proposed_j": 2.753,
+          "energy_change_pct": 3.2,
+          "transition_reduction_pct": 100.0
+        }
+      },
+      "aggregate": {
+        "total_problems": 750,
+        "avg_radio_energy_current_j": 3.918,
+        "avg_radio_energy_proposed_j": 14.485,
+        "energy_change_pct": 269.7,
+        "transitions_current": 433,
+        "transitions_proposed": 99,
+        "transition_reduction_pct": 77.1
+      },
+      "thinking_aggregate": {
+        "avg_radio_energy_j": 22.199,
+        "transitions_current": 405,
+        "transitions_proposed": 98,
+        "transition_reduction_pct": 75.8
+      },
+      "non_thinking_aggregate": {
+        "avg_radio_energy_j": 2.913,
+        "transitions_current": 26,
+        "transitions_proposed": 0,
+        "transition_reduction_pct": 100.0
+      }
+    }
+  ]
+}

@@ -51,11 +51,11 @@ import httpx
 # ── Model config ─────────────────────────────────────────────────────────
 
 MODEL_DEF = {
-    "id": "qwen-3-4b",
-    "name": "Qwen 3 4B",
+    "id": "qwen-3.5-4b",
+    "name": "Qwen 3.5 4B",
     "arch": "qwen",
-    "hf_id": "Qwen/Qwen3-4B",
-    "local_port": 30001,
+    "hf_id": "Qwen/Qwen3.5-4B",
+    "local_port": 30006,
 }
 
 TOOL_DEFS = [

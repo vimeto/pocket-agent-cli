@@ -38,6 +38,7 @@ from pocket_agent_cli.datasets import mbpp, humaneval, gsm8k
 MODELS = [
     {"id": "qwen-3-4b", "name": "Qwen 3 4B", "arch": "qwen"},
     {"id": "qwen-3-0.6b", "name": "Qwen 3 0.6B", "arch": "qwen"},
+    {"id": "qwen-3.5-4b", "name": "Qwen 3.5 4B", "arch": "qwen"},
     {"id": "llama-3.2-3b-instruct", "name": "Llama 3.2 3B", "arch": "llama"},
     {"id": "deepseek-r1-distill-qwen-1.5b", "name": "DeepSeek R1 1.5B", "arch": "qwen"},
     {"id": "gemma-3n-e2b-it", "name": "Gemma 3n E2B", "arch": "gemma"},
@@ -356,6 +357,11 @@ def run_agentic_problem(service, messages, problem, model_def, prompt_config,
     tool_calls_total = 0
     ttft_first = None
     all_tps = []
+    # Accumulate energy data across iterations
+    total_energy_joules = 0.0
+    max_power_watts = 0.0
+    min_power_watts = float("inf")
+    energy_duration_s = 0.0
 
     for iteration in range(max_iterations):
         if time.time() - t0 > timeout_s:
@@ -369,6 +375,20 @@ def run_agentic_problem(service, messages, problem, model_def, prompt_config,
         all_tps.append(gen["tps"])
         if ttft_first is None:
             ttft_first = gen["ttft_ms"]
+
+        # Accumulate energy data from this iteration
+        iter_energy = gen.get("energy_summary")
+        if iter_energy and isinstance(iter_energy, dict):
+            total_energy_joules += iter_energy.get("total_energy_joules", 0)
+            # The unified monitor uses "duration_seconds" as the key
+            energy_duration_s += iter_energy.get("duration_seconds",
+                                   iter_energy.get("duration_s", 0))
+            pw = iter_energy.get("max_power_watts", 0)
+            if pw > max_power_watts:
+                max_power_watts = pw
+            pmn = iter_energy.get("min_power_watts", float("inf"))
+            if pmn < min_power_watts:
+                min_power_watts = pmn
 
         content = gen.get("raw_response", gen["response"])
         messages.append({"role": "assistant", "content": content})
@@ -427,6 +447,20 @@ def run_agentic_problem(service, messages, problem, model_def, prompt_config,
     else:
         evaluation = evaluate_code(submitted_code, problem.test_cases)
 
+    # Build aggregated energy summary
+    agg_energy = None
+    if total_energy_joules > 0:
+        avg_power = total_energy_joules / energy_duration_s if energy_duration_s > 0 else 0
+        agg_energy = {
+            "total_energy_joules": round(total_energy_joules, 4),
+            "total_energy_wh": round(total_energy_joules / 3600, 6),
+            "avg_power_watts": round(avg_power, 2),
+            "max_power_watts": round(max_power_watts, 3),
+            "min_power_watts": round(min_power_watts, 3) if min_power_watts != float("inf") else 0,
+            "duration_s": round(energy_duration_s, 2),
+            "iterations_aggregated": iterations,
+        }
+
     return {
         "problem_id": problem.task_id,
         "passed": evaluation["passed"],
@@ -440,6 +474,7 @@ def run_agentic_problem(service, messages, problem, model_def, prompt_config,
             "regular_tokens": total_regular,
             "thinking_ratio": round(total_thinking / total_tokens, 3) if total_tokens > 0 else 0,
             "elapsed_s": round(elapsed, 2),
+            "energy_summary": agg_energy,
         },
         "iterations": iterations,
         "tool_call_count": tool_calls_total,

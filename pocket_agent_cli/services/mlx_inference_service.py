@@ -41,6 +41,10 @@ MLX_MODEL_MAP = {
         "Q4_K_M": "mlx-community/Qwen3-0.6B-4bit",
         "F16": "Qwen/Qwen3-0.6B",
     },
+    "qwen-3.5-4b": {
+        "Q4_K_M": "mlx-community/Qwen3.5-4B-MLX-4bit",
+        "F16": "Qwen/Qwen3.5-4B",
+    },
 }
 
 

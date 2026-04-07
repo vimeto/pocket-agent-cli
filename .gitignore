@@ -69,3 +69,7 @@ uv.lock
 var/
 venv/
 wheels/
+research/paper.pdf
+research/paper.aux
+research/paper.bbl
+research/paper.out

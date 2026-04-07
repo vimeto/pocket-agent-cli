@@ -9,12 +9,14 @@ Compression Levels:
     1 (light):  Strip <think>...</think> from all previous assistant turns.
     2 (medium): Strip thinking + keep only last 2 assistant/tool turns.
     3 (heavy):  Strip thinking + keep only last 1 turn + truncate tool to 200 chars.
+    4 (structured): Rewrite history as structured "fix this code" prompt.
+    5 (error-only): Keep system + problem + only error type from last failure.
 
 Bandwidth Conditions:
     50 Mbps (good WiFi), 5 Mbps (poor 4G), 1 Mbps (edge case)
     RTT fixed at 80ms (4G).
 
-Total: 4 levels x 3 bandwidths x 50 problems = 600 agentic runs.
+Total: 6 levels x 3 bandwidths x 50 problems = 900 agentic runs.
 
 Usage:
     # Qwen 4B on SGLang (Mahti):
@@ -98,7 +100,7 @@ def strip_thinking(text: str) -> str:
     return re.sub(r'<think>.*', '', c, flags=re.DOTALL).strip()
 
 
-def compress_context(messages: List[Dict], level: int) -> List[Dict]:
+def compress_context(messages: List[Dict], level: int) -> Tuple[List[Dict], Dict[str, Any]]:
     """Compress message context at the given level.
 
     Level 0: No compression (baseline).
@@ -107,16 +109,21 @@ def compress_context(messages: List[Dict], level: int) -> List[Dict]:
              summarize older turns.
     Level 3: Strip thinking + keep only last 1 turn + truncate tool
              results to 200 chars.
+    Level 4: Structured context — rewrite history as "fix this code" prompt
+             with last code + last error.
+    Level 5: Error-only — keep system + problem + only the error type line.
 
     Args:
         messages: Full message history.
-        level: Compression level (0-3).
+        level: Compression level (0-5).
 
     Returns:
-        Compressed copy of messages.
+        Tuple of (compressed messages, metadata dict). Metadata includes
+        last_code_length and last_error_length for levels 4-5.
     """
+    metadata: Dict[str, Any] = {}
     if level == 0:
-        return [dict(m) for m in messages]
+        return [dict(m) for m in messages], metadata
 
     result = []
 
@@ -134,7 +141,7 @@ def compress_context(messages: List[Dict], level: int) -> List[Dict]:
                 result.append({**msg, "content": content.strip()})
             else:
                 result.append(dict(msg))
-        return result
+        return result, metadata
 
     if level == 2:
         # Strip thinking + keep only last 2 assistant/tool turns.
@@ -170,7 +177,7 @@ def compress_context(messages: List[Dict], level: int) -> List[Dict]:
 
         if len(assistant_indices) <= 2:
             # Few enough turns — keep all
-            return system_and_first_user + stripped_turns
+            return system_and_first_user + stripped_turns, metadata
 
         # Keep last 2 assistant turns and everything after the cut point
         cut_idx = assistant_indices[-2]
@@ -193,7 +200,7 @@ def compress_context(messages: List[Dict], level: int) -> List[Dict]:
         result = system_and_first_user
         result.append({"role": "user", "content": summary})
         result.extend(kept_turns)
-        return result
+        return result, metadata
 
     if level == 3:
         # Strip thinking + keep only last 1 turn + truncate tool results to 200 chars.
@@ -232,7 +239,7 @@ def compress_context(messages: List[Dict], level: int) -> List[Dict]:
         ]
 
         if len(assistant_indices) <= 1:
-            return system_and_first_user + stripped_turns
+            return system_and_first_user + stripped_turns, metadata
 
         cut_idx = assistant_indices[-1]
         old_turns = stripped_turns[:cut_idx]
@@ -253,7 +260,80 @@ def compress_context(messages: List[Dict], level: int) -> List[Dict]:
         result = system_and_first_user
         result.append({"role": "user", "content": summary})
         result.extend(kept_turns)
-        return result
+        return result, metadata
+
+    if level == 4:
+        # Structured context: system + original problem + structured debug prompt
+        # Replace ALL conversation history with "Your current code / Error / Fix it"
+        system_and_first_user = [messages[0], messages[1]]  # system + original problem
+
+        # Find the latest code and error from history
+        last_code = ""
+        last_error = ""
+        for msg in reversed(messages[2:]):
+            if msg["role"] == "assistant" and not last_code:
+                # Extract code from assistant response
+                content = re.sub(r'<think>.*?</think>', '', msg["content"], flags=re.DOTALL)
+                content = re.sub(r'<think>.*', '', content, flags=re.DOTALL)
+                # Find code in code blocks
+                code_match = re.search(r'```python\s*(.*?)```', content, re.DOTALL)
+                if code_match:
+                    last_code = code_match.group(1).strip()
+                # Also check tool call arguments for code
+                te = ToolExtractor()
+                tcs, _ = te.extract_tools(content)
+                for tc in (tcs or []):
+                    c = tc.get("parameters", tc.get("arguments", {})).get("code", "")
+                    if c and len(c) > len(last_code):
+                        last_code = c
+            if msg["role"] in ("user", "tool") and "Error" in msg.get("content", "") and not last_error:
+                last_error = msg["content"][:300]
+
+        metadata["last_code_length"] = len(last_code)
+        metadata["last_error_length"] = len(last_error)
+
+        if last_code or last_error:
+            debug_msg = ""
+            if last_code:
+                debug_msg += f"Your current code:\n```python\n{last_code}\n```\n\n"
+            if last_error:
+                debug_msg += f"Error output:\n{last_error}\n\n"
+            debug_msg += "Fix the error and submit."
+
+            result = system_and_first_user + [{"role": "user", "content": debug_msg}]
+        else:
+            result = system_and_first_user  # first iteration, nothing to compress
+
+        return result, metadata
+
+    if level == 5:
+        # Error-only: system + original problem + ONLY the error type
+        system_and_first_user = [messages[0], messages[1]]
+
+        # Find the latest error type
+        last_error_type = ""
+        for msg in reversed(messages[2:]):
+            content = msg.get("content", "")
+            if "Error" in content or "error" in content:
+                # Extract just the error type line
+                for line in content.split('\n'):
+                    if 'Error' in line:
+                        last_error_type = line.strip()[:100]
+                        break
+                if last_error_type:
+                    break
+
+        metadata["last_code_length"] = 0
+        metadata["last_error_length"] = len(last_error_type)
+
+        if last_error_type:
+            result = system_and_first_user + [
+                {"role": "user", "content": f"Previous attempt failed: {last_error_type}\nTry a different approach."}
+            ]
+        else:
+            result = system_and_first_user
+
+        return result, metadata
 
     raise ValueError(f"Unknown compression level: {level}")
 
@@ -445,7 +525,7 @@ def run_hybrid_compressed(
         messages_original_json = json.dumps(messages)
         upload_bytes_uncompressed = len(messages_original_json.encode("utf-8"))
 
-        compressed_messages = compress_context(messages, compression_level)
+        compressed_messages, compress_metadata = compress_context(messages, compression_level)
         compressed_json = json.dumps(compressed_messages)
         upload_bytes_compressed = len(compressed_json.encode("utf-8"))
 
@@ -477,6 +557,7 @@ def run_hybrid_compressed(
                 "total_context_tokens_estimate": total_context_tokens_estimate,
                 "error": resp.get("error", "unknown"),
                 "network_time_by_bandwidth": {},
+                **compress_metadata,
             }
             # Compute network times for each bandwidth
             for bw_name, bw_config in bandwidth_configs.items():
@@ -527,6 +608,7 @@ def run_hybrid_compressed(
             "inference_time_s": round(inference_time, 3),
             "total_context_tokens_estimate": total_context_tokens_estimate,
             "network_time_by_bandwidth": network_times,
+            **compress_metadata,
         }
         iteration_data.append(iter_record)
 
@@ -987,8 +1069,8 @@ def main():
                         help="SGLang server port (default: 30001)")
     parser.add_argument("--node", type=str, default=None,
                         help="Mahti node name (for reference only)")
-    parser.add_argument("--levels", type=int, nargs="*", default=[0, 1, 2, 3],
-                        help="Compression levels to test (default: 0 1 2 3)")
+    parser.add_argument("--levels", type=int, nargs="*", default=[0, 1, 2, 3, 4, 5],
+                        help="Compression levels to test (default: 0 1 2 3 4 5)")
     parser.add_argument("--bandwidths", type=int, nargs="*", default=[50, 5, 1],
                         help="Bandwidth conditions in Mbps (default: 50 5 1)")
     parser.add_argument("--concurrency", type=int, default=5,

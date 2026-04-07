@@ -93,6 +93,49 @@ NETWORK_PRESETS: Dict[str, NetworkConfig] = {
         bandwidth_mbps=0.5,
         radio_tail_energy_j=1.0,
     ),
+    # ── Bandwidth-focused presets for bandwidth × RTT sweep ──────────
+    # 4G RTT (~80ms) at different bandwidth levels
+    "4g_1mbps": NetworkConfig(
+        name="4g_1mbps",
+        rtt_ms=80,
+        jitter_ms=30,
+        packet_loss_rate=0.005,
+        bandwidth_mbps=1.0,
+        radio_tail_energy_j=0.5,
+    ),
+    "4g_5mbps": NetworkConfig(
+        name="4g_5mbps",
+        rtt_ms=80,
+        jitter_ms=30,
+        packet_loss_rate=0.005,
+        bandwidth_mbps=5.0,
+        radio_tail_energy_j=0.5,
+    ),
+    "4g_20mbps": NetworkConfig(
+        name="4g_20mbps",
+        rtt_ms=80,
+        jitter_ms=30,
+        packet_loss_rate=0.005,
+        bandwidth_mbps=20.0,
+        radio_tail_energy_j=0.5,
+    ),
+    # WiFi RTT (~20ms) at different bandwidth levels
+    "wifi_10mbps": NetworkConfig(
+        name="wifi_10mbps",
+        rtt_ms=20,
+        jitter_ms=5,
+        packet_loss_rate=0.001,
+        bandwidth_mbps=10.0,
+        radio_tail_energy_j=0.0,
+    ),
+    "wifi_50mbps": NetworkConfig(
+        name="wifi_50mbps",
+        rtt_ms=20,
+        jitter_ms=5,
+        packet_loss_rate=0.001,
+        bandwidth_mbps=50.0,
+        radio_tail_energy_j=0.0,
+    ),
 }
 
 

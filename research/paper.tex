@@ -51,14 +51,15 @@
 
 \begin{document}
 
-\title{Where Should LLM Agents Run? Measuring On-Device, Edge, and Cloud Deployment Costs}
+\title{Where Should LLM Agents Run? Characterizing Costs of Mobile, Edge, and Cloud Deployments}
+%\title{Where Should LLM Agents Run? Characterizing Costs of On-Device, Edge, and Cloud Deployments}
 
 \begin{abstract}
-LLM-powered agents are rapidly moving to mobile and edge devices, yet no systematic study quantifies where inference should run for iterative, tool-calling workloads.
-We present Pocket Agent, a measurement framework that instruments complete agentic loops (Tool $\rightarrow$ Action $\rightarrow$ Observation cycles) across three deployment architectures (local, hybrid, cloud), seven models (0.6B--4B parameters), three hardware platforms (smartphone, laptop, GPU server), and four benchmarks (MBPP, HumanEval, BFCL, Web Search QA).
-Our evaluation across seven network conditions yields three findings.
-First, agentic workloads are compute-dominated: even at 500\,ms RTT, network overhead adds less than 4\% to end-to-end latency, making the deployment decision largely network-agnostic for current model sizes.
-Second, thinking models waste both compute and radio resources: an early-exit thinking budget improves accuracy by 6--10 percentage points while reducing energy by 39--84\%, and 95\% of inter-request gaps exceed cellular RRC timers, wasting 95\% of radio energy on tail states.
+LLM-powered agents are rapidly expanding their deployment on mobile and edge devices, yet no systematic study quantifies where inference should run for iterative tool-calling workloads.
+We present Pocket Agent, a measurement framework that instruments complete agentic loops (Tool $\rightarrow$ Action $\rightarrow$ Observation cycles) across three deployment architectures (local, cloud, and hybrid), seven models (0.6B--4B parameters), three hardware platforms (mobile, laptop, and GPU server), and four benchmarks (MBPP, HumanEval, BFCL, and Web Search QA).
+Our evaluation across seven network conditions yields three key findings.
+First, agentic workloads are compute-dominated: even at 500\,ms RTT, network overhead adds less than 4\% to end-to-end latency, making the deployment decision largely network-agnostic for model sizes.
+Second, thinking models \textbf{waste} both compute and communication resources: an early-exit thinking budget improves accuracy by 6--10 percentage points while reducing energy by 39--84\%, and 95\% of inter-request gaps exceed cellular RRC timers, \textbf{wasting} 95\% of radio energy on tail states.
 Third, context compression exhibits a three-way tradeoff between bandwidth savings, accuracy, and prefix-cache efficiency: stripping thinking tokens from context improves accuracy by 6.6pp while heavier compression degrades both accuracy and cache efficiency.
 We characterize agentic inference as a new mobile traffic class and evaluate six placement policies, finding that a simple cost-aware rule achieves 97.5\% of oracle performance while reducing energy by 62\% versus always-local execution.
 \end{abstract}
@@ -85,9 +86,9 @@ We characterize agentic inference as a new mobile traffic class and evaluate six
 
 \ccsdesc[500]{Networks~Mobile networks}
 \ccsdesc[300]{Computing methodologies~Natural language processing}
-\ccsdesc[300]{Human-centered computing~Ubiquitous and mobile computing}
+%\ccsdesc[300]{Human-centered computing~Ubiquitous and mobile computing}
 
-\keywords{LLM agents, mobile inference, deployment architecture, energy measurement, agentic traffic}
+\keywords{LLM agents, mobile inference, deployment architecture, energy consumption, agentic traffic}
 
 \maketitle
 
@@ -98,14 +99,14 @@ We characterize agentic inference as a new mobile traffic class and evaluate six
 \label{sec:introduction}
 
 Large language models (LLMs) are transitioning from cloud-hosted query-response systems into interactive agents that invoke tools, plan actions, and process observations iteratively~\cite{li-2025-review,10606356}.
-On-device deployment of such agents promises privacy, low latency, and offline availability~\cite{8876870}, and commercial systems already ship small models on phones and laptops.
-Yet a fundamental deployment question remains open: \emph{where should the inference run?}
-Running locally preserves privacy (tool operations touch local files, personal data, and on-device APIs that never leave the device) but is constrained by memory, thermals, and throughput.
-Offloading to a cloud server provides abundant compute but exposes prompts and tool outputs to the network, introduces latency, and incurs radio energy costs that scale with tool-calling round-trips.
+Deployment of such agents on mobile devices promises privacy, low latency, and offline availability~\cite{8876870}, and commercial systems already ship small models on mobile phones and laptops.
+Yet a fundamental deployment question remains open: \emph{where should the LLM inference run?}
+Running LLM inference locally preserves privacy (tool operations touch local files, personal data, and on-device APIs that never leave the device) but is constrained by memory, thermals, and throughput.
+Offloading to cloud provides abundant compute but exposes prompts and tool outputs to the network, introduces latency, and incurs radio energy costs that scale with tool-calling round-trips.
 A hybrid architecture, where cloud inference pairs with on-device tool execution, may balance privacy with performance, but no prior work has quantified these tradeoffs for the iterative, multi-turn workloads that characterize modern agents.
 
-Unlike single-shot inference, agentic usage introduces iterative Tool $\rightarrow$ Action $\rightarrow$ Observation loops that amplify latency, memory, and energy consumption.
-When solving a coding problem, the model selects a code execution tool (Tool), runs a test (Action), receives feedback (Observation), and iterates with corrections.
+Unlike single-shot inference, agentic inference introduces iterative Tool $\rightarrow$ Action $\rightarrow$ Observation loops that amplify latency, memory, and energy consumption.
+For example, when solving a coding problem, the model selects a code execution tool (Tool), runs a test (Action), receives feedback (Observation), and iterates with corrections.
 Each iteration compounds costs: context grows, prefill stages lengthen, and, for hybrid or cloud deployments, every round-trip triggers cellular radio state transitions that consume energy long after transmission ends.
 Chain-of-thought models exacerbate this by generating thousands of reasoning tokens that never reach the user, wasting both compute and, when offloaded, network bandwidth.
 
@@ -220,12 +221,9 @@ Our energy measurements use single-user completion TPS, representing the per-use
 
 \subsection{Deployment Architectures}
 
-We evaluate three deployment architectures:
-
+We evaluate three deployment architectures.
 \textbf{Local.} All inference and tool execution run on the device. No network traffic; full privacy preservation. Latency is bounded by device throughput.
-
 \textbf{Cloud.} All inference and tool execution are offloaded to a remote server. Best throughput, but prompts, tool outputs, and code traverse the network, exposing private data. Radio energy is consumed for every round-trip.
-
 \textbf{Hybrid.} Inference runs in the cloud; tools execute on-device. This mirrors commercial deployments where the LLM reasons remotely but tool operations (file access, code execution, local data queries) stay on the device for privacy. Each agentic iteration requires a network round-trip, creating the traffic patterns analyzed in Section~\ref{sec:traffic}.
 
 %% ============================================================
@@ -384,7 +382,7 @@ To isolate tool-calling ability from coding capability, we additionally evaluate
 
 \begin{figure}[t]
   \centering
-  \includegraphics[width=\columnwidth]{figs/new/fig10_bfcl_tool_calling.pdf}
+  \includegraphics[width=0.85\columnwidth]{figs/new/fig10_bfcl_tool_calling.pdf}
   \caption{BFCL tool-calling proficiency. Stacked bars show green (full match), salmon (partial match), and rose (no match) segments for each model. Qwen~3.5 achieves 100\% (all green), while DeepSeek R1 struggles at 49\% (dominated by rose), confirming that poor Full-Tool performance stems from tool-calling deficiency rather than reasoning weakness.}
   \label{fig:bfcl}
   \Description{Stacked bar chart of BFCL accuracy for seven models showing full match (green), partial match (salmon), and no match (rose) segments.}
@@ -445,7 +443,7 @@ Beyond decode throughput, prefill latency (the time to process the full prompt b
 
 \begin{figure}[t]
   \centering
-  \includegraphics[width=\columnwidth]{figs/new/fig8_thinking_token_analysis.pdf}
+  \includegraphics[width=0.85\columnwidth]{figs/new/fig8_thinking_token_analysis.pdf}
   \caption{Thinking token analysis. (a)~Thinking tokens vs.\ task success shows a negative correlation ($r=-0.71$): the model thinks longer because it is stuck, not because extended reasoning helps. (b)~Token distribution: 84--92\% of all output is consumed by thinking tokens, with successful attempts averaging 2{,}493 tokens versus 6{,}887 for failures.}
   \label{fig:thinking}
   \Description{Scatter plot showing negative correlation between thinking tokens and success rate, plus pie charts showing thinking token dominance.}
@@ -482,7 +480,7 @@ We validate a simple energy model, $E = P \times N / \text{TPS}_{\text{completio
 
 \begin{figure}[t]
   \centering
-  \includegraphics[width=\columnwidth]{figs/new/fig_energy_per_success.pdf}
+  \includegraphics[width=0.85\columnwidth]{figs/new/fig_energy_per_success.pdf}
   \caption{Energy per successful solution across three platforms (A100, MacBook M2 Max, iPhone~15) for all five core models in Full-Tool mode with Q4\_K\_M quantization. The inverse efficiency paradox spans three orders of magnitude: iPhone~15 consumes 50--100$\times$ more energy than A100 despite drawing far less instantaneous power, because lower TPS extends generation time.}
   \label{fig:energy}
   \Description{Grouped bar chart showing energy per successful solution for five models across A100, MacBook, and iPhone 15, with log-scale y-axis showing the 100x gap.}
@@ -507,7 +505,7 @@ Extrapolating from our energy model and the per-platform data in Tables~\ref{tab
 Having established that agentic workloads are compute-dominated and that thinking budgets substantially reduce per-task cost, we now turn to the networking dimension.
 This section evaluates how network conditions affect the deployment decision, characterizes the traffic patterns that agentic workloads impose on cellular networks, and develops placement policies that account for both compute and radio energy.
 
-\subsection{Three-Architecture Comparison}
+\subsection{Comparison of three architectures}
 \label{sec:architecture}
 \label{sec:bandwidth}
 
@@ -525,7 +523,7 @@ Across the full model set (not shown), the sole exception is Gemma~3n, where loc
 
 The overarching finding is that network overhead is negligible. Across all models and RTT conditions, it adds less than 4\% to end-to-end latency. The reason is structural: agentic payloads are small (2--21\,KB per request) and tool-calling rounds are few (3--5), while inference time ranges from 3 to 63 seconds, yielding a network-to-compute ratio on the order of $10^{-2}$ even under adversarial conditions. Pass@1 is consistent across platforms (MLX and SGLang yield comparable accuracy for all models). To test whether bandwidth constraints might shift this picture, we swept bandwidth from 0.5 to 100\,Mbps across three RTT conditions and found no crossover point at any realistic bandwidth. At 0.5\,Mbps, below typical 4G throughput, cloud latency for Qwen~3 (4B) increases by only 0.3\,s, because payload sizes are small (median 8.4\,KB per request, 14.2\,KB per response); even the largest payloads (21\,KB) transfer in under 0.4\,s. The compute-to-transfer ratio exceeds 100:1 at all tested bandwidths. For current model sizes and agentic workloads, neither latency nor bandwidth constrains the deployment decision; it should instead be driven by compute availability, energy cost, and privacy requirements. A simple two-signal heuristic suffices: offload to the cloud when cloud TPS exceeds local TPS by more than $2\times$ and model size exceeds 1B parameters; otherwise, run locally. This rule routes Gemma~3n locally while offloading all other models, reducing energy by 62\% versus always-local execution.
 
-\subsection{Agentic Traffic Characterization}
+\subsection{Characterization of Agentic Traffic }
 \label{sec:traffic}
 
 \begin{figure*}[t]
@@ -580,7 +578,7 @@ L2 is therefore the clear operating point for cloud deployments: it improves acc
 
 \begin{figure}[t]
   \centering
-  \includegraphics[width=\columnwidth]{figs/new/fig11_websearch_qa.pdf}
+  \includegraphics[width=0.9\columnwidth]{figs/new/fig11_websearch_qa.pdf}
   \caption{Web Search QA (100 HotpotQA questions, all five core models). Paired bars show F1 when the model did not invoke search (salmon) versus when it did (steel blue). Qwen~3 (4B) triples its F1 when searching (0.19$\to$0.58). Gemma~3n reliably invokes search (1.03 calls/problem) but gains no accuracy from it. Other models rarely invoke the tool.}
   \label{fig:websearch}
   \Description{Paired bar chart showing F1 with and without search tool use for five core models.}

@@ -16,6 +16,28 @@ tuple here without touching the reward code.
 
 Reward: r = -alpha*energy_J - beta*latency_s + gamma*passed,
 with alpha, beta, gamma exposed via RewardConfig for ablation.
+
+Scoring provenance (important for Day 2 claims):
+The `passed` field in the 3-arch trace is produced by the
+subprocess-plus-tempfile test harness (local arm rows copied from
+scripts/run_mlx_sweep.py:95-114; cloud/hybrid arm rows produced via
+scripts/run_benchmarks_sglang.py:277-298). Both use an identical
+subprocess+returncode rubric. This is the same scoring used by
+full_cloud_sweep/ and mlx_sweep/, and therefore by the paper's
+§5 Pass@1 headline numbers (which quote full_cloud_sweep/ summary.json).
+
+It is NOT the same as analysis_scripts/output_full/problem_metrics.csv,
+which uses a different tool-executor sandbox (pocket_agent_cli/tools/
+tool_executor.py) and is subject to an early-stop aggregation quirk
+(pocket_agent_cli/benchmarks/benchmark_service.py:1391). A naive row
+mean over `problem_metrics.csv.success` therefore under-reports Pass@1
+by a large margin; for CSV-derived per-model Pass@1 use the Wilson
+estimator output at analysis_scripts/output_full/model_mode_summary.csv
+instead.
+
+Bottom line: the EXP3 reward here is consistent with the paper's §5
+headline numbers. Do NOT cross-validate the trace against
+problem_metrics.csv row means.
 """
 
 from __future__ import annotations

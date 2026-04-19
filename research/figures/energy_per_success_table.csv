@@ -17,5 +17,5 @@ qwen-3-0.6b,Q4_K_M,base,0.250,1.980,9.660
 qwen-3-0.6b,Q4_K_M,full_tool,0.171,1.500,7.830
 qwen-3-4b,F16,base,0.460,14.070,
 qwen-3-4b,F16,full_tool,0.218,3.720,
-qwen-3-4b,Q4_K_M,base,0.137,3.090,18.550
-qwen-3-4b,Q4_K_M,full_tool,0.104,1.180,10.290
+qwen-3-4b,Q4_K_M,base,0.138,3.090,18.550
+qwen-3-4b,Q4_K_M,full_tool,0.105,1.180,10.290

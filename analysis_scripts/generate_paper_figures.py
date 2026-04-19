@@ -21,9 +21,9 @@ mpl_cache = Path(".matplotlib_cache")
 mpl_cache.mkdir(exist_ok=True)
 os.environ.setdefault("MPLCONFIGDIR", str(mpl_cache.resolve()))
 
-sns.set_theme(style="whitegrid", context="paper", font_scale=1.5)
+sns.set_theme(style="whitegrid", context="paper", font_scale=1.8)
 
-FONT_SCALE = 1.5
+FONT_SCALE = 1.8
 
 
 def _scale_font(size: float) -> float:
@@ -51,11 +51,11 @@ ACTIONABLE_COLOR = "#c4e7c4"
 UNIQUE_TOOL_COLOR = "#d8e7f1"
 DUP_TOOL_COLOR = "#95adc7"
 MODEL_LABELS = {
-    "gemma-3n-e2b-it": "Gemma 3n",
-    "llama-3.2-3b-instruct": "Llama 3.2",
-    "qwen-3-4b": "Qwen 3 4B",
-    "qwen-3-0.6b": "Qwen 3 0.6B",
-    "deepseek-r1-distill-qwen-1.5b": "DeepSeek R1",
+    "gemma-3n-e2b-it": "Gemma",
+    "llama-3.2-3b-instruct": "Llama",
+    "qwen-3-4b": "Qwen 4B",
+    "qwen-3-0.6b": "Qwen 0.6B",
+    "deepseek-r1-distill-qwen-1.5b": "DeepSeek",
 }
 FIG_DIR = Path("research/figures")
 FIG_DIR.mkdir(parents=True, exist_ok=True)
@@ -77,10 +77,14 @@ def load_summary() -> pd.DataFrame:
 
 
 def load_problem_dataframe() -> pd.DataFrame:
+    if not PROBLEM_PATH.exists():
+        return pd.DataFrame()
     return pd.read_csv(PROBLEM_PATH)
 
 
 def model_order(df: pd.DataFrame) -> Iterable[str]:
+    if df.empty or "model" not in df.columns:
+        return []
     order = [m for m in MODEL_LABELS if m in df["model"].unique()]
     return order
 
@@ -292,7 +296,8 @@ def draw_overhead_breakdown(summary: pd.DataFrame, problems: pd.DataFrame) -> No
     quant_order = ["F16", "Q4_K_M"]
     quant_hatch = {"F16": "", "Q4_K_M": "//"}
 
-    fig, (ax_duration, ax_tools) = plt.subplots(2, 1, figsize=(12, 8), sharex=True, gridspec_kw={"height_ratios": [3, 2]})
+    # Same height as thinking_share for side-by-side display - taller for readability
+    fig, (ax_duration, ax_tools) = plt.subplots(2, 1, figsize=(6, 5.5), sharex=True, gridspec_kw={"height_ratios": [3, 2]})
 
     width = 0.12
     total_bars = len(MODE_ORDER) * len(quant_order)
@@ -318,15 +323,13 @@ def draw_overhead_breakdown(summary: pd.DataFrame, problems: pd.DataFrame) -> No
                 zorder=3,
             )
 
-    ax_duration.set_ylabel("Mean attempt duration (s)")
+    ax_duration.set_ylabel("Duration (s)", fontsize=_scale_font(9))
     ax_duration.grid(axis="y", linestyle="--", linewidth=0.5, alpha=0.5)
-    ax_duration.set_title("(a) Duration by Mode and Precision")
 
+    # Simplified legend - use abbreviations
     mode_handles = [Patch(facecolor=MODE_COLORS[mode], edgecolor="#222222", label=MODE_LABELS[mode]) for mode in MODE_ORDER]
     quant_handles = [Patch(facecolor="#ffffff", edgecolor="#222222", hatch=quant_hatch[quant], label=QUANT_LABELS.get(quant, quant)) for quant in quant_order]
-    legend1 = ax_duration.legend(handles=mode_handles, loc="upper left", ncol=3, frameon=False)
-    ax_duration.add_artist(legend1)
-    ax_duration.legend(handles=quant_handles, loc="upper right", frameon=False)
+    ax_duration.legend(handles=mode_handles + quant_handles, loc="upper left", ncol=2, frameon=False, fontsize=_scale_font(7))
 
     # Bottom panel: tool usage with duplicate breakdown
     usage_stats = _tool_usage_summary()
@@ -373,20 +376,22 @@ def draw_overhead_breakdown(summary: pd.DataFrame, problems: pd.DataFrame) -> No
                 zorder=4,
             )
 
-    ax_tools.set_ylabel("Tool calls per attempt")
+    ax_tools.set_ylabel("Tool calls", fontsize=_scale_font(9))
     ax_tools.grid(axis="y", linestyle="--", linewidth=0.5, alpha=0.5)
-    ax_tools.set_title("(b) Tool usage with duplicate submissions")
 
     ax_tools.set_xticks(base_positions)
-    ax_tools.set_xticklabels([MODEL_LABELS.get(model, model) for model in models])
+    ax_tools.set_xticklabels([MODEL_LABELS.get(model, model) for model in models], fontsize=_scale_font(8))
 
-    unique_handle = Patch(facecolor=UNIQUE_TOOL_COLOR, edgecolor="#222222", label="Unique tool calls")
-    duplicate_handle = Patch(facecolor=DUP_TOOL_COLOR, edgecolor="#222222", label="Duplicate repeats")
-    quant_handles_tools = [Patch(facecolor="#ffffff", edgecolor="#222222", hatch=quant_hatch[q], label=QUANT_LABELS[q]) for q in quant_order]
-    ax_tools.legend(handles=[unique_handle, duplicate_handle] + quant_handles_tools, loc="upper right", frameon=False, ncol=2)
+    unique_handle = Patch(facecolor=UNIQUE_TOOL_COLOR, edgecolor="#222222", label="Unique")
+    duplicate_handle = Patch(facecolor=DUP_TOOL_COLOR, edgecolor="#222222", label="Duplicates")
+    ax_tools.legend(handles=[unique_handle, duplicate_handle], loc="upper right", frameon=False, fontsize=_scale_font(7))
 
     fig.tight_layout()
     fig.savefig(FIG_DIR / "overhead_breakdown.pdf")
+    # Also save to final directory
+    final_dir = Path("research/figs/final")
+    final_dir.mkdir(parents=True, exist_ok=True)
+    fig.savefig(final_dir / "overhead_breakdown.pdf")
     plt.close(fig)
 
 
@@ -466,100 +471,132 @@ def _summarise_prefill(df: pd.DataFrame) -> pd.DataFrame:
     )
 
 
+def _draw_prefill_panel(
+    ax,
+    summary: pd.DataFrame,
+    model_colors: dict,
+    max_tokens_axis: int,
+    reference_lines: list,
+    ylabel: str,
+    convert_to_seconds: bool = False,
+    legend_fontsize: int = 8,
+) -> None:
+    """Helper to draw a single prefill panel (desktop or mobile)."""
+    scale = 1000.0 if convert_to_seconds else 1.0
+
+    for (device_name, model, quant), subset in summary.groupby(
+        ["device", "model", "quantization"], dropna=False
+    ):
+        # For mobile, include shortened device name in label
+        if convert_to_seconds:
+            short_device = device_name.replace("iPhone ", "iP")
+            label = f"{short_device}: {MODEL_LABELS.get(model, model)} {QUANT_LABELS.get(quant, quant)}"
+            linestyle = "-" if "15" in device_name else "--"
+        else:
+            label = f"{MODEL_LABELS.get(model, model)} {QUANT_LABELS.get(quant, quant)}"
+            linestyle = "-"
+
+        color = model_colors.get(model, "#4e79a7")
+        ax.plot(
+            subset["requested_tokens"],
+            subset["ttft_mean"] / scale,
+            label=label,
+            color=color,
+            linewidth=2.0,
+            linestyle=linestyle,
+        )
+        ax.fill_between(
+            subset["requested_tokens"],
+            subset["ttft_p10"] / scale,
+            subset["ttft_p90"] / scale,
+            color=color,
+            alpha=0.2 if not convert_to_seconds else 0.15,
+        )
+
+    ax.set_ylabel(ylabel)
+    ax.set_xlabel("Prompt length (tokens)")
+    ax.grid(alpha=0.35)
+    ax.set_xlim(0, max_tokens_axis)
+    ax.legend(frameon=False, fontsize=_scale_font(legend_fontsize), loc="upper left")
+
+    # Reference lines
+    for x_val, label in reference_lines:
+        ax.axvline(x_val, color="#aaaaaa", linestyle="--", linewidth=1.0, zorder=0)
+
+
 def draw_prefill(prefill_df: pd.DataFrame) -> None:
     if prefill_df.empty:
         return
 
     # Separate desktop vs mobile measurements
-    desktop_label = "MacBook M2 Max"
     desktop_df = prefill_df[prefill_df["device"].str.contains("MacBook", na=False)]
     mobile_df = prefill_df[~prefill_df["device"].str.contains("MacBook", na=False)]
 
     if desktop_df.empty and mobile_df.empty:
         return
 
-    panels = []
-    if not desktop_df.empty:
-        panels.append(("MacBook M2 Max", _summarise_prefill(desktop_df)))
-    if not mobile_df.empty:
-        mobile_devices = sorted(mobile_df["device"].unique())
-        if len(mobile_devices) == 1:
-            panel_title = mobile_devices[0]
-        elif len(mobile_devices) == 2:
-            panel_title = " & ".join(mobile_devices)
-        else:
-            panel_title = "Mobile Devices"
-        panels.append((panel_title, _summarise_prefill(mobile_df)))
+    desktop_summary = _summarise_prefill(desktop_df) if not desktop_df.empty else pd.DataFrame()
+    mobile_summary = _summarise_prefill(mobile_df) if not mobile_df.empty else pd.DataFrame()
 
-    fig, axes = plt.subplots(
-        len(panels),
-        1,
-        figsize=(8.0, 4.0 * len(panels)),
-        sharex=True,
+    # Simplified color scheme - use distinct colors for each model
+    model_colors = {
+        "qwen-3-0.6b": "#1f77b4",  # blue
+        "qwen-3-4b": "#ff7f0e",    # orange
+    }
+
+    max_tokens_axis = max(2000, int(prefill_df["requested_tokens"].max()))
+    reference_lines = [(460, "Base\n(≈460)"), (1550, "Full-tool\n(≈1550)")]
+    final_dir = Path("research/figs/final")
+    final_dir.mkdir(parents=True, exist_ok=True)
+
+    # Desktop figure (separate)
+    if not desktop_summary.empty:
+        fig_desktop, ax_desktop = plt.subplots(figsize=(5.0, 3.8))
+        _draw_prefill_panel(
+            ax_desktop, desktop_summary, model_colors, max_tokens_axis, reference_lines,
+            ylabel="TTFT (ms)", convert_to_seconds=False, legend_fontsize=8
+        )
+        fig_desktop.tight_layout()
+        fig_desktop.savefig(FIG_DIR / "prefill_qwen_desktop.pdf")
+        fig_desktop.savefig(final_dir / "prefill_qwen_desktop.pdf")
+        plt.close(fig_desktop)
+
+    # Mobile figure (separate)
+    if not mobile_summary.empty:
+        fig_mobile, ax_mobile = plt.subplots(figsize=(5.0, 3.8))
+        _draw_prefill_panel(
+            ax_mobile, mobile_summary, model_colors, max_tokens_axis, reference_lines,
+            ylabel="TTFT (s)", convert_to_seconds=True, legend_fontsize=7
+        )
+        fig_mobile.tight_layout()
+        fig_mobile.savefig(FIG_DIR / "prefill_qwen_mobile.pdf")
+        fig_mobile.savefig(final_dir / "prefill_qwen_mobile.pdf")
+        plt.close(fig_mobile)
+
+    # Also keep combined figure for backwards compatibility
+    fig, (ax_desktop_combined, ax_mobile_combined) = plt.subplots(
+        1, 2,
+        figsize=(10.0, 3.8),
+        sharey=False,
     )
-    if len(panels) == 1:
-        axes = [axes]
 
-    combo_keys = sorted({(row["device"], row["model"]) for _, row in prefill_df.iterrows()})
-    combo_palette = sns.color_palette("deep", len(combo_keys) or 1)
-    combo_colors = {key: color for key, color in zip(combo_keys, combo_palette)}
+    # Desktop panel (left)
+    if not desktop_summary.empty:
+        _draw_prefill_panel(
+            ax_desktop_combined, desktop_summary, model_colors, max_tokens_axis, reference_lines,
+            ylabel="TTFT (ms)", convert_to_seconds=False, legend_fontsize=8
+        )
 
-    max_tokens_axis = max(3500, int(prefill_df["requested_tokens"].max()))
-    reference_lines = [(460, "Base prompt (≈460)"), (1550, "Full-tool prompt (≈1550)")]
+    # Mobile panel (right)
+    if not mobile_summary.empty:
+        _draw_prefill_panel(
+            ax_mobile_combined, mobile_summary, model_colors, max_tokens_axis, reference_lines,
+            ylabel="TTFT (s)", convert_to_seconds=True, legend_fontsize=7
+        )
 
-    for ax, (panel_title, panel_df) in zip(axes, panels):
-        is_mobile_panel = "Mac" not in panel_title
-        scale = 1000.0 if is_mobile_panel else 1.0
-        for (device_name, model, quant), subset in panel_df.groupby(
-            ["device", "model", "quantization"], dropna=False
-        ):
-            label = (
-                f"{device_name}: {MODEL_LABELS.get(model, model)} "
-                f"{QUANT_LABELS.get(quant, quant)}"
-            )
-            color = combo_colors.get((device_name, model), "#4e79a7")
-            ax.plot(
-                subset["requested_tokens"],
-                subset["ttft_mean"] / scale,
-                label=label,
-                color=color,
-            )
-            ax.fill_between(
-                subset["requested_tokens"],
-                subset["ttft_p10"] / scale,
-                subset["ttft_p90"] / scale,
-                color=color,
-                alpha=0.2,
-            )
-
-        for idx_ref, (x_val, label) in enumerate(reference_lines):
-            ax.axvline(x_val, color="#cccccc", linestyle="--", linewidth=0.9, zorder=0)
-            y_min, y_max = ax.get_ylim()
-            span = y_max - y_min if y_max > y_min else 1.0
-            y_pos = y_max - 0.05 * span
-            x_shift = -70 # if idx_ref == 0 else 70
-            ha = "right" if x_shift < 0 else "left"
-            ax.text(
-                x_val + x_shift,
-                y_pos,
-                label,
-                fontsize=_scale_font(8),
-                color="#666666",
-                rotation=90,
-                ha=ha,
-                va="top",
-                bbox={"facecolor": "white", "alpha": 0.7, "edgecolor": "none", "pad": 1.5},
-            )
-
-        ax.set_ylabel("TTFT (s)" if is_mobile_panel else "TTFT (ms)")
-        ax.set_title(panel_title)
-        ax.grid(alpha=0.35)
-        ax.set_xlim(0, max_tokens_axis)
-        ax.legend(frameon=False, fontsize=_scale_font(9), loc="upper right")
-
-    axes[-1].set_xlabel("Prompt length (tokens)")
     fig.tight_layout()
     fig.savefig(FIG_DIR / "prefill_qwen.pdf")
+    fig.savefig(final_dir / "prefill_qwen.pdf")
     plt.close(fig)
 
 
@@ -581,7 +618,8 @@ def draw_quantization(summary: pd.DataFrame) -> None:
     base_positions = np.arange(len(models))
     total_bars = len(quant_order) * len(platforms)
 
-    fig, (ax_tps, ax_energy) = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
+    # Wider, shorter layout - side by side panels
+    fig, (ax_tps, ax_energy) = plt.subplots(1, 2, figsize=(10, 3.5))
 
     energy_records: List[Dict[str, object]] = []
 
@@ -674,33 +712,37 @@ def draw_quantization(summary: pd.DataFrame) -> None:
                 ax_energy.annotate(
                     f"{value:.1f}",
                     xy=(rec["x"], energy_cap),
-                    xytext=(0, 5),
+                    xytext=(0, 3),
                     textcoords="offset points",
                     ha="center",
                     va="bottom",
-                    fontsize=_scale_font(8),
+                    fontsize=_scale_font(7),
                     color="#444444",
                 )
 
     xticklabels = [MODEL_LABELS.get(model, model) for model in models]
-    ax_energy.set_xticks(base_positions)
-    ax_energy.set_xticklabels(xticklabels, rotation=15, ha="right")
 
-    ax_tps.set_ylabel("Tokens/s")
-    ax_energy.set_ylabel("J per token")
-    ax_tps.set_title("Throughput across platforms")
-    ax_tps.set_ylim([0, 160])
-    ax_energy.set_title("Energy per token across platforms")
-
+    # Configure both axes
     for ax in (ax_tps, ax_energy):
+        ax.set_xticks(base_positions)
+        ax.set_xticklabels(xticklabels, rotation=20, ha="right", fontsize=_scale_font(8))
         ax.grid(axis="y", linestyle="--", linewidth=0.5, alpha=0.4)
 
+    ax_tps.set_ylabel("Tokens/s")
+    ax_energy.set_ylabel("J/token")
+    ax_tps.set_ylim([0, 160])
+
+    # Shared legend at top
     precision_handles = [Patch(facecolor=PRECISION_COLORS[q], edgecolor="#222222", label=QUANT_LABELS[q]) for q in quant_order]
     platform_handles = [Patch(facecolor="#ffffff", edgecolor="#222222", hatch=PLATFORM_HATCH[p], label="Mac" if p == "mac" else "A100") for p in platforms]
-    ax_tps.legend(handles=precision_handles + platform_handles, loc="upper right", ncol=2, frameon=False)
+    fig.legend(handles=precision_handles + platform_handles, loc="upper center", ncol=4, frameon=False, bbox_to_anchor=(0.5, 1.02))
 
-    fig.tight_layout()
+    fig.tight_layout(rect=[0, 0, 1, 0.92])
     fig.savefig(FIG_DIR / "quantization_a100.pdf")
+    # Also save to final directory
+    final_dir = Path("research/figs/final")
+    final_dir.mkdir(parents=True, exist_ok=True)
+    fig.savefig(final_dir / "quantization_a100.pdf")
     plt.close(fig)
 
 
@@ -733,6 +775,8 @@ def _energy_to_success(problems: pd.DataFrame, model: str, quant: str, mode: str
 
 
 def compute_energy_success_stats(problems: pd.DataFrame) -> pd.DataFrame:
+    if problems.empty or "mode" not in problems.columns:
+        return pd.DataFrame()
     filtered = problems[problems["mode"].isin(["base", "full_tool"])]
     records: List[Dict[str, object]] = []
 
@@ -789,6 +833,8 @@ def refresh_energy_per_success_table(
 ) -> pd.DataFrame:
     path = table_path or (FIG_DIR / "energy_per_success_table.csv")
     summary = compute_energy_success_stats(problems)
+    if summary.empty:
+        return pd.DataFrame()
 
     if path.exists():
         table = pd.read_csv(path)
@@ -923,10 +969,10 @@ def draw_energy_per_success_panels() -> None:
     if df.empty:
         return
 
+    # Only show 2 platforms side-by-side for better readability
     devices = [
         ("A100_kJ", "A100"),
         ("MacBook_M2_Max_kJ", "MacBook M2 Max"),
-        ("iPhone15_kJ", "iPhone 15"),
     ]
     models_order = [
         "deepseek-r1-distill-qwen-1.5b",
@@ -945,14 +991,15 @@ def draw_energy_per_success_panels() -> None:
         ("F16", "base"),
         ("F16", "full_tool"),
     ]
-    width = 0.22
+    width = 0.20
     offsets = np.linspace(-1.5 * width, 1.5 * width, len(bar_specs))
 
     x_idx = np.arange(len(models_order))
-    fig, axes = plt.subplots(len(devices), 1, figsize=(11.5, 9.5), sharex=True)
+    # Wider, shorter layout - side by side
+    fig, axes = plt.subplots(1, 2, figsize=(10, 3.5))
 
     for ax, (value_column, title) in zip(axes, devices):
-        ax.set_facecolor("#f7f7f7")
+        ax.set_facecolor("#f9f9f9")
         ax.set_axisbelow(True)
 
         for idx, (quant, mode) in enumerate(bar_specs):
@@ -973,15 +1020,13 @@ def draw_energy_per_success_panels() -> None:
                 linewidth=0.6,
                 hatch=hatch,
                 alpha=0.9,
-                label=(quant_labels[quant] + " " + mode.title()) if idx == 0 else None,
             )
 
         for spine in ["top", "right"]:
             ax.spines[spine].set_visible(False)
 
         ax.set_title(title)
-        ax.set_ylabel("Energy per success (kJ)")
-        # ax.set_yscale("log")
+        ax.set_ylabel("Energy/success (kJ)")
         ax.yaxis.set_major_formatter(mpl.ticker.FuncFormatter(lambda y, _: f"{y:g}"))
         ax.grid(axis="y", linestyle="--", alpha=0.35)
 
@@ -989,24 +1034,18 @@ def draw_energy_per_success_panels() -> None:
         positive = positive[positive > 0]
         if not positive.empty:
             min_positive = positive.min()
-            if min_positive < 0.05:
-                ymin = 0.0
-            else:
-                ymin = min_positive * 0.6
-            ymax = positive.max() * 1.8
+            ymin = 0.0
+            ymax = positive.max() * 1.3
             if ymax <= ymin:
                 ymax = ymin + 0.1
             ax.set_ylim(ymin, ymax)
 
         ax.set_xticks(x_idx)
-        if ax is axes[-1]:
-            labels = [MODEL_LABELS.get(model, model) for model in models_order]
-            ax.set_xticklabels(labels, rotation=0, ha="center")
-        else:
-            ax.set_xticklabels([])
+        labels = [MODEL_LABELS.get(model, model) for model in models_order]
+        ax.set_xticklabels(labels, rotation=20, ha="right", fontsize=_scale_font(8))
 
     legend_elements = [
-        Patch(facecolor=MODE_COLORS[mode], edgecolor="#2f2f2f", linewidth=0.6, label=mode.title())
+        Patch(facecolor=MODE_COLORS[mode], edgecolor="#2f2f2f", linewidth=0.6, label=MODE_LABELS.get(mode, mode.title()))
         for mode in mode_order
     ] + [
         Patch(facecolor="#dcdcdc", edgecolor="#2f2f2f", linewidth=0.6, hatch="//", label="FP16"),
@@ -1019,18 +1058,467 @@ def draw_energy_per_success_panels() -> None:
         loc="upper center",
         frameon=False,
         ncol=4,
-        bbox_to_anchor=(0.5, 1.00),
+        bbox_to_anchor=(0.5, 1.02),
     )
-    fig.tight_layout(rect=[0, 0, 1, 0.97])
+    fig.tight_layout(rect=[0, 0, 1, 0.92])
     output_panels = FIG_DIR / "energy_per_success_panels.pdf"
     fig.savefig(output_panels)
-    fig.savefig(FIG_DIR / "energy_per_success_qwen3_4b.pdf")
+    # Also save to final directory
+    final_dir = Path("research/figs/final")
+    final_dir.mkdir(parents=True, exist_ok=True)
+    fig.savefig(final_dir / "energy_per_success_panels.pdf")
     plt.close(fig)
 
 
 def _lighten(color: str, amount: float = 0.5) -> Tuple[float, float, float]:
     base = mcolors.to_rgb(color)
     return tuple(1 - amount * (1 - comp) for comp in base)
+
+
+# =============================================================================
+# Cross-Dataset Validation Figure (HumanEval vs MBPP)
+# =============================================================================
+
+HUMANEVAL_RESULTS_DIR = Path("tmp/results")
+
+
+def _load_humaneval_summaries() -> List[Dict]:
+    """Load all benchmark_summary.json files from HumanEval results."""
+    summaries = []
+    if not HUMANEVAL_RESULTS_DIR.exists():
+        return summaries
+
+    for result_dir in sorted(HUMANEVAL_RESULTS_DIR.iterdir()):
+        if not result_dir.is_dir():
+            continue
+
+        parts = result_dir.name.split("_")
+        if len(parts) < 5 or parts[0] != "humaneval":
+            continue
+
+        for task_dir in sorted(result_dir.iterdir()):
+            if not task_dir.is_dir() or not task_dir.name.startswith("task_"):
+                continue
+
+            summary_file = task_dir / "benchmark_summary.json"
+            if not summary_file.exists():
+                continue
+
+            with open(summary_file) as f:
+                data = json.load(f)
+                data["_source_dir"] = str(result_dir.name)
+                data["_task_id"] = task_dir.name
+                summaries.append(data)
+
+    return summaries
+
+
+def _aggregate_humaneval_by_model_mode_version() -> Dict[str, Dict]:
+    """Aggregate HumanEval results by model, mode, and version."""
+    from collections import defaultdict
+    import statistics
+
+    summaries = _load_humaneval_summaries()
+
+    aggregated = defaultdict(lambda: {
+        "pass_at_1": [],
+        "total_problems": 0,
+        "passed_problems": 0,
+    })
+
+    for summary in summaries:
+        config = summary.get("config", {})
+        model = config.get("model_name", "")
+        version = config.get("model_version", "")
+        mode = config.get("mode", "")
+        key = f"{model}|{version}|{mode}"
+
+        for session in summary.get("sessions", []):
+            stats = session.get("aggregate_stats", {})
+            pass_at_k = stats.get("pass_at_k", {})
+
+            agg = aggregated[key]
+
+            if "overall_pass_at_1" in pass_at_k:
+                agg["pass_at_1"].append(pass_at_k["overall_pass_at_1"])
+
+            agg["total_problems"] += stats.get("total_problems", 0)
+            agg["passed_problems"] += stats.get("passed_problems", 0)
+
+    return dict(aggregated)
+
+
+def draw_cross_dataset_validation() -> None:
+    """
+    Draw Figure: Cross-Dataset Capability Threshold Validation.
+
+    Shows Pass@1 accuracy for Base vs Full-Tool modes on MBPP and HumanEval,
+    using the paper's color scheme (MODE_COLORS).
+
+    Visual encoding:
+    - Colors distinguish modes (Base = green, Full-Tool = blue)
+    - Hatching distinguishes datasets (MBPP = solid, HumanEval = hatched)
+    - Delta annotations show improvement/degradation
+    """
+    import statistics
+
+    # MBPP data from paper (FP16 results)
+    mbpp_data = {
+        'qwen-3-4b': {'base': 44.8, 'full_tool': 79.6},
+        'qwen-3-0.6b': {'base': 41.2, 'full_tool': 44.3},
+        'gemma-3n-e2b-it': {'base': 58.7, 'full_tool': 50.5},
+        'llama-3.2-3b-instruct': {'base': 50.1, 'full_tool': 41.3},
+        'deepseek-r1-distill-qwen-1.5b': {'base': 40.7, 'full_tool': 42.2},
+    }
+
+    # Get HumanEval data from results (FP16)
+    aggregated = _aggregate_humaneval_by_model_mode_version()
+    humaneval_data = {}
+
+    for key, data in aggregated.items():
+        model, version, mode = key.split("|")
+        if version != "F16":
+            continue
+        if model not in humaneval_data:
+            humaneval_data[model] = {}
+        if data["pass_at_1"]:
+            humaneval_data[model][mode] = statistics.mean(data["pass_at_1"]) * 100
+
+    # Order models (matching paper order)
+    model_order = [
+        'deepseek-r1-distill-qwen-1.5b',
+        'gemma-3n-e2b-it',
+        'llama-3.2-3b-instruct',
+        'qwen-3-0.6b',
+        'qwen-3-4b'
+    ]
+
+    # Filter to models with data
+    models_to_plot = [
+        m for m in model_order
+        if m in mbpp_data and m in humaneval_data and 'base' in humaneval_data[m]
+    ]
+
+    if not models_to_plot:
+        print("No models with both MBPP and HumanEval data found")
+        return
+
+    # Create figure with two panels (stacked vertically)
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 7), sharex=True)
+
+    x = np.arange(len(models_to_plot))
+    bar_width = 0.35
+
+    # Use MODE_COLORS from the existing color scheme
+    color_base = MODE_COLORS["base"]
+    color_full_tool = MODE_COLORS["full_tool"]
+
+    # Panel 1: MBPP (solid bars)
+    base_vals_mbpp = [mbpp_data[m]['base'] for m in models_to_plot]
+    full_vals_mbpp = [mbpp_data[m].get('full_tool', 0) for m in models_to_plot]
+
+    ax1.bar(
+        x - bar_width / 2, base_vals_mbpp, bar_width,
+        label='Base', color=color_base, edgecolor='#222222', linewidth=0.8
+    )
+    ax1.bar(
+        x + bar_width / 2, full_vals_mbpp, bar_width,
+        label='Full-Tool', color=color_full_tool, edgecolor='#222222', linewidth=0.8
+    )
+
+    ax1.set_ylabel('Pass@1 Accuracy (%)')
+    ax1.set_title('MBPP (500 problems)', fontweight='bold')
+    ax1.set_ylim(0, 100)
+    ax1.grid(axis='y', linestyle='--', linewidth=0.5, alpha=0.5)
+    ax1.set_axisbelow(True)
+
+    # Add delta annotations for MBPP
+    for i, m in enumerate(models_to_plot):
+        delta = full_vals_mbpp[i] - base_vals_mbpp[i]
+        y_pos = max(base_vals_mbpp[i], full_vals_mbpp[i]) + 3
+        sign = '+' if delta > 0 else ''
+        color = '#2e7d32' if delta > 0 else '#c62828'  # Green/red for positive/negative
+        ax1.annotate(
+            f'{sign}{delta:.0f}pp', xy=(i, y_pos), ha='center', va='bottom',
+            fontsize=_scale_font(9), fontweight='bold', color=color
+        )
+
+    # Panel 2: HumanEval (hatched bars for visual distinction)
+    base_vals_he = [humaneval_data.get(m, {}).get('base', 0) for m in models_to_plot]
+    full_vals_he = [humaneval_data.get(m, {}).get('full_tool', 0) for m in models_to_plot]
+
+    ax2.bar(
+        x - bar_width / 2, base_vals_he, bar_width,
+        label='Base', color=color_base, edgecolor='#222222', linewidth=0.8,
+        hatch='///'
+    )
+    ax2.bar(
+        x + bar_width / 2, full_vals_he, bar_width,
+        label='Full-Tool', color=color_full_tool, edgecolor='#222222', linewidth=0.8,
+        hatch='///'
+    )
+
+    ax2.set_ylabel('Pass@1 Accuracy (%)')
+    ax2.set_title('HumanEval (164 problems)', fontweight='bold')
+    ax2.set_xticks(x)
+    ax2.set_xticklabels([MODEL_LABELS.get(m, m) for m in models_to_plot], rotation=0)
+    ax2.set_ylim(0, 100)
+    ax2.grid(axis='y', linestyle='--', linewidth=0.5, alpha=0.5)
+    ax2.set_axisbelow(True)
+
+    # Add delta annotations for HumanEval
+    for i, m in enumerate(models_to_plot):
+        if full_vals_he[i] > 0:
+            delta = full_vals_he[i] - base_vals_he[i]
+            y_pos = max(base_vals_he[i], full_vals_he[i]) + 3
+            sign = '+' if delta > 0 else ''
+            color = '#2e7d32' if delta > 0 else '#c62828'
+            ax2.annotate(
+                f'{sign}{delta:.0f}pp', xy=(i, y_pos), ha='center', va='bottom',
+                fontsize=_scale_font(9), fontweight='bold', color=color
+            )
+        else:
+            y_pos = base_vals_he[i] + 3
+            ax2.annotate(
+                'N/A', xy=(i, y_pos), ha='center', va='bottom',
+                fontsize=_scale_font(9), color='#666666'
+            )
+
+    # Create legend handles with both mode colors and dataset hatching
+    mode_handles = [
+        Patch(facecolor=MODE_COLORS["base"], edgecolor="#222222", label=MODE_LABELS["base"]),
+        Patch(facecolor=MODE_COLORS["full_tool"], edgecolor="#222222", label=MODE_LABELS["full_tool"]),
+    ]
+    dataset_handles = [
+        Patch(facecolor='#cccccc', edgecolor="#222222", label='MBPP'),
+        Patch(facecolor='#cccccc', edgecolor="#222222", hatch='///', label='HumanEval'),
+    ]
+    fig.legend(
+        handles=mode_handles + dataset_handles,
+        loc='upper center',
+        ncol=4,
+        bbox_to_anchor=(0.5, 1.0),
+        frameon=False
+    )
+
+    fig.tight_layout()
+    fig.subplots_adjust(top=0.90)
+
+    fig.savefig(FIG_DIR / "cross_dataset_validation.pdf")
+    plt.close(fig)
+
+
+# =============================================================================
+# Error Taxonomy Figure (HumanEval vs MBPP)
+# =============================================================================
+
+MBPP_RESULTS_DIR = Path("benchmark_analysis/raw_data/data/results")
+
+
+def _classify_error(output: str) -> str:
+    """Classify error type from test output."""
+    if not output:
+        return "Unknown"
+
+    output_lower = output.lower()
+
+    # Assertion errors (test failures - semantically wrong code)
+    if "assertionerror" in output_lower:
+        return "AssertionError"
+
+    # Syntax errors
+    if "syntaxerror" in output_lower or "indentationerror" in output_lower:
+        return "SyntaxError"
+
+    # Name errors - typing imports
+    if "nameerror" in output_lower:
+        if "list" in output_lower or "dict" in output_lower or "tuple" in output_lower or "optional" in output_lower:
+            return "NameError (typing)"
+        return "NameError (other)"
+
+    # Type errors
+    if "typeerror" in output_lower:
+        return "TypeError"
+
+    # Value errors
+    if "valueerror" in output_lower:
+        return "ValueError"
+
+    # Index/Key errors
+    if "indexerror" in output_lower:
+        return "IndexError"
+    if "keyerror" in output_lower:
+        return "KeyError"
+
+    # Attribute errors
+    if "attributeerror" in output_lower:
+        return "AttributeError"
+
+    # Timeout/recursion
+    if "recursionerror" in output_lower or "maximum recursion" in output_lower:
+        return "RecursionError"
+    if "timeout" in output_lower:
+        return "Timeout"
+
+    # Other runtime errors
+    if "error" in output_lower:
+        return "Other RuntimeError"
+
+    return "Unknown"
+
+
+def _analyze_errors(results_dir: Path, dataset_name: str) -> Tuple[Dict[str, int], int]:
+    """Analyze errors in a results directory."""
+    error_counts: Dict[str, int] = {}
+    total_failures = 0
+    files_processed = 0
+
+    if not results_dir.exists():
+        return {}, 0
+
+    for result_dir in results_dir.iterdir():
+        if not result_dir.is_dir():
+            continue
+
+        for run_file in result_dir.rglob("problem_*_run_*.json"):
+            try:
+                with open(run_file) as f:
+                    data = json.load(f)
+                files_processed += 1
+
+                if data.get("success", False):
+                    continue
+
+                for test in data.get("test_results", []):
+                    if not test.get("passed", False):
+                        total_failures += 1
+                        error_type = _classify_error(test.get("output", ""))
+                        error_counts[error_type] = error_counts.get(error_type, 0) + 1
+
+            except (json.JSONDecodeError, IOError):
+                continue
+
+    print(f"  {dataset_name}: Processed {files_processed} run files, {total_failures} failures")
+    return error_counts, total_failures
+
+
+def draw_error_taxonomy() -> None:
+    """
+    Draw Figure: Error Taxonomy Comparison between HumanEval and MBPP.
+
+    Categories:
+    - Incorrect Logic (red): AssertionError - semantically wrong code
+    - Fixable (yellow): NameError (typing), SyntaxError - easy to fix automatically
+    - Other Errors (gray): TypeError, ValueError, etc.
+
+    Uses hatching patterns to distinguish datasets.
+    """
+    print("Analyzing errors for error taxonomy figure...")
+
+    # Analyze both datasets
+    he_errors, he_total = _analyze_errors(HUMANEVAL_RESULTS_DIR, "HumanEval")
+    mbpp_errors, mbpp_total = _analyze_errors(MBPP_RESULTS_DIR, "MBPP")
+
+    if he_total == 0 and mbpp_total == 0:
+        print("No error data available for error taxonomy figure")
+        return
+
+    # Define error categories with colors
+    categories = {
+        "Incorrect Logic": {
+            "errors": ["AssertionError"],
+            "color": "#e74c3c",  # Red
+            "description": "Code runs but produces wrong output"
+        },
+        "Fixable Errors": {
+            "errors": ["NameError (typing)", "SyntaxError"],
+            "color": "#f39c12",  # Orange/Yellow
+            "description": "Missing imports or syntax issues"
+        },
+        "Runtime Errors": {
+            "errors": ["TypeError", "ValueError", "IndexError", "KeyError",
+                      "AttributeError", "RecursionError", "NameError (other)",
+                      "Other RuntimeError", "Timeout", "Unknown"],
+            "color": "#95a5a6",  # Gray
+            "description": "Other execution failures"
+        }
+    }
+
+    # Aggregate errors into categories
+    def aggregate_category(errors: Dict[str, int], total: int, category_errors: List[str]) -> float:
+        count = sum(errors.get(e, 0) for e in category_errors)
+        return (count / total * 100) if total > 0 else 0
+
+    # Prepare data for plotting
+    category_names = list(categories.keys())
+    he_values = [aggregate_category(he_errors, he_total, categories[c]["errors"]) for c in category_names]
+    mbpp_values = [aggregate_category(mbpp_errors, mbpp_total, categories[c]["errors"]) for c in category_names]
+    colors = [categories[c]["color"] for c in category_names]
+
+    # Create figure
+    fig, ax = plt.subplots(figsize=(8, 5))
+
+    x = np.arange(len(category_names))
+    bar_width = 0.35
+
+    # Plot bars with hatching for dataset distinction
+    bars_he = ax.bar(x - bar_width/2, he_values, bar_width,
+                     label=f'HumanEval (n={he_total:,})',
+                     color=colors, edgecolor='#222222', linewidth=1.0,
+                     hatch='///')
+    bars_mbpp = ax.bar(x + bar_width/2, mbpp_values, bar_width,
+                       label=f'MBPP (n={mbpp_total:,})',
+                       color=colors, edgecolor='#222222', linewidth=1.0,
+                       alpha=0.7)
+
+    # Customize
+    ax.set_ylabel('Percentage of Failures (%)')
+    ax.set_xlabel('Error Category')
+    ax.set_xticks(x)
+    ax.set_xticklabels(category_names)
+    ax.set_ylim(0, 60)
+    ax.grid(axis='y', linestyle='--', linewidth=0.5, alpha=0.5)
+    ax.set_axisbelow(True)
+
+    # Add value labels on bars
+    def add_labels(bars, values):
+        for bar, val in zip(bars, values):
+            if val > 2:
+                ax.annotate(f'{val:.0f}%',
+                           xy=(bar.get_x() + bar.get_width()/2, bar.get_height()),
+                           ha='center', va='bottom',
+                           fontsize=_scale_font(9), fontweight='bold')
+
+    add_labels(bars_he, he_values)
+    add_labels(bars_mbpp, mbpp_values)
+
+    # Create custom legend with hatching
+    from matplotlib.patches import Patch
+    legend_elements = [
+        Patch(facecolor='white', edgecolor='#222222', hatch='///', label='HumanEval'),
+        Patch(facecolor='white', edgecolor='#222222', alpha=0.7, label='MBPP'),
+    ]
+    ax.legend(handles=legend_elements, loc='upper right', frameon=True)
+
+    # Add subtitle with category explanations
+    subtitle = "Incorrect Logic: wrong output | Fixable: missing imports/syntax | Runtime: execution failures"
+    ax.text(0.5, -0.15, subtitle, transform=ax.transAxes, ha='center', va='top',
+            fontsize=_scale_font(8), style='italic', color='#666666')
+
+    fig.tight_layout()
+    fig.subplots_adjust(bottom=0.18)
+
+    fig.savefig(FIG_DIR / "error_taxonomy.pdf")
+    plt.close(fig)
+
+    print(f"  Saved error taxonomy figure to {FIG_DIR / 'error_taxonomy.pdf'}")
+
+    # Print summary
+    print(f"\n  Error category breakdown:")
+    print(f"  {'Category':<20} {'HumanEval':>12} {'MBPP':>12}")
+    print(f"  {'-'*44}")
+    for cat, he_val, mbpp_val in zip(category_names, he_values, mbpp_values):
+        print(f"  {cat:<20} {he_val:>11.1f}% {mbpp_val:>11.1f}%")
 
 
 @lru_cache(maxsize=1)
@@ -1076,8 +1564,8 @@ def draw_thinking_share(summary: pd.DataFrame, problems: pd.DataFrame) -> None:
     if subset.empty:
         return
 
-    # Single row figure with both models side-by-side (smaller width for larger text)
-    fig, ax = plt.subplots(1, 1, figsize=(10, 4.5))
+    # Match height with overhead_breakdown (5.5 inches) for side-by-side display
+    fig, ax = plt.subplots(1, 1, figsize=(6, 5.5))
 
     width = 0.14
     # Create positions for both models and all mode combinations
@@ -1134,44 +1622,48 @@ def draw_thinking_share(summary: pd.DataFrame, problems: pd.DataFrame) -> None:
                 zorder=3,
             )
 
-            # Add actionable token counts on top
+            # Add actionable token counts on top - offset FP16 left and Q4 right to avoid overlap
             for pos, think, action in zip(positions, thinking_vals, actionable_vals):
                 total = think + action
                 if total > 0:
+                    # Offset text horizontally: FP16 (no hatch) left, Q4 (hatched) right
+                    text_offset = -0.06 if quant == "F16" else 0.06
                     ax.text(
-                        pos,
-                        total + max(20.0, total * 0.05),
+                        pos + text_offset,
+                        total + max(20.0, total * 0.03),
                         f"{int(round(action))}",
                         ha="center",
                         va="bottom",
-                        fontsize=_scale_font(7),
+                        fontsize=_scale_font(6),
                     )
 
     # Set x-axis labels with model names and modes
-    ax.set_ylabel("Tokens")
+    ax.set_ylabel("Tokens", fontsize=_scale_font(9))
     ax.grid(axis="y", linestyle="--", linewidth=0.5, alpha=0.4)
 
-    # Create tick positions and labels (mode labels only)
+    # Create tick positions and labels (mode labels only) - use shorter labels
+    SHORT_MODE_LABELS = {"base": "Base", "tool_submission": "Tool Sub.", "full_tool": "Full Tool"}
     tick_positions = []
     tick_labels = []
     for model_idx, model in enumerate(thinking_models):
         for mode_idx, mode in enumerate(modes):
             tick_positions.append(model_idx * len(modes) + mode_idx)
-            tick_labels.append(MODE_LABELS[mode])
+            tick_labels.append(SHORT_MODE_LABELS.get(mode, MODE_LABELS[mode]))
 
     ax.set_xticks(tick_positions)
-    ax.set_xticklabels(tick_labels, fontsize=_scale_font(10))
+    ax.set_xticklabels(tick_labels, fontsize=_scale_font(7), rotation=30, ha="right")
 
-    # Add model titles above the x-axis, slightly separated
+    # Add model titles below the x-axis labels with more spacing
     for model_idx, model in enumerate(thinking_models):
         center_pos = model_idx * len(modes) + (len(modes) - 1) / 2
         ax.text(
             center_pos,
-            -0.12,
+            -0.22,
             MODEL_LABELS.get(model, model),
             ha="center",
             va="top",
-            fontsize=_scale_font(10),
+            fontsize=_scale_font(9),
+            fontweight="bold",
             transform=ax.get_xaxis_transform(),
         )
 
@@ -1179,18 +1671,22 @@ def draw_thinking_share(summary: pd.DataFrame, problems: pd.DataFrame) -> None:
     separator_x = len(modes) - 0.5
     ax.axvline(separator_x, color="#888888", linestyle="--", linewidth=1.0, alpha=0.5)
 
-    # Legend
+    # Legend - place at top center outside the data area to avoid overlap
     activity_handles = [
-        Patch(facecolor=ACTIONABLE_COLOR, edgecolor="#222222", label="Actionable tokens"),
-        Patch(facecolor=THINKING_COLOR, edgecolor="#222222", label="Thinking tokens"),
+        Patch(facecolor=ACTIONABLE_COLOR, edgecolor="#222222", label="Actionable"),
+        Patch(facecolor=THINKING_COLOR, edgecolor="#222222", label="Thinking"),
     ]
     quant_handles = [Patch(facecolor="#ffffff", edgecolor="#222222", hatch="" if q == "F16" else "//", label=QUANT_LABELS[q]) for q in quant_order]
     handles = activity_handles + quant_handles
     labels = [h.get_label() for h in handles]
-    fig.legend(handles, labels, loc="upper right", frameon=False, ncol=4)
+    ax.legend(handles, labels, loc="upper center", frameon=False, ncol=4, fontsize=_scale_font(6), bbox_to_anchor=(0.5, 1.12))
 
     fig.tight_layout()
     fig.savefig(FIG_DIR / "thinking_share_qwen3_4b.pdf")
+    # Also save to final directory
+    final_dir = Path("research/figs/final")
+    final_dir.mkdir(parents=True, exist_ok=True)
+    fig.savefig(final_dir / "thinking_share_qwen3_4b.pdf")
     plt.close(fig)
 
 
@@ -1430,6 +1926,8 @@ def main() -> None:
     draw_thinking_share(summary, problems)
     draw_thinking_success_correlation(problems)
     draw_thinking_success_curves(problems)
+    draw_cross_dataset_validation()
+    draw_error_taxonomy()
 
 
 if __name__ == "__main__":

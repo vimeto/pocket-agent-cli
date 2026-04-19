@@ -146,7 +146,9 @@ def _extract_param_billions(model_name: str) -> float:
 
 
 def policy_cost_aware(model: str, mode: str, network_condition: str,
-                      rtt_ms: float, cost_params: Dict, radio_data: Dict) -> str:
+                      rtt_ms: float, cost_params: Dict, radio_data: Dict,
+                      energy_threshold_J: float = 2.0,
+                      latency_threshold_s: float = 1.0) -> str:
     """Minimize energy-per-success using TPS ratio + model capability.
 
     Uses two observable signals (no prior benchmarks needed):
@@ -157,10 +159,15 @@ def policy_cost_aware(model: str, mode: str, network_condition: str,
 
     Decision tree:
       - No network -> local
-      - device TPS > 2x cloud TPS AND model >= 1B params:
+      - device TPS > (energy_threshold_J / latency_threshold_s) cloud TPS
+        AND model >= 1B params:
           tool mode -> local (cloud/hybrid often fail for these models)
           base mode -> hybrid if network OK, else local
       - All other cases -> cloud (5-8x lower device energy)
+
+    The two thresholds (energy_threshold_J, latency_threshold_s) parameterize
+    the TPS-ratio cutoff (as energy/latency) and the RTT cutoff for hybrid
+    offload. Defaults (2.0 J, 1.0 s) reproduce the paper's point estimate.
     """
     params = cost_params["parameters"].get(model, {})
     cloud_tps = cost_params.get("cloud_tps", {}).get(model)
@@ -173,41 +180,32 @@ def policy_cost_aware(model: str, mode: str, network_condition: str,
     if network_condition == "local":
         return "local"
 
-    # Signal 1: TPS ratio
+    # Signal 1: TPS ratio (cutoff = energy_threshold_J / latency_threshold_s;
+    # at default (2.0 J, 1.0 s) this is 2.0, matching the original rule)
     tps_ratio = TPS_device / cloud_tps
+    tps_cutoff = energy_threshold_J / latency_threshold_s
 
     # Signal 2: Model capability (parameter count from name)
     param_b = _extract_param_billions(model)
     is_capable = param_b >= 1.0
 
-    # Device is substantially faster (>2x) AND model is capable
+    # RTT cutoff (ms): 200 ms by default; scales with latency_threshold_s
+    rtt_cutoff_ms = 200.0 * latency_threshold_s
+
+    # Device is substantially faster (>cutoff) AND model is capable
     # -> local/hybrid can compete on quality while avoiding network cost
-    #
-    # This correctly identifies:
-    #   deepseek-r1 (1.5B, ratio=2.49): hybrid=41% base, local=36% tool
-    # And correctly excludes:
-    #   qwen-3-0.6b (0.6B, ratio=3.42): too small, cloud=44% >> local=22%
-    #   qwen-3-4b (4B, ratio=1.50): ratio too low, cloud is appropriate
-    #   llama-3.2-3b (3B, ratio=1.59): ratio too low, cloud wins
-    if tps_ratio > 2.0 and is_capable:
+    if tps_ratio > tps_cutoff and is_capable:
         if mode == "full_tool":
             # Local tool execution with a capable fast model.
-            # Cloud/hybrid often fail catastrophically here because the
-            # model's tool-calling format doesn't survive cloud streaming.
             return "local"
         else:
-            # Base mode: hybrid combines cloud model quality with the
-            # device's faster execution, but only if network is usable.
-            if rtt_ms <= 200:
+            # Base mode: hybrid only if network is usable.
+            if rtt_ms <= rtt_cutoff_ms:
                 return "hybrid"
             else:
                 return "local"
 
     # Default: cloud offloading
-    # For models where cloud TPS is comparable to device TPS, or where
-    # the model is too small for local quality, cloud provides:
-    #   - 5-8x lower device energy (idle vs active inference)
-    #   - Equal or better task accuracy
     return "cloud"
 
 
@@ -521,6 +519,114 @@ def build_figure_data(results: Dict[str, List[Dict]],
     return figures
 
 
+def sweep_thresholds(
+    arch_data: List[Dict],
+    cost_params: Dict,
+    radio_data: Dict,
+    energy_grid=None,
+    latency_grid=None,
+):
+    """Evaluate policy_cost_aware at each (energy_threshold, latency_threshold)
+    combination.
+
+    Returns a pandas.DataFrame with columns:
+        [energy_threshold, latency_threshold, pass_rate, mean_energy_J,
+         oracle_pass_rate, energy_reduction_vs_local, pct_of_oracle_pass].
+    """
+    import numpy as np
+    import pandas as pd
+
+    if energy_grid is None:
+        energy_grid = np.linspace(0.5, 5.0, 19).tolist()
+    if latency_grid is None:
+        latency_grid = np.linspace(0.2, 3.0, 15).tolist()
+
+    lookup = build_lookup(arch_data)
+
+    # Unique evaluation points (model, mode, network_condition)
+    eval_points = set()
+    for entry in arch_data:
+        eval_points.add((entry["model"], entry["mode"],
+                         entry["network_condition"]))
+    eval_points = sorted(eval_points)
+
+    # Oracle + always-local baselines are threshold-independent — compute once.
+    oracle_pass_rates = []
+    local_energies = []
+    for model, mode, net_cond in eval_points:
+        # Oracle
+        best_entry = None
+        best_score = (-1.0, -float("inf"))
+        for arch in ("local", "cloud", "hybrid"):
+            e = lookup.get((model, mode, arch, net_cond))
+            if e is None:
+                continue
+            score = (e["pass_rate"], -e["avg_time_s"])
+            if score > best_score:
+                best_score = score
+                best_entry = e
+        if best_entry:
+            oracle_pass_rates.append(best_entry["pass_rate"])
+
+        # Always-local
+        local_entry = lookup.get((model, mode, "local", net_cond))
+        if local_entry is not None:
+            local_energies.append(
+                estimate_energy(local_entry, cost_params, radio_data)
+            )
+
+    oracle_pass_rate = (
+        sum(oracle_pass_rates) / len(oracle_pass_rates)
+        if oracle_pass_rates else 1.0
+    )
+    mean_energy_local = (
+        sum(local_energies) / len(local_energies)
+        if local_energies else 1.0
+    )
+
+    rows = []
+    for e_thr in energy_grid:
+        for l_thr in latency_grid:
+            pass_rates = []
+            energies = []
+            for model, mode, net_cond in eval_points:
+                sample = lookup.get((model, mode, "cloud", net_cond))
+                rtt_ms = sample["rtt_ms"] if sample else 0.0
+                chosen = policy_cost_aware(
+                    model, mode, net_cond, rtt_ms,
+                    cost_params, radio_data,
+                    energy_threshold_J=float(e_thr),
+                    latency_threshold_s=float(l_thr),
+                )
+                entry = lookup.get((model, mode, chosen, net_cond))
+                if entry is None:
+                    continue
+                pass_rates.append(entry["pass_rate"])
+                energies.append(estimate_energy(entry, cost_params, radio_data))
+
+            if not pass_rates:
+                continue
+            mean_pass = sum(pass_rates) / len(pass_rates)
+            mean_energy = sum(energies) / len(energies)
+            rows.append({
+                "energy_threshold": float(e_thr),
+                "latency_threshold": float(l_thr),
+                "pass_rate": mean_pass,
+                "mean_energy_J": mean_energy,
+                "oracle_pass_rate": oracle_pass_rate,
+                "energy_reduction_vs_local": (
+                    1.0 - mean_energy / mean_energy_local
+                    if mean_energy_local > 0 else 0.0
+                ),
+                "pct_of_oracle_pass": (
+                    mean_pass / oracle_pass_rate
+                    if oracle_pass_rate > 0 else 0.0
+                ),
+            })
+
+    return pd.DataFrame(rows)
+
+
 def print_summary_table(summary: Dict[str, Dict]) -> None:
     """Print a formatted summary table."""
     header = (f"{'Policy':<18} {'Pass@1':>8} {'Avg Time':>10} "
@@ -649,6 +755,20 @@ def main():
     print(f"  policy_evaluation.json  ({os.path.getsize(OUTPUT_DIR / 'policy_evaluation.json') // 1024} KB)")
     print(f"  decision_matrix.json    ({os.path.getsize(OUTPUT_DIR / 'decision_matrix.json') // 1024} KB)")
     print(f"  figures_data.json       ({os.path.getsize(OUTPUT_DIR / 'figures_data.json') // 1024} KB)")
+
+    # ── Threshold sensitivity sweep ──────────────────────────────────────────
+    print("\nRunning threshold sensitivity sweep (19 x 15 = 285 grid cells)...")
+    df = sweep_thresholds(arch_data, cost_params, radio_data)
+    sweep_out_dir = DATA_DIR / "placement_evaluation"
+    sweep_out_dir.mkdir(parents=True, exist_ok=True)
+    sweep_csv = sweep_out_dir / "threshold_sensitivity.csv"
+    df.to_csv(sweep_csv, index=False)
+    print(f"  wrote {sweep_csv} ({len(df)} rows)")
+    print(f"  pct_of_oracle_pass: min={df['pct_of_oracle_pass'].min():.3f} "
+          f"max={df['pct_of_oracle_pass'].max():.3f} "
+          f"mean={df['pct_of_oracle_pass'].mean():.3f}")
+    print(f"  energy_reduction_vs_local: min={df['energy_reduction_vs_local'].min():.3f} "
+          f"max={df['energy_reduction_vs_local'].max():.3f}")
 
 
 if __name__ == "__main__":

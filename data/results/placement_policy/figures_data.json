@@ -345,7 +345,7 @@
         "ALWAYS_LOCAL": {
           "avg_pass_rate": 0.36,
           "avg_time_s": 31.83,
-          "avg_energy_j": 458.41
+          "avg_energy_j": 458.4
         },
         "ALWAYS_CLOUD": {
           "avg_pass_rate": 0.27,
@@ -434,7 +434,7 @@
         "ORACLE": {
           "avg_pass_rate": 0.4129,
           "avg_time_s": 8.06,
-          "avg_energy_j": 80.25
+          "avg_energy_j": 80.26
         }
       },
       "qwen-3-4b": {

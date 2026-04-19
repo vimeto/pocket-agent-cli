@@ -63,10 +63,10 @@ python3 -m vllm.entrypoints.openai.api_server \
     --model Qwen/Qwen3-4B \
     --host 0.0.0.0 --port $PORT \
     --dtype auto --trust-remote-code \
-    --gpu-memory-utilization 0.70 \
-    --max-model-len 4096 \
+    --gpu-memory-utilization 0.85 \
+    --max-model-len 16384 \
     --enable-chunked-prefill \
-    --max-num-batched-tokens 2048 \
+    --max-num-batched-tokens 4096 \
     --served-model-name Qwen/Qwen3-4B &
 SERVER_PID=$!
 

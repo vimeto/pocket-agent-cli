@@ -58,7 +58,7 @@
 LLM-powered agents are rapidly expanding their deployment on mobile and edge devices, yet no systematic study quantifies where inference should run for iterative tool-calling workloads.
 We present Pocket Agent, a measurement framework that instruments complete agentic loops (Tool $\rightarrow$ Action $\rightarrow$ Observation cycles) across three deployment architectures (local, cloud, and hybrid), seven models (0.6B--4B parameters), three hardware platforms (mobile, laptop, and GPU server), and four benchmarks (MBPP, HumanEval, BFCL, and Web Search QA).
 Our evaluation across seven network conditions yields three key findings.
-First, agentic workloads are compute-dominated: even at 500\,ms RTT, network overhead adds less than 4\% to end-to-end latency, making the deployment decision largely network-agnostic for model sizes.
+First, agentic workloads are compute-dominated: even at 500\,ms network round-trip time, network overhead adds less than 4\% to end-to-end latency, making the deployment decision largely network-agnostic for tested model sizes.
 Second, thinking models \textbf{waste} both compute and communication resources: an early-exit thinking budget improves accuracy by 6--10 percentage points while reducing energy by 39--84\%, and 95\% of inter-request gaps exceed cellular RRC timers, \textbf{wasting} 95\% of radio energy on tail states.
 Third, context compression exhibits a three-way tradeoff between bandwidth savings, accuracy, and prefix-cache efficiency: stripping thinking tokens from context improves accuracy by 6.6pp while heavier compression degrades both accuracy and cache efficiency.
 We characterize agentic inference as a new mobile traffic class and evaluate six placement policies, finding that a simple cost-aware rule achieves 97.5\% of oracle performance while reducing energy by 62\% versus always-local execution.
@@ -143,34 +143,35 @@ Pocket Agent is released at \url{https://github.com/[anonymized]}, including all
 \section{Related Work}
 \label{sec:related}
 
-\textbf{LLM Inference Systems and Runtimes.}
+\paragraph{LLM Inference Systems and Runtimes.}
 On-device inference engines span hand-tuned libraries such as \texttt{llama.cpp}~\cite{llamacpp} and MLX for Apple Silicon, and compiler-based frameworks like MLC-LLM~\cite{mlc-llm} that prioritize hardware portability.
 Server-side systems including SGLang and vLLM exploit continuous batching, PagedAttention, and RadixAttention to maximize GPU utilization.
 Recent works exploit activation locality (PowerInfer-2~\cite{powerinfer2}) or target mobile NPUs directly~\cite{llm-npu2024}.
-All prior systems evaluate single-pass prompt $\rightarrow$ response generation rather than the iterative tool-calling workflows that characterize modern agents.
 
-\textbf{Model Compression.}
+\paragraph{Model Compression.}
 Weight-only post-training quantization remains the dominant approach for deploying multi-billion parameter models on memory-constrained devices.
 AWQ~\cite{awq2023} preserves quality at 4-bit precision, the GGUF format~\cite{gguf2024} standardizes block-wise quantization, and MobileQuant~\cite{mobilequant2025} pushes activation precision lower for edge deployment.
-We previously showed that quantization benefits are architecture-dependent: models without native INT4 GPU kernels can regress 40$\times$ in throughput on Apple Silicon.
 
-\textbf{LLM Offloading and Split Inference.}
+\paragraph{LLM Offloading and Split Inference.}
 DRAGON~\cite{dragon2025} proposes disaggregated inference for resource-constrained devices at MobiHoc'25, partitioning prefill and decode across edge and cloud.
 Splitwise~\cite{splitwise2024} separates prefill and decode phases across GPU clusters.
 EdgeShard~\cite{edgeshard2024} partitions models across heterogeneous edge devices via collaborative inference.
-These systems target single-request latency; we complement them by characterizing multi-turn agentic workloads where context growth and tool-calling patterns create distinct traffic and energy profiles.
 
-\textbf{Efficient Reasoning.}
+\paragraph{Efficient Reasoning.}
 Chain-of-thought models devote the vast majority of output tokens to reasoning.
 Budget forcing~\cite{budgetforcing2025} constrains thinking length during training;
 NOWAIT~\cite{nowait2025} proposes speculative execution of reasoning steps;
 ``Don't Overthink It''~\cite{dontoverthink2025} shows that shorter traces often yield better results.
-We provide empirical evidence for this in the deployment context: our early-exit mechanism improves both accuracy and energy efficiency by terminating unproductive deliberation.
 
-\textbf{Measurement and Characterization.}
+\paragraph{Measurement and Characterization.}
 MLPerf Inference~\cite{mlperf-inference2025} formalizes latency targets for single-pass inference.
 Mobile profiling studies~\cite{xiao2025understandinglargelanguagemodels,llm-npu2024} reveal that mobile GPUs operate at under 20\% utilization and prefill dominates long-context latency.
-Unlike prior work that measures prompt $\rightarrow$ response in isolation, Pocket Agent quantifies complete agentic loops across deployment architectures, including network and radio costs.
+
+\medskip
+\noindent
+All five threads above optimize a single prompt~$\rightarrow$~response cycle: runtimes parallelize one pass, offloading partitions one request, compression shrinks one forward run, reasoning work trims one trace, and measurement reports per-request latency.
+Modern agents chain tens of such cycles with evolving context and tool invocations, so their deployment cost does not reduce to single-request metrics.
+Pocket Agent characterizes complete agentic loops across local, hybrid, and cloud deployments, quantifying how per-token, per-request, and per-radio costs compose into end-to-end latency, energy, and bandwidth.
 
 %% ============================================================
 %% 3. PRELIMINARIES AND METRICS
@@ -203,18 +204,18 @@ We evaluate agents in three modes (Table~\ref{tab:modes}).
 
 \subsection{Performance Metrics}
 
-\textbf{Latency.}
+\paragraph{Latency.}
 TTFT (time-to-first-token) captures prefill overhead; End-to-End Time includes all tool execution and subsequent LLM calls.
 
-\textbf{Throughput.}
+\paragraph{Throughput.}
 We distinguish \emph{completion TPS} (tokens generated per second for a single request, determining user-perceived latency) from \emph{server throughput} (aggregate tokens per second across concurrent requests).
 On-device inference (MLX, llama.cpp) is single-request; server inference via SGLang processes batches of up to 150 concurrent requests using continuous batching.
 All per-model TPS values in this paper refer to completion TPS unless stated otherwise.
 
-\textbf{Success.}
+\paragraph{Success.}
 Pass@k is the probability a correct solution appears within $k$ attempts~\cite{chen2021evaluating}. We report Pass@1 with temperature 0.7.
 
-\textbf{Energy.}
+\paragraph{Energy.}
 Energy per Token~= $\mathrm{Power}_{\mathrm{gen}} / \mathrm{TPS}_{\mathrm{completion}}$.
 \emph{Energy per Successful Solution} sums energy across all attempts until success: $E_{\text{succ}} = \sum_{a=1}^{k^*} E_a$, where $k^*$ is the first successful attempt~\cite{schwartz2020greenai}, capturing the true cost of retries.
 Our energy measurements use single-user completion TPS, representing the per-user cost; under batch utilization, server energy per token is amortized across concurrent users (Section~\ref{sec:costmodel}).
@@ -364,13 +365,13 @@ Before evaluating deployment architectures, we characterize agent behavior on it
 \label{sec:capability}
 \label{sec:errors}
 
-\begin{figure}[t]
+\begin{figure*}[t]
   \centering
-  \includegraphics[width=\columnwidth]{figs/new/fig1_pass_at_1_comparison.pdf}
+  \includegraphics[width=\textwidth]{figs/new/fig1_pass_at_1_comparison.pdf}
   \caption{Pass@1 across seven models, three execution modes, and two benchmarks. The left panel (MBPP, 500 problems) and right panel (HumanEval, 164 problems) each show three bars per model---sage green (Base), salmon (Tool-Submission), and steel blue (Full-Tool)---revealing the progression from no tools to full agentic tool use. Qwen~3 (4B) gains substantially from tools (+9pp on MBPP, +7pp on HumanEval), while Llama~3.2 and DeepSeek R1 degrade, revealing a capability threshold for effective tool use.}
   \label{fig:pass1}
   \Description{Bar chart with left panel (MBPP) and right panel (HumanEval), each showing three bars per model in sage green (Base), salmon (Tool-Submission), and steel blue (Full-Tool). Qwen 3 4B gains substantially from tools while Llama and DeepSeek are hurt.}
-\end{figure}
+\end{figure*}
 
 Figure~\ref{fig:pass1} presents Pass@1 across all seven models and three execution modes on MBPP (left panel, 500 problems) and HumanEval (right panel, 164 problems), indicating a clear capability threshold for effective tool use. For each model group, the three colored bars---sage green (Base), salmon (Tool-Submission), and steel blue (Full-Tool)---show the progression from no tools to full agentic tool use. On MBPP with cloud FP16 inference, the leftmost model group (Qwen~3 4B) shows a clear upward trend: the sage green bar sits at 68\%, the salmon bar rises to 79\%, and the steel blue bar reaches 77\%, a net +9pp gain from structured tool use. In contrast, models below the threshold are actively \emph{harmed} by tools: the Llama~3.2 group shows the steel blue bar dropping below the sage green bar (50\% to 43\%, $-$7pp), and DeepSeek R1 shows a similar decline (42\% to 33\%, $-$9pp) in Full-Tool mode, as these models generate malformed tool calls or invoke tools at inappropriate times. Gemma~3n illustrates an intermediate case: its salmon bar matches the sage green bar (61\%) but the steel blue bar drops sharply to 35\%, indicating that it can produce structured output but cannot sustain multi-turn tool use. Qwen~3 (0.6B) degrades from 42\% (Base) to 34\% in both Tool-Submission and Full-Tool modes, consistent with insufficient capability at this scale.
 
@@ -523,6 +524,12 @@ Across the full model set (not shown), the sole exception is Gemma~3n, where loc
 
 The overarching finding is that network overhead is negligible. Across all models and RTT conditions, it adds less than 4\% to end-to-end latency. The reason is structural: agentic payloads are small (2--21\,KB per request) and tool-calling rounds are few (3--5), while inference time ranges from 3 to 63 seconds, yielding a network-to-compute ratio on the order of $10^{-2}$ even under adversarial conditions. Pass@1 is consistent across platforms (MLX and SGLang yield comparable accuracy for all models). To test whether bandwidth constraints might shift this picture, we swept bandwidth from 0.5 to 100\,Mbps across three RTT conditions and found no crossover point at any realistic bandwidth. At 0.5\,Mbps, below typical 4G throughput, cloud latency for Qwen~3 (4B) increases by only 0.3\,s, because payload sizes are small (median 8.4\,KB per request, 14.2\,KB per response); even the largest payloads (21\,KB) transfer in under 0.4\,s. The compute-to-transfer ratio exceeds 100:1 at all tested bandwidths. For current model sizes and agentic workloads, neither latency nor bandwidth constrains the deployment decision; it should instead be driven by compute availability, energy cost, and privacy requirements. A simple two-signal heuristic suffices: offload to the cloud when cloud TPS exceeds local TPS by more than $2\times$ and model size exceeds 1B parameters; otherwise, run locally. This rule routes Gemma~3n locally while offloading all other models, reducing energy by 62\% versus always-local execution.
 
+\begin{insightbox}{Two signals suffice for placement}
+For current agentic workloads with models up to 4B parameters, the deployment decision is driven by compute availability and energy cost, not network conditions.
+A two-signal placement rule (TPS ratio, model size) achieves near-oracle performance.
+The networking challenge is not latency or bandwidth but radio energy waste from timing mismatches between inference patterns and cellular RRC state machines.
+\end{insightbox}
+
 \subsection{Characterization of Agentic Traffic }
 \label{sec:traffic}
 
@@ -603,12 +610,6 @@ The third question---\emph{can we reduce cost through thinking budgets and conte
 Based on these findings, we distill actionable guidelines across four dimensions. For \emph{deployment}, cloud offloading is preferred for models above 1B without architecture-specific local advantages, as compute savings dominate network costs; the cost-aware placement rule (TPS ratio + model size) suffices, and bandwidth monitoring adds no value. In practice, applications should implement capability-gated agency: begin in Base mode and escalate to Full-Tool only when model capability and task complexity warrant it. For \emph{inference}, thinking budgets should be enabled by default for thinking models ($B{=}2048$ as a conservative starting point, $B{=}1024$ for efficient reasoners), and context compression at L2 (strip thinking tokens) is the default operating point for cloud deployments. For \emph{networking}, agentic workloads constitute a new traffic class poorly served by current radio resource management; application-layer solutions (batching outputs, local reasoning with cloud-offloaded action, or predictive wake-up) can bridge the mismatch between inference timing and RRC timers. For \emph{privacy}, the hybrid architecture preserves tool-level privacy while capturing most of the cloud's throughput advantage, and context compression further reduces information exposure by stripping verbose tool outputs before transmission.
 
 Our evaluation covers code-generation and QA tasks; extending to multi-modal agents and longer-horizon planning would broaden applicability. Network conditions are simulated rather than measured on real cellular networks, and the RRC energy model uses standard 3GPP parameters that may differ from operator-specific configurations. Mobile phone measurements cover throughput, power, and prefill latency but not the full three-architecture comparison, which requires SGLang/vLLM that currently lack mobile ports. Mobile energy values carry $\pm$15\% uncertainty due to indirect measurement via battery and thermal APIs. Three directions follow naturally from our findings: deploying the hybrid architecture on real cellular networks with application-layer optimizations (batching tool outputs, preferring WiFi, deferring non-urgent agentic tasks) to reduce the radio energy waste; extending to multi-agent coordination scenarios where models on different devices coordinate, multiplying both compute and network costs; and co-designing radio resource management policies with inference scheduling to address the structural mismatch between agentic traffic patterns and RRC state machines.
-
-\begin{insightbox}{Two signals suffice for placement}
-For current agentic workloads with models up to 4B parameters, the deployment decision is driven by compute availability and energy cost, not network conditions.
-A two-signal placement rule (TPS ratio, model size) achieves near-oracle performance.
-The networking challenge is not latency or bandwidth but radio energy waste from timing mismatches between inference patterns and cellular RRC state machines.
-\end{insightbox}
 
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{main}

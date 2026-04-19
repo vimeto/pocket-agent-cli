@@ -342,48 +342,38 @@ def _load_websearch():
 # FIGURE 1: Pass@1 Accuracy Comparison (MBPP + HumanEval) -- 7 models
 # ===================================================================
 def figure1_pass_at_1():
-    print("Figure 1: Pass@1 Accuracy Comparison (7 models) ...")
+    print("Figure 1: Pass@1 Accuracy (MBPP, 7 models, single column) ...")
 
     mbpp = _load_mbpp_cloud()
-    humaneval = _load_humaneval_cloud()
 
-    fig, axes = plt.subplots(1, 2, figsize=(DOUBLE_COL_W, 3.0), sharey=True)
+    fig, ax = plt.subplots(figsize=(SINGLE_COL_W, 2.2))
+    _style_ax(ax)
 
     models = MODELS_ORDERED_7
+    x = np.arange(len(models))
+    width = 0.26
 
-    # HumanEval only has data for core 5 models (not probes)
-    he_models = [m for m in models if m in humaneval and len(humaneval[m]) > 0]
+    for i, mode in enumerate(MODES_ORDERED):
+        vals = [mbpp.get(m, {}).get(mode, 0) * 100 for m in models]
+        ax.bar(x + (i - 1) * width, vals, width,
+               label=MODE_LABELS[mode], color=MODE_COLORS[mode],
+               edgecolor="white", linewidth=0.4)
 
-    for ax, (dataset_name, data, model_list) in zip(axes, [
-        ("MBPP (cloud)", mbpp, models),
-        ("HumanEval (cloud, n=164)", humaneval, he_models),
-    ]):
-        _style_ax(ax)
-        x = np.arange(len(model_list))
-        width = 0.22
+    ax.set_xticks(x)
+    ax.set_xticklabels([MODEL_SHORT[m] for m in models],
+                       rotation=40, ha="right", fontsize=7)
+    ax.tick_params(axis="y", labelsize=7)
+    ax.set_ylim(0, 105)
+    ax.set_ylabel("Pass@1 (%)", fontsize=8)
+    ax.legend(loc="upper right", framealpha=0.9, edgecolor="none",
+              fontsize=6.5, ncol=3, columnspacing=0.8, handletextpad=0.4)
 
-        for i, mode in enumerate(MODES_ORDERED):
-            vals = [data.get(m, {}).get(mode, 0) * 100 for m in model_list]
-            ax.bar(x + (i - 1) * width, vals, width,
-                   label=MODE_LABELS[mode], color=MODE_COLORS[mode],
-                   edgecolor="white", linewidth=0.5)
+    ax.axhline(y=50, color=CB_PALETTE["grey"], linestyle="--",
+               linewidth=0.7, alpha=0.5)
+    ax.text(0.01, 51, "threshold", transform=ax.get_yaxis_transform(),
+            fontsize=6.5, color=CB_PALETTE["grey"], va="bottom")
 
-        ax.set_xticks(x)
-        ax.set_xticklabels([MODEL_SHORT[m] for m in model_list],
-                           rotation=35, ha="right", fontsize=8)
-        ax.set_title(dataset_name, fontsize=9, fontweight="normal")
-        ax.tick_params(axis="y", labelsize=8)
-        ax.set_ylim(0, 105)
-
-    axes[0].set_ylabel("Pass@1 (%)", fontsize=9)
-    axes[1].legend(loc="upper right", framealpha=0.9, edgecolor="none", fontsize=8)
-
-    axes[0].axhline(y=50, color=CB_PALETTE["grey"], linestyle="--",
-                    linewidth=0.7, alpha=0.5)
-    axes[0].text(0.02, 51, "capability\nthreshold", transform=axes[0].get_yaxis_transform(),
-                 fontsize=7, color=CB_PALETTE["grey"], va="bottom")
-
-    fig.tight_layout(w_pad=1.0)
+    fig.tight_layout()
     _save(fig, "fig1_pass_at_1_comparison")
 
 
@@ -426,7 +416,7 @@ def figure2_early_exit():
     color_acc = "#4A7FB5"     # stronger blue for Pass@1 line
     color_energy = "#D4765A"  # stronger salmon for Energy bars
 
-    fig, axes = plt.subplots(1, 4, figsize=(DOUBLE_COL_W, 2.2))
+    fig, axes = plt.subplots(1, 4, figsize=(DOUBLE_COL_W, 1.75))
 
     for ax, model, title in zip(axes, panel_models, panel_titles):
         _style_ax(ax)
@@ -485,52 +475,52 @@ def figure3_architecture():
 
     raw = _load_json(data_path)
 
-    panel_models = ["qwen-3-4b", "llama-3.2-3b-instruct"]
-    panel_titles = ["Qwen3 4B (thinking)", "Llama3.2 3B (non-thinking)"]
+    model = "qwen-3-4b"
+    title = "Qwen3 4B (thinking)"
     architectures = ["local", "hybrid", "cloud"]
     arch_colors = {
-        "local": "#F4A582",   # salmon
-        "hybrid": "#8FBC8F",  # sage green
-        "cloud": "#92B4D4",   # steel blue
+        "local": "#F4A582",
+        "hybrid": "#8FBC8F",
+        "cloud": "#92B4D4",
     }
     arch_labels = {"local": "Local", "hybrid": "Hybrid", "cloud": "Cloud"}
 
     target_rtts = [0, 1, 20, 40, 80, 200, 500]
 
-    fig, axes = plt.subplots(1, 2, figsize=(DOUBLE_COL_W, 2.2))
+    fig, ax = plt.subplots(figsize=(SINGLE_COL_W, 1.9))
+    _style_ax(ax)
 
-    for ax, model, title in zip(axes, panel_models, panel_titles):
-        _style_ax(ax)
-        for arch in architectures:
-            points = [r for r in raw
-                      if r["model"] == model
-                      and r["mode"] == "base"
-                      and r["architecture"] == arch]
+    for arch in architectures:
+        points = [r for r in raw
+                  if r["model"] == model
+                  and r["mode"] == "base"
+                  and r["architecture"] == arch]
 
-            rtt_to_time = {}
-            for p in points:
-                rtt = p["rtt_ms"]
-                rtt_to_time[rtt] = p["avg_time_s"]
+        rtt_to_time = {}
+        for p in points:
+            rtt = p["rtt_ms"]
+            rtt_to_time[rtt] = p["avg_time_s"]
 
-            rtts = sorted(rtt_to_time.keys())
-            times = [rtt_to_time[r] for r in rtts]
+        rtts = sorted(rtt_to_time.keys())
+        times = [rtt_to_time[r] for r in rtts]
 
-            if not rtts:
-                continue
+        if not rtts:
+            continue
 
-            ax.plot(rtts, times, "o-", color=arch_colors[arch],
-                    label=arch_labels[arch], markersize=3.5, linewidth=1.2)
+        ax.plot(rtts, times, "o-", color=arch_colors[arch],
+                label=arch_labels[arch], markersize=3.5, linewidth=1.2)
 
-        ax.set_xlabel("Network RTT (ms)")
-        ax.set_ylabel("Avg. Completion Time (s)")
-        ax.set_title(title, fontsize=9, fontweight="normal")
-        ax.legend(fontsize=7, loc="upper left")
-        ax.set_xscale("symlog", linthresh=1)
-        ax.xaxis.set_major_formatter(mticker.ScalarFormatter())
-        ax.set_xticks(target_rtts)
-        ax.set_xticklabels([str(r) for r in target_rtts], fontsize=7)
+    ax.set_xlabel("Network RTT (ms)", fontsize=8)
+    ax.set_ylabel("Avg. Completion Time (s)", fontsize=8)
+    ax.set_title(title, fontsize=8.5, fontweight="normal")
+    ax.legend(fontsize=7, loc="upper left")
+    ax.set_xscale("symlog", linthresh=1)
+    ax.xaxis.set_major_formatter(mticker.ScalarFormatter())
+    ax.set_xticks(target_rtts)
+    ax.set_xticklabels([str(r) for r in target_rtts], fontsize=7)
+    ax.tick_params(axis="y", labelsize=7)
 
-    fig.tight_layout(w_pad=1.5)
+    fig.tight_layout()
     _save(fig, "fig3_architecture_comparison")
 
 
@@ -540,7 +530,7 @@ def figure3_architecture():
 def figure4_traffic():
     print("Figure 4: Traffic Characterization ...")
 
-    fig, (ax_cdf, ax_radio) = plt.subplots(1, 2, figsize=(DOUBLE_COL_W, 2.5),
+    fig, (ax_cdf, ax_radio) = plt.subplots(1, 2, figsize=(DOUBLE_COL_W, 1.9),
                                               gridspec_kw={"width_ratios": [1.4, 1]})
 
     cdf_data = _load_json(DATA_DIR / "traffic_characterization" / "traffic_char_inter_request_cdf.json")
